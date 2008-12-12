@@ -40,8 +40,9 @@ public class RepositorySessionUtil {
 
 
     public static RulesRepository getRepository() throws RulesRepositoryException {
+        	
         Object repoInstance = repo.get();
-        if ( repoInstance == null ) {
+    	if ( repoInstance == null ) {
 
             File dir = new File( "repository" );
             System.out.println( "DELETING test repo: " + dir.getAbsolutePath() );
