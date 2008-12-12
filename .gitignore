@@ -1,0 +1,7 @@
+*/target/
+*/**/target/
+*.log
+.DS_Store
+*/repository/
+*/repository.xml
+*/drools-eclipse/*/lib/
