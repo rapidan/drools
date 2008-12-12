@@ -19,6 +19,7 @@ import org.drools.repository.RulesRepositoryException;
 import org.drools.repository.RulesRepositoryTest;
 import org.drools.repository.remoteapi.Response.Binary;
 import org.drools.repository.remoteapi.Response.Text;
+import org.drools.repository.remoteapi.Response;
 
 public class RestAPITest extends TestCase {
 	//String someAsset = "packages/SomeName/SomeFile.drl";
@@ -160,6 +161,38 @@ public class RestAPITest extends TestCase {
 
 	}
 
+	public void testGetPackages() throws Exception {
+		RulesRepository repo = RepositorySessionUtil.getRepository();
+		PackageItem pkg1 = repo.createPackage("testRestPackage", "");
+		pkg1.updateStringProperty("This is some header", PackageItem.HEADER_PROPERTY_NAME);
+		
+		PackageItem pkg2 = repo.createPackage("secondTestRestPackage", "");
+		pkg2.updateStringProperty("This is some header", PackageItem.HEADER_PROPERTY_NAME);
+		
+		repo.save();
+
+		AssetItem asset1 = pkg1.addAsset("asset1", "");
+		asset1.updateContent("this is content");
+		asset1.updateFormat("drl");
+		asset1.checkin("");
+
+		assertFalse(asset1.isBinary());
+
+		RestAPI api = new RestAPI(repo);
+
+		// repository is set up for test
+		Response res = api.get("packages");
+		assertTrue(res instanceof Text);
+		
+		System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+		System.out.println(">>>>>response[" + ((Text)res).data + "]");
+		String []results = ((String)((Text)res).data).split("\n");
+		
+		System.out.println("results:" + results[results.length-1]);
+		assert(results[results.length-1].startsWith("secondTestRestPackage"));
+
+	}
+	
 	public void testGetVersionHistory() throws Exception {
 		RulesRepository repo = RepositorySessionUtil.getRepository();
 		PackageItem pkg = repo.createPackage("testRestGetVersionHistory", "");

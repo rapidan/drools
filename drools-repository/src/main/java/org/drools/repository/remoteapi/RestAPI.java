@@ -56,21 +56,42 @@ public class RestAPI {
 	 * packages/packageName/assetName --> the contents of the package
 	 */
 	public Response get(String path) throws UnsupportedEncodingException {
+		Response res = null;
 		String[] bits = split(path);
-		if (bits.length == 1) return new Response.Text("");
-		if (bits[0].equals("packages")) {
-			String pkgName = bits[1];
-			if (bits.length == 2) {
-				return listPackage(pkgName);
-			} else {
-				String resourceFile = bits[2];
-				return loadContent(pkgName, resourceFile);
-			}
-		} else {
-			return new Response.Text("");//throw new IllegalArgumentException("Unable to deal with " + path);
-		}
 
+		//!!hv
+		for (int i = 0; i < bits.length; i++) {
+			System.out.println(">>> bits[" + i + "]=[" + bits[i] + "]");
+		}
+		
+		String pkgName = null;
+		if (bits.length > 0) {
+			if (bits[0].equals("packages")) {
+				if (bits.length == 1) {  //  ../packages  -- return a list of packages
+					System.out.println("RestAPI.get, listing all packages");
+					res = listAllPackages();
+				} else if (bits.length == 2) {  //  ../packages/packageName
+					pkgName = bits[1];
+					//!!
+					System.out.println("RestAPI.get: Listing package" + pkgName);
+					res = listPackage(pkgName);
+				} else if (bits.length == 3 ) {  //  ../packages/packageName/assetName
+					pkgName = bits[1];
+					String resourceFile = bits[2];
+					//!!
+					System.out.println("RestAPI.get: Loading content, package:" + pkgName + "resource:" + resourceFile);
+					res = loadContent(pkgName, resourceFile);
+				} 
+			}
+			// TODO should we also check for ../snapshots ?
+		}
+		if (res == null) {  // no response generated, parameters were invalid
+			res = new Response.Text("");  //throw new IllegalArgumentException("Unable to deal with " + path);
+			// should we be returning a 404?
+		}
+		return res;
 	}
+
 
 	String[] split(String path) throws UnsupportedEncodingException {
 		if (path.indexOf("api") > -1) {
@@ -198,6 +219,29 @@ public class RestAPI {
 		return r;
 	}
 
+	private Response listAllPackages() throws UnsupportedEncodingException {
+		
+		StringBuilder sb = new StringBuilder();
+		SimpleDateFormat sdf = getISODateFormat();
+
+		Iterator<PackageItem> it = repo.listPackages();
+		while(it.hasNext()) {
+		    PackageItem pkg = it.next();
+		    if (!pkg.isArchived()) {
+		        sb.append(pkg.getName());
+		        sb.append("=");
+		        sb.append(sdf.format(pkg.getLastModified().getTime()));
+		        sb.append(",");
+		        sb.append(pkg.getVersionNumber());
+		        sb.append('\n');
+		    }
+		}
+		Text r = new Response.Text();
+		r.lastModified = null;
+		r.data = sb.toString();
+		return r;
+	}
+
 	private String escapeSpacesForProps(String s) {
 		return s.replaceAll("\\s", "\\ ");
 	}
@@ -214,9 +258,25 @@ public class RestAPI {
 	 * @throws RulesRepositoryException */
 	public void post(String path, InputStream in, String comment) throws RulesRepositoryException, IOException {
 		String[] bits = split(path);
+
+		//!!hv
+		System.out.println(">>> RestAPI::post, path=" + path  + ", comment=" + comment);
+		for (int i = 0; i < bits.length; i++) {
+			System.out.println(">>> bits[" + i + "]=[" + bits[i] + "]");
+		}
+		
+
+		
 		if (bits[0].equals("packages")) {
 			String fileName = bits[2];
 			String[] a = fileName.split("\\.");
+			
+			//!!hv
+			System.out.println(">>>filename split");
+			for (int i = 0; i < a.length; i++ ) {
+				System.out.println("a[" + i + "]=" + a[i]);
+			}
+			
 			if (a[1].equals("package")) {
 				//new package
 				PackageItem pkg = repo.createPackage(bits[1], "<added remotely>");
@@ -224,6 +284,10 @@ public class RestAPI {
 				pkg.updateStringProperty(readContent(in), PackageItem.HEADER_PROPERTY_NAME);
 				repo.save();
 			} else {
+				
+				//!! hv
+				System.out.println("new asset");
+				
 				//new asset
 				PackageItem pkg = repo.loadPackage(bits[1]);
 				AssetItem asset;
@@ -243,8 +307,11 @@ public class RestAPI {
 					asset = pkg.addAsset(a[0], "<added remotely>");
 					asset.updateFormat(a[1]);
 					if (TEXT_ASSET_TYPES.containsKey(a[1])) {
+						//!!
+						System.out.println("Adding text content");
 						asset.updateContent(readContent(in));
 					} else {
+						System.out.println("Adding binary content");
 						asset.updateBinaryContentAttachment(in);
 					}
 				}
@@ -311,6 +378,9 @@ public class RestAPI {
 	 * @throws UnsupportedEncodingException
 	 */
 	public void delete(String path) throws UnsupportedEncodingException {
+		//!! 
+		System.out.println("RestAPI::delete, path=" + path);
+		
 		String[] bits = split(path);
 		if (bits[0].equals("packages")) {
 			String fileName = bits[2].split("\\.")[0];

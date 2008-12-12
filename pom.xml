@@ -346,7 +346,7 @@
             <modules>
                 <module>drools-docs</module>
                 <module>drools-eclipse</module>
-                <module>drools-examples</module>
+                <!-- <module>drools-examples</module> -->
             </modules>
         </profile>
         <profile>
@@ -359,7 +359,7 @@
             <modules>
                 <module>drools-docs</module>
                 <module>drools-eclipse</module>
-                <module>drools-examples</module>
+                <!-- <module>drools-examples</module> -->
             </modules>
         </profile>
     </profiles>
