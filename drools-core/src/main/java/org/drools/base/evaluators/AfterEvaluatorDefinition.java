@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,6 +31,7 @@ import org.drools.base.ValueType;
 import org.drools.common.EventFactHandle;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
+import org.drools.rule.VariableRestriction.LongVariableContextEntry;
 import org.drools.rule.VariableRestriction.ObjectVariableContextEntry;
 import org.drools.rule.VariableRestriction.VariableContextEntry;
 import org.drools.spi.Evaluator;
@@ -112,7 +114,9 @@ public class AfterEvaluatorDefinition
         return this.getEvaluator( type,
                                   operator.getOperatorString(),
                                   operator.isNegated(),
-                                  null );
+                                  null,
+                                  Target.HANDLE,
+                                  Target.HANDLE );
     }
 
     /**
@@ -124,7 +128,9 @@ public class AfterEvaluatorDefinition
         return this.getEvaluator( type,
                                   operator.getOperatorString(),
                                   operator.isNegated(),
-                                  parameterText );
+                                  parameterText,
+                                  Target.HANDLE,
+                                  Target.HANDLE );
     }
 
     /**
@@ -134,17 +140,37 @@ public class AfterEvaluatorDefinition
                                   final String operatorId,
                                   final boolean isNegated,
                                   final String parameterText) {
+        return this.getEvaluator( type,
+                                  operatorId,
+                                  isNegated,
+                                  parameterText,
+                                  Target.HANDLE,
+                                  Target.HANDLE );
+
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public Evaluator getEvaluator(final ValueType type,
+                                  final String operatorId,
+                                  final boolean isNegated,
+                                  final String parameterText,
+                                  final Target left,
+                                  final Target right) {
         if ( this.cache == Collections.EMPTY_MAP ) {
             this.cache = new HashMap<String, Evaluator>();
         }
-        String key = isNegated + ":" + parameterText;
+        String key = left+":"+right+":"+isNegated + ":" + parameterText;
         Evaluator eval = this.cache.get( key );
         if ( eval == null ) {
             Long[] params = parser.parse( parameterText );
             eval = new AfterEvaluator( type,
                                        isNegated,
                                        params,
-                                       parameterText );
+                                       parameterText,
+                                       left == Target.FACT,
+                                       right == Target.FACT );
             this.cache.put( key,
                             eval );
         }
@@ -168,8 +194,8 @@ public class AfterEvaluatorDefinition
     /**
      * @inheritDoc
      */
-    public boolean operatesOnFactHandles() {
-        return true;
+    public Target getTarget() {
+        return Target.BOTH;
     }
 
     /**
@@ -190,6 +216,8 @@ public class AfterEvaluatorDefinition
         private long              initRange;
         private long              finalRange;
         private String            paramText;
+        private boolean           unwrapLeft;
+        private boolean           unwrapRight;
 
         public AfterEvaluator() {
         }
@@ -197,10 +225,14 @@ public class AfterEvaluatorDefinition
         public AfterEvaluator(final ValueType type,
                               final boolean isNegated,
                               final Long[] parameters,
-                              final String paramText) {
+                              final String paramText,
+                              final boolean unwrapLeft,
+                              final boolean unwrapRight) {
             super( type,
                    isNegated ? NOT_AFTER : AFTER );
             this.paramText = paramText;
+            this.unwrapLeft = unwrapLeft;
+            this.unwrapRight = unwrapRight;
             this.setParameters( parameters );
         }
 
@@ -209,6 +241,8 @@ public class AfterEvaluatorDefinition
             super.readExternal( in );
             initRange = in.readLong();
             finalRange = in.readLong();
+            unwrapLeft = in.readBoolean();
+            unwrapRight = in.readBoolean();
             paramText = (String) in.readObject();
         }
 
@@ -216,12 +250,19 @@ public class AfterEvaluatorDefinition
             super.writeExternal( out );
             out.writeLong( initRange );
             out.writeLong( finalRange );
+            out.writeBoolean( unwrapLeft );
+            out.writeBoolean( unwrapRight );
             out.writeObject( paramText );
         }
 
         @Override
-        public Object prepareObject(InternalFactHandle handle) {
-            return handle;
+        public Object prepareLeftObject(InternalFactHandle handle) {
+            return unwrapLeft ? handle.getObject() : handle;
+        }
+
+        @Override
+        public Object prepareRightObject(InternalFactHandle handle) {
+            return unwrapRight ? handle.getObject() : handle;
         }
 
         @Override
@@ -265,7 +306,24 @@ public class AfterEvaluatorDefinition
             if ( context.rightNull ) {
                 return false;
             }
-            long dist = ((EventFactHandle) ((ObjectVariableContextEntry) context).right).getStartTimestamp() - ((EventFactHandle) left).getEndTimestamp();
+            long rightTS;
+            if( this.unwrapRight ) {
+                if( context instanceof ObjectVariableContextEntry ) {
+                    if( ((ObjectVariableContextEntry) context).right instanceof Date ) {
+                        rightTS = ((Date)((ObjectVariableContextEntry) context).right).getTime();
+                    } else {
+                        rightTS = ((Number)((ObjectVariableContextEntry) context).right).longValue();
+                    }
+                } else {
+                    rightTS = ((LongVariableContextEntry) context).right;
+                }
+            } else {
+                rightTS = ((EventFactHandle) ((ObjectVariableContextEntry) context).right).getStartTimestamp();
+            }
+            long leftTS = this.unwrapLeft ? context.declaration.getExtractor().getLongValue( workingMemory,
+                                                                                             left ) : ((EventFactHandle) left).getEndTimestamp();
+
+            long dist = rightTS - leftTS;
             return this.getOperator().isNegated() ^ (dist >= this.initRange && dist <= this.finalRange);
         }
 
@@ -276,7 +334,24 @@ public class AfterEvaluatorDefinition
                                                 right ) ) {
                 return false;
             }
-            long dist = ((EventFactHandle) right).getStartTimestamp() - ((EventFactHandle) ((ObjectVariableContextEntry) context).left).getEndTimestamp();
+            long rightTS = this.unwrapRight ? context.extractor.getLongValue( workingMemory,
+                                                                              right ) : ((EventFactHandle) right).getStartTimestamp();
+
+            long leftTS;
+            if( this.unwrapLeft ) {
+                if( context instanceof ObjectVariableContextEntry ) {
+                    if( ((ObjectVariableContextEntry) context).left instanceof Date ) {
+                        leftTS = ((Date)((ObjectVariableContextEntry) context).left).getTime();
+                    } else {
+                        leftTS = ((Number)((ObjectVariableContextEntry) context).left).longValue();
+                    }
+                } else {
+                    leftTS = ((LongVariableContextEntry) context).left;
+                }
+            } else {
+                leftTS = ((EventFactHandle) ((ObjectVariableContextEntry) context).left).getStartTimestamp();
+            }
+            long dist = rightTS - leftTS;
 
             return this.getOperator().isNegated() ^ (dist >= this.initRange && dist <= this.finalRange);
         }
@@ -290,7 +365,15 @@ public class AfterEvaluatorDefinition
                                          object1 ) ) {
                 return false;
             }
-            long dist = ((EventFactHandle) object1).getStartTimestamp() - ((EventFactHandle) object2).getEndTimestamp();
+            long rightTS = this.unwrapRight ? 
+                           extractor1.getLongValue( workingMemory, object1 ) : 
+                           ((EventFactHandle) object1).getStartTimestamp();
+
+            long leftTS = this.unwrapLeft ? 
+                          extractor2.getLongValue( workingMemory, object2 ) :
+                          ((EventFactHandle) object2).getEndTimestamp();
+
+            long dist = rightTS - leftTS;
             return this.getOperator().isNegated() ^ (dist >= this.initRange && dist <= this.finalRange);
         }
 
@@ -298,28 +381,32 @@ public class AfterEvaluatorDefinition
             return this.getOperator().toString() + "[" + paramText + "]";
         }
 
-        /* (non-Javadoc)
-         * @see java.lang.Object#hashCode()
-         */
         @Override
         public int hashCode() {
-            final int PRIME = 31;
+            final int prime = 31;
             int result = super.hashCode();
-            result = PRIME * result + (int) (finalRange ^ (finalRange >>> 32));
-            result = PRIME * result + (int) (initRange ^ (initRange >>> 32));
+            result = prime * result + (int) (finalRange ^ (finalRange >>> 32));
+            result = prime * result + (int) (initRange ^ (initRange >>> 32));
+            result = prime * result + ((paramText == null) ? 0 : paramText.hashCode());
+            result = prime * result + (unwrapLeft ? 1231 : 1237);
+            result = prime * result + (unwrapRight ? 1231 : 1237);
             return result;
         }
 
-        /* (non-Javadoc)
-         * @see java.lang.Object#equals(java.lang.Object)
-         */
         @Override
         public boolean equals(Object obj) {
             if ( this == obj ) return true;
             if ( !super.equals( obj ) ) return false;
             if ( getClass() != obj.getClass() ) return false;
-            final AfterEvaluator other = (AfterEvaluator) obj;
-            return finalRange == other.finalRange && initRange == other.initRange;
+            AfterEvaluator other = (AfterEvaluator) obj;
+            if ( finalRange != other.finalRange ) return false;
+            if ( initRange != other.initRange ) return false;
+            if ( paramText == null ) {
+                if ( other.paramText != null ) return false;
+            } else if ( !paramText.equals( other.paramText ) ) return false;
+            if ( unwrapLeft != other.unwrapLeft ) return false;
+            if ( unwrapRight != other.unwrapRight ) return false;
+            return true;
         }
 
         /**
