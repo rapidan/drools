@@ -694,7 +694,7 @@ public class ServiceImplementation
                 row.values[1] = archived.getPackageName();
                 row.values[2] = archived.getName();
                 row.values[3] = archived.getLastContributor();
-                row.values[4] = archived.getLastModified().getTime().toLocaleString();
+                row.values[4] = Long.toString(archived.getLastModified().getTime().getTime());
 
                 result.add( row );
                 count++;
@@ -1574,6 +1574,16 @@ public class ServiceImplementation
                                                      RoleTypes.PACKAGE_DEVELOPER );
             }
 
+            if (item.getPackage().isArchived()) {
+				throw new RulesRepositoryException(
+						"The package ["
+								+ item.getPackageName()
+								+ "] that asset ["
+								+ item.getName()
+								+ "] belongs to is archived. You need to unarchive it first.");
+			}
+            
+            
             item.archiveItem( value );
             PackageItem pkg = item.getPackage();
             pkg.updateBinaryUpToDate( false );
