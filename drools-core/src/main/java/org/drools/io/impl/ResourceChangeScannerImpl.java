@@ -42,8 +42,8 @@ public class ResourceChangeScannerImpl
     }    
 
     public void configure(ResourceChangeScannerConfiguration configuration) {
-        this.scannerScheduler.setInterval( ((ResourceChangeScannerConfigurationImpl) configuration).getInterval() );
-        this.listener.info( "ResourceChangeScanner reconfigured with interval=" + getInterval() );
+        setInterval( ((ResourceChangeScannerConfigurationImpl) configuration).getInterval() );
+        this.listener.info( "ResourceChangeScanner reconfigured with interval=" + ( getInterval() / 1000 ) );
         synchronized ( this.resources ) {
             this.resources.notify(); // notify wait, so that it will wait again
         }
@@ -191,7 +191,11 @@ public class ResourceChangeScannerImpl
     }
 
     public void setInterval(int interval) {
-        this.scannerScheduler.setInterval( interval * 1000 );
+        this.scannerScheduler.setInterval( interval );
+        if ( this.scannerScheduler.isRunning() ) {
+            // need to interrupt so it will iterate the run() and the new interval will take effect
+            this.thread.interrupt();            
+        }
     }
 
     public int getInterval() {
@@ -208,9 +212,7 @@ public class ResourceChangeScannerImpl
 
     public void stop() {
         this.scannerScheduler.setScan( false );
-        synchronized ( this.resources ) {
-            this.resources.notify(); // notify wait, so that it will wait again
-        }
+        this.thread.interrupt();
     }
 
     public void reset() {
@@ -255,15 +257,21 @@ public class ResourceChangeScannerImpl
         }
 
         public void run() {
-            synchronized ( this.resources ) {
+            synchronized ( this ) {
                 if ( this.scan ) {
                     this.listener.info( "ResourceChangeNotification scanner has started" );
                 }
                 while ( this.scan ) {
-                    this.scanner.scan();
+                    System.out.println( "BEFORE : sync this.resources" );
+                    synchronized ( this.resources ) {      
+                        System.out.println( "DURING : sync this.resources" );
+                        // lock the resources, as we don't want this modified while processing
+                        this.scanner.scan();
+                    }
+                    System.out.println( "AFTER : SCAN" );
                     try {
                         this.listener.debug( "ResourceChangeNotification scanner thread is waiting for " + ( this.interval / 1000 ) );
-                        this.resources.wait( this.interval );
+                        wait( this.interval );
                     } catch ( InterruptedException e ) {
                         this.listener.exception( new RuntimeException( "ResourceChangeNotification ChangeSet scanning thread was interrupted",
                                                                        e ) );

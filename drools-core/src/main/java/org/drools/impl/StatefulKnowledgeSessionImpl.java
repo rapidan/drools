@@ -9,11 +9,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.drools.KnowledgeBase;
+import org.drools.RuleBase;
 import org.drools.WorkingMemory;
 import org.drools.common.InternalAgenda;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
+import org.drools.common.InternalWorkingMemoryEntryPoint;
 import org.drools.common.ObjectStore;
+import org.drools.common.ObjectTypeConfigurationRegistry;
 import org.drools.event.ActivationCancelledEvent;
 import org.drools.event.ActivationCreatedEvent;
 import org.drools.event.AfterActivationFiredEvent;
@@ -45,6 +48,7 @@ import org.drools.event.rule.impl.ObjectInsertedEventImpl;
 import org.drools.event.rule.impl.ObjectRetractedEventImpl;
 import org.drools.event.rule.impl.ObjectUpdatedEventImpl;
 import org.drools.reteoo.ReteooWorkingMemory;
+import org.drools.runtime.ExitPoint;
 import org.drools.runtime.GlobalResolver;
 import org.drools.runtime.StatefulKnowledgeSession;
 import org.drools.runtime.process.ProcessInstance;
@@ -59,7 +63,8 @@ import org.drools.time.SessionClock;
 
 public class StatefulKnowledgeSessionImpl
     implements
-    StatefulKnowledgeSession {
+    StatefulKnowledgeSession,
+    InternalWorkingMemoryEntryPoint {
     public ReteooWorkingMemory                                              session;
     public KnowledgeBaseImpl                                                  kbase;
 
@@ -556,6 +561,22 @@ public class StatefulKnowledgeSessionImpl
 
     public Agenda getAgenda() {
         return new AgendaImpl( ( InternalAgenda ) this.session.getAgenda() );
+    }
+
+	public void registerExitPoint(String name, ExitPoint exitPoint) {
+		this.session.registerExitPoint(name, exitPoint);
+	}
+
+	public void unregisterExitPoint(String name) {
+		this.session.unregisterExitPoint(name);
+	}
+
+    public ObjectTypeConfigurationRegistry getObjectTypeConfigurationRegistry() {
+        return this.session.getObjectTypeConfigurationRegistry();
+    }
+
+    public RuleBase getRuleBase() {
+        return this.kbase.ruleBase;
     }
 
 }
