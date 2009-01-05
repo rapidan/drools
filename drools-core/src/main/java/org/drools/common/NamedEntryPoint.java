@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.drools.FactException;
+import org.drools.RuleBase;
 import org.drools.RuntimeDroolsException;
 import org.drools.WorkingMemoryEntryPoint;
 import org.drools.RuleBaseConfiguration.AssertBehaviour;
@@ -24,7 +25,8 @@ import org.drools.spi.PropagationContext;
 
 public class NamedEntryPoint
     implements
-    InternalWorkingMemoryEntryPoint {
+    InternalWorkingMemoryEntryPoint,
+    WorkingMemoryEntryPoint {
     /** The arguments used when adding/removing a property change listener. */
     protected final Object[]                addRemovePropertyChangeListenerArgs = new Object[]{this};
 
@@ -475,6 +477,10 @@ public class NamedEntryPoint
 
     public ObjectTypeConfigurationRegistry getObjectTypeConfigurationRegistry() {
         return this.typeConfReg;
+    }
+
+    public RuleBase getRuleBase() {
+        return this.ruleBase;
     }
 
 }
