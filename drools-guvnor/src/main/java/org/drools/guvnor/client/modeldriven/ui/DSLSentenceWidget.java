@@ -44,6 +44,7 @@ import com.google.gwt.user.client.ui.Widget;
 import com.gwtext.client.widgets.Component;
 import com.gwtext.client.widgets.DatePicker;
 import com.gwtext.client.widgets.event.DatePickerListener;
+import com.gwtext.client.widgets.event.DatePickerListenerAdapter;
 import com.gwtext.client.widgets.form.DateField;
 
 /**
@@ -172,7 +173,7 @@ public class DSLSentenceWidget extends Composite {
 
     public Widget getEnumDropdown(String variableDef){
 
-    	Widget resultWidget = new DSLDropDown(variableDef);;
+    	Widget resultWidget = new DSLDropDown(variableDef);
     	return resultWidget;
     }
 
@@ -243,7 +244,7 @@ public class DSLSentenceWidget extends Composite {
             	String type = drop.getType();
             	String factAndField = drop.getFactAndField();
 
-            	newSentence = newSentence + "{"+box.getItemText(box.getSelectedIndex())+":"+type+":"+factAndField+ "} ";
+            	newSentence = newSentence + "{"+box.getValue(box.getSelectedIndex())+":"+type+":"+factAndField+ "} ";
             }else if(wid instanceof DSLCheckBox){
 
             	DSLCheckBox check = (DSLCheckBox)wid;
@@ -252,7 +253,8 @@ public class DSLSentenceWidget extends Composite {
             }else if(wid instanceof DSLDateSelector){
             	DSLDateSelector dateSel = (DSLDateSelector)wid;
             	String dateString = dateSel.getDateString();
-            	newSentence = newSentence + "{"+dateString+":"+dateSel.getType()+":"+dateString+ "} ";
+            	String format = dateSel.getFormat();
+            	newSentence = newSentence + "{"+dateString+":"+dateSel.getType()+":"+format+ "} ";
             } else if (wid instanceof NewLine) {
             	newSentence = newSentence + "\\n";
             }
@@ -331,9 +333,6 @@ public class DSLSentenceWidget extends Composite {
     	private String factAndField = "";
 
     	public DSLDropDown(String variableDef){
-
-
-
     		int firstIndex = variableDef.indexOf(":");
         	int lastIndex  = variableDef.lastIndexOf(":");
     		varName = variableDef.substring(0,firstIndex);
@@ -350,15 +349,19 @@ public class DSLSentenceWidget extends Composite {
 	    	if(data!=null){
 		    	int selected = -1;
 			    	for(int i=0;i<data.length;i++){
-
-			    		if(varName.equals(data[i])){
-			    			selected=i;
-			    		}
-			    		list.addItem(data[i]);
+                        String realValue = data[i];
+                        String display = data[i];
+                        if (data[i].indexOf('=') > -1) {
+                            String[] vs = ConstraintValueEditorHelper.splitValue(data[i]);
+                            realValue = vs[0];
+                            display = vs[1];
+                        }
+                        if(varName.equals(realValue)){
+                            selected=i;
+                        }
+                        list.addItem(display, realValue);
 			    	}
-
-			    	if(selected>=0)
-			    		list.setSelectedIndex(selected);
+			    	if(selected>=0) list.setSelectedIndex(selected);
 	    	}
 	    	list.addChangeListener( new ChangeListener() {
                 public void onChange(Widget w) {
@@ -390,8 +393,8 @@ public class DSLSentenceWidget extends Composite {
 		}
     }
 
-    class DSLCheckBox extends DirtyableComposite{
-    	CheckBox resultWidget = null;
+    class DSLCheckBox extends Composite {
+    	ListBox resultWidget = null;
     	//Format for the dropdown def is <varName>:<type>:<Fact.field>
     	private String varName ="";
 
@@ -402,45 +405,47 @@ public class DSLSentenceWidget extends Composite {
     		varName = variableDef.substring(0,firstIndex);
     		String checkedUnchecked = variableDef.substring(lastIndex+1, variableDef.length());
 
-    		resultWidget = new CheckBox();
+    		resultWidget = new ListBox();
+            resultWidget.addItem("true");
+            resultWidget.addItem("false");
+
 	    	if(checkedUnchecked.equalsIgnoreCase("checked")){
-	    		resultWidget.setChecked(true);
+                resultWidget.setSelectedIndex(0);
 	    	}else{
-	    		resultWidget.setChecked(false);
+                resultWidget.setSelectedIndex(1);
 	    	}
 
 	    	resultWidget.addClickListener( new ClickListener() {
                 public void onClick(Widget w) {
-                	CheckBox box = (CheckBox)w;
-                	resultWidget.setChecked(box.isChecked());
-
                     updateSentence();
-                    makeDirty();
                 }
             });
 
 	    	resultWidget.setVisible(true);
 	    	initWidget(resultWidget);
     	}
-		public CheckBox getListBox() {
+		public ListBox getListBox() {
 			return resultWidget;
 		}
-		public void setListBox(CheckBox resultWidget) {
+		public void setListBox(ListBox resultWidget) {
 			this.resultWidget = resultWidget;
 		}
 		public String getType() {
 			return BOOLEAN_TAG;
 		}
 
-		public boolean getCheckedValue() {
-			return resultWidget.isChecked();
-		}
+
 		public String getVarName() {
 			return varName;
 		}
 		public void setVarName(String varName) {
 			this.varName = varName;
 		}
+
+        public boolean getCheckedValue() {
+            return this.resultWidget.getSelectedIndex() == 0;
+
+        }
     }
 
     class DSLDateSelector extends DirtyableComposite{
@@ -481,59 +486,7 @@ public class DSLSentenceWidget extends Composite {
     		if(origDate!=null)
     			resultWidget.setValue(origDate);
 
-	    	resultWidget.addListener( new DatePickerListener() {
-
-				public boolean doBeforeDestroy(Component component) {
-					return true;
-				}
-
-				public boolean doBeforeHide(Component component) {
-					return true;
-				}
-
-				public boolean doBeforeRender(Component component) {
-					return true;
-				}
-
-				public boolean doBeforeShow(Component component) {
-					return true;
-				}
-
-				public boolean doBeforeStateRestore(Component component,
-						JavaScriptObject state) {
-					return true;
-				}
-
-				public boolean doBeforeStateSave(Component component,
-						JavaScriptObject state) {
-					return true;
-				}
-
-				public void onDestroy(Component component) {
-				}
-
-				public void onDisable(Component component) {
-				}
-
-				public void onEnable(Component component) {
-				}
-
-				public void onHide(Component component) {
-				}
-
-				public void onRender(Component component) {
-				}
-
-				public void onShow(Component component) {
-				}
-
-				public void onStateRestore(Component component,
-						JavaScriptObject state) {
-				}
-
-				public void onStateSave(Component component,
-						JavaScriptObject state) {
-				}
+	    	resultWidget.addListener( new DatePickerListenerAdapter() {
 
 				public void onSelect(DatePicker dataPicker, Date date) {
 					resultWidget.setValue(date);
@@ -564,6 +517,9 @@ public class DSLSentenceWidget extends Composite {
 			String result ="";
 			if(value!=null)
 				result =formatter.format(value);
+			else
+				result = varName;
+			
 			return  result;
 		}
 		public String getVarName() {

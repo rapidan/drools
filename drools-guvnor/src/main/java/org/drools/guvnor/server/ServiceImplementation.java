@@ -197,6 +197,7 @@ public class ServiceImplementation
         if ( path == null || "".equals( path ) ) {
             path = "/";
         }
+        path = cleanHTML(path);                        
 
         CategoryItem item = repository.loadCategory( path );
         item.addCategory( name,
@@ -858,12 +859,6 @@ public class ServiceImplementation
                                       int skip,
                                       int numRows,
                                       String tableConfig) throws SerializableException {
-        // TODO: This does not work for package snapshot. package snspshot's
-        // UUID is different
-        // from its corresponding package. However we seem to expect to get same
-        // assets using the
-        // package snapshot UUID here
-        // Identity.instance().checkPermission("ignoredanyway", "read", uuid);
         log.debug("Loading asset list for [" + uuid + "]");
         if ( numRows == 0 ) {
             throw new DetailedSerializableException( "Unable to return zero results (bug)",
@@ -1020,6 +1015,7 @@ public class ServiceImplementation
     public String createState(String name) throws SerializableException {
         log.info( "USER:" + repository.getSession().getUserID() + " CREATING state: [" + name + "]" );
         try {
+            name = cleanHTML(name);
             String uuid = repository.createState( name ).getNode().getUUID();
             repository.save();
             return uuid;
@@ -1454,7 +1450,7 @@ public class ServiceImplementation
         StringBuffer buf = new StringBuffer();
         if ( handler.isRuleAsset() ) {
 
-            BRMSPackageBuilder builder = new BRMSPackageBuilder( new PackageBuilderConfiguration() );
+            BRMSPackageBuilder builder = new BRMSPackageBuilder(  );
             // now we load up the DSL files
             builder.setDSLFiles( BRMSPackageBuilder.getDSLMappingFiles( item.getPackage(),
                                                                         new BRMSPackageBuilder.DSLErrorEvent() {
@@ -2254,4 +2250,7 @@ public class ServiceImplementation
 		this.rebuildSnapshots();
 	}
 
+    public String cleanHTML(String s) {
+        return s.replace("<", "&lt;").replace(">", "&gt;");
+    }                                                   
 }
