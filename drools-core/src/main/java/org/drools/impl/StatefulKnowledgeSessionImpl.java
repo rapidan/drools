@@ -201,6 +201,10 @@ public class StatefulKnowledgeSessionImpl
     public FactHandle getFactHandle(Object object) {
         return this.session.getFactHandle( object );
     }
+    
+    public Object getObject(FactHandle factHandle) {
+        return this.session.getObject( factHandle );
+    }
 
     public ProcessInstance getProcessInstance(long id) {
         return this.session.getProcessInstance( id );
@@ -236,6 +240,10 @@ public class StatefulKnowledgeSessionImpl
                           Object object) {
         this.session.setGlobal( identifier,
                                 object );
+    }
+    
+    public Object getGlobal(String identifier) {
+        return this.session.getGlobal( identifier );
     }
     
     public void setGlobalResolver(GlobalResolver globalResolver) {
