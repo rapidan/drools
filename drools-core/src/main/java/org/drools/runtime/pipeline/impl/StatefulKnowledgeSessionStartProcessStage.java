@@ -6,7 +6,7 @@ import org.drools.runtime.pipeline.PipelineContext;
 import org.drools.runtime.pipeline.Receiver;
 import org.drools.runtime.pipeline.StatefulKnowledgeSessionPipelineContext;
 
-public class StatefulKnowledgeSessionStartProcessStage extends BaseStage
+public class StatefulKnowledgeSessionStartProcessStage extends BaseEmitter
     implements
     Receiver {
     private String id;
@@ -18,8 +18,12 @@ public class StatefulKnowledgeSessionStartProcessStage extends BaseStage
     public void receive(Object object,
                         PipelineContext context) {
         StatefulKnowledgeSessionPipelineContext kContext = (StatefulKnowledgeSessionPipelineContext) context;
-        kContext.getStatefulKnowledgeSession().startProcess( id,
-                                                             (Map<String, Object>) object );
+        long instanceId = kContext.getStatefulKnowledgeSession().startProcess( id,
+                                                             (Map<String, Object>) object ).getId();
+        kContext.setResult( instanceId );
+        
+        emit( object,
+              kContext );
     }
 
 }
