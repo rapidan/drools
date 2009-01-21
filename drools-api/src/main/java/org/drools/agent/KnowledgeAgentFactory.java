@@ -7,9 +7,9 @@ import org.drools.ProviderInitializationException;
 
 /**
  * <p>
- * The KnowlegeAgent is created by the KnowlegeAgentFactory. It's role is to provide a cached
- * KnowlegeBase and to update or rebuild this KnowlegeBase as the resources it uses are changed.
- * The strategy for this is determined by the configuration given to the factory, but it is 
+ * The KnowlegeAgent is created by the KnowlegeAgentFactory. The KnowlegeAgent provides automatic loading, caching and 
+ * re-loading, of resources and is configured from a properties files. The KnowledgeAgent can update or rebuild this KnowlegeBase 
+ * as the resources it uses are changed. The strategy for this is determined by the configuration given to the factory, but it is 
  * typically pull based using regular polling. We hope to add push based updates and rebuilds in future
  * versions.
  * </p>
@@ -29,16 +29,16 @@ import org.drools.ProviderInitializationException;
  * KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
  *
  * KnowledgeAgentConfiguration aconf = KnowledgeAgentFactory.newKnowledgeAgentConfiguration();
- *       aconf.setProperty( "drools.agent.scanDirectories",
- *                          "true" ); // we want to scan directories, not just files, turning this on turns on file scanning
- *       aconf.setProperty( "drools.agent.newInstance",
- *                          "true" ); // resource changes results in a new instance of the KnowledgeBase being built, 
- *                                    // this cannot currently be set to false for incremental building
+ * aconf.setProperty( "drools.agent.scanDirectories",
+ *                    "true" ); // we want to scan directories, not just files, turning this on turns on file scanning
+ * aconf.setProperty( "drools.agent.newInstance",
+ *                    "true" ); // resource changes results in a new instance of the KnowledgeBase being built, 
+ *                              // this cannot currently be set to false for incremental building
  *       
- *       KnowledgeAgent kagent = KnowledgeAgentFactory.newKnowledgeAgent( "test agent", // the name of the agent
- *                                                                        kbase, // the rulebase to use, the Agent will also monitor any exist knowledge definitions
- *                                                                        aconf );
- *       kagent.applyChangeSet( ResourceFactory.newUrlResource( url ) ); // resource to the change-set xml for the resources to add
+ * KnowledgeAgent kagent = KnowledgeAgentFactory.newKnowledgeAgent( "test agent", // the name of the agent
+ *                                                                  kbase, // the rulebase to use, the Agent will also monitor any exist knowledge definitions
+ *                                                                  aconf );
+ * kagent.applyChangeSet( ResourceFactory.newUrlResource( url ) ); // resource to the change-set xml for the resources to add
  * </pre>
  * 
  * KnowledgeAgents can take a empty KnowledgeBase or a populated one. If a populated KnowledgeBase is provided, the KnowledgeAgent
@@ -52,24 +52,27 @@ import org.drools.ProviderInitializationException;
  */
 public class KnowledgeAgentFactory {
     private static KnowledgeAgentProvider provider;
-    
+
     public static KnowledgeAgentConfiguration newKnowledgeAgentConfiguration() {
         return getKnowledgeAgentProvider().newKnowledgeAgentConfiguration();
     }
-    
+
     public static KnowledgeAgentConfiguration newKnowledgeAgentConfiguration(Properties properties) {
         return getKnowledgeAgentProvider().newKnowledgeAgentConfiguration( properties );
-    }    
+    }
 
     public static KnowledgeAgent newKnowledgeAgent(String name,
                                                    KnowledgeBase kbase) {
-        return getKnowledgeAgentProvider().newKnowledgeAgent( name, kbase );
+        return getKnowledgeAgentProvider().newKnowledgeAgent( name,
+                                                              kbase );
     }
-    
+
     public static KnowledgeAgent newKnowledgeAgent(String name,
                                                    KnowledgeBase kbase,
                                                    KnowledgeAgentConfiguration configuration) {
-        return getKnowledgeAgentProvider().newKnowledgeAgent( name, kbase, configuration );
+        return getKnowledgeAgentProvider().newKnowledgeAgent( name,
+                                                              kbase,
+                                                              configuration );
     }
 
     private static synchronized void setKnowledgeAgentProvider(KnowledgeAgentProvider provider) {

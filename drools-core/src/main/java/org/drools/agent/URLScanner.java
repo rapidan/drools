@@ -56,8 +56,16 @@ public class URLScanner extends PackageProvider {
             }
             this.localCacheFileScanner = new FileScanner();
             this.localCacheFileScanner.setFiles( getFiles( urls, localCacheDir ) );
+            this.localCacheFileScanner.setAgentListener( this.listener );
         }
     }
+    
+    public void setAgentListener(AgentEventListener listener) {
+        super.setAgentListener( listener );
+        if ( this.localCacheFileScanner != null ) {
+            this.localCacheFileScanner.setAgentListener( listener );
+        }
+    }    
 
     File[] getFiles(URL[] urls, File cacheDir) {
         File[] fs = new File[urls.length];
@@ -163,6 +171,8 @@ public class URLScanner extends PackageProvider {
             }
         }
     }
+    
+    
 
     public String toString() {
         String s = "URLScanner monitoring URLs: ";

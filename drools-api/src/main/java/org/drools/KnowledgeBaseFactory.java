@@ -2,6 +2,9 @@ package org.drools;
 
 import java.util.Properties;
 
+import org.drools.runtime.Environment;
+import org.drools.runtime.KnowledgeSessionConfiguration;
+
 /**
  * <p>
  * This factory will create and return a KnowledgeBase instance, an optional KnowledgeBaseConfiguration
@@ -65,6 +68,28 @@ public class KnowledgeBaseFactory {
                                                                          classLoader );
     }
 
+    /**
+     * Create a KnowledgeSessionConfiguration on which properties can be set.
+     * @return
+     *     The KnowledgeSessionConfiguration.
+     */
+    public static KnowledgeSessionConfiguration newKnowledgeSessionConfiguration() {
+        return getKnowledgeBaseProvider().newKnowledgeSessionConfiguration();
+    }
+
+    /**
+     * Create a KnowledgeSessionConfiguration on which properties can be set.
+     * @return
+     *     The KnowledgeSessionConfiguration.
+     */
+    public static KnowledgeSessionConfiguration newKnowledgeSessionConfiguration(Properties properties) {
+        return getKnowledgeBaseProvider().newKnowledgeSessionConfiguration( properties );
+    }
+
+    public static Environment newEnvironment() {
+        return getKnowledgeBaseProvider().newEnvironment();
+    }
+
     private static synchronized void setKnowledgeBaseProvider(KnowledgeBaseProvider provider) {
         KnowledgeBaseFactory.provider = provider;
     }
@@ -76,13 +101,15 @@ public class KnowledgeBaseFactory {
         return provider;
     }
 
+    @SuppressWarnings("unchecked")
     private static void loadProvider() {
         try {
             // we didn't find anything in properties so lets try and us reflection
             Class<KnowledgeBaseProvider> cls = (Class<KnowledgeBaseProvider>) Class.forName( "org.drools.impl.KnowledgeBaseProviderImpl" );
             setKnowledgeBaseProvider( cls.newInstance() );
         } catch ( Exception e ) {
-            throw new ProviderInitializationException( "Provider org.drools.impl.KnowledgeBaseProviderImpl could not be set.", e );
+            throw new ProviderInitializationException( "Provider org.drools.impl.KnowledgeBaseProviderImpl could not be set.",
+                                                       e );
         }
     }
 }

@@ -29,6 +29,7 @@ import org.drools.reteoo.ObjectSource;
 import org.drools.reteoo.ReteooBuilder;
 import org.drools.rule.Behavior;
 import org.drools.rule.EntryPoint;
+import org.drools.rule.Rule;
 import org.drools.rule.RuleConditionElement;
 import org.drools.time.TemporalDependencyMatrix;
 
@@ -40,65 +41,66 @@ import org.drools.time.TemporalDependencyMatrix;
 public class BuildContext {
 
     // tuple source to attach next node to
-    private LeftTupleSource           tupleSource;
+    private LeftTupleSource                  tupleSource;
 
     // object source to attach next node to
-    private ObjectSource              objectSource;
+    private ObjectSource                     objectSource;
 
     // object type cache to check for cross products
-    private LinkedList                objectType;
+    private LinkedList                       objectType;
 
     // offset of the pattern
-    private int                       currentPatternOffset;
+    private int                              currentPatternOffset;
 
     // rule base to add rules to
-    private InternalRuleBase          rulebase;
+    private InternalRuleBase                 rulebase;
+    
+    // rule being added at this moment
+    private Rule                             rule;
 
     // working memories attached to the given rulebase
-    private InternalWorkingMemory[]   workingMemories;
+    private InternalWorkingMemory[]          workingMemories;
 
     // id generator
-    private ReteooBuilder.IdGenerator idGenerator;
+    private ReteooBuilder.IdGenerator        idGenerator;
 
     // a build stack to track nested elements
-    private LinkedList                buildstack;
+    private LinkedList<RuleConditionElement> buildstack;
 
     // beta constraints from the last pattern attached
-    private List                      betaconstraints;
+    private List                             betaconstraints;
 
     // alpha constraints from the last pattern attached
-    private List                      alphaConstraints;
+    private List                             alphaConstraints;
 
     // behaviors from the last pattern attached
-    private List<Behavior>            behaviors;
+    private List<Behavior>                   behaviors;
 
     // the current entry point
-    private EntryPoint                currentEntryPoint;
+    private EntryPoint                       currentEntryPoint;
 
-    private boolean                   tupleMemoryEnabled;
+    private boolean                          tupleMemoryEnabled;
 
-    private boolean                   objectTypeNodeMemoryEnabled;
+    private boolean                          objectTypeNodeMemoryEnabled;
 
-    private boolean                   terminalNodeMemoryEnabled;
+    private boolean                          terminalNodeMemoryEnabled;
 
     /** This one is slightly different as alphaMemory can be adaptive, only turning on for new rule attachments */
-    private boolean                   alphaNodeMemoryAllowed;
+    private boolean                          alphaNodeMemoryAllowed;
 
     /** Stores the list of nodes being added that require partitionIds */
-    private List<BaseNode>            nodes;
+    private List<BaseNode>                   nodes;
 
     /** Stores the id of the partition this rule will be added to */
-    private RuleBasePartitionId       partitionId;
+    private RuleBasePartitionId              partitionId;
 
     /** the calculate temporal distance matrix */
-    private TemporalDependencyMatrix  temporal;
-    
-    /** rules with temporal constraints may require delaying before firing, when they contain negative patterns */
-    private long                      delay;
+    private TemporalDependencyMatrix         temporal;
 
     public BuildContext(final InternalRuleBase rulebase,
                         final ReteooBuilder.IdGenerator idGenerator) {
         this.rulebase = rulebase;
+        this.rule = rule;
 
         this.idGenerator = idGenerator;
 
@@ -246,7 +248,7 @@ public class BuildContext {
      */
     public void push(final RuleConditionElement rce) {
         if ( this.buildstack == null ) {
-            this.buildstack = new LinkedList();
+            this.buildstack = new LinkedList<RuleConditionElement>();
         }
         this.buildstack.addLast( rce );
     }
@@ -257,9 +259,9 @@ public class BuildContext {
      */
     public RuleConditionElement pop() {
         if ( this.buildstack == null ) {
-            this.buildstack = new LinkedList();
+            this.buildstack = new LinkedList<RuleConditionElement>();
         }
-        return (RuleConditionElement) this.buildstack.removeLast();
+        return this.buildstack.removeLast();
     }
 
     /**
@@ -268,20 +270,20 @@ public class BuildContext {
      */
     public RuleConditionElement peek() {
         if ( this.buildstack == null ) {
-            this.buildstack = new LinkedList();
+            this.buildstack = new LinkedList<RuleConditionElement>();
         }
-        return (RuleConditionElement) this.buildstack.getLast();
+        return this.buildstack.getLast();
     }
 
     /**
      * Returns a list iterator to iterate over the stacked elements
      * @return
      */
-    public ListIterator stackIterator() {
+    public ListIterator<RuleConditionElement> stackIterator() {
         if ( this.buildstack == null ) {
-            this.buildstack = new LinkedList();
+            this.buildstack = new LinkedList<RuleConditionElement>();
         }
-        return this.buildstack.listIterator();
+        return this.buildstack.listIterator( this.buildstack.size() );
     }
 
     /**
@@ -419,12 +421,16 @@ public class BuildContext {
         return this.temporal;
     }
 
-    public long getDelay() {
-        return this.delay;
+    public LinkedList<RuleConditionElement> getBuildStack() {
+        return this.buildstack;
     }
-    
-    public void setDelay( final long delay ) {
-        this.delay = delay;
+
+    public Rule getRule() {
+        return rule;
+    }
+
+    public void setRule(Rule rule) {
+        this.rule = rule;
     }
 
 }

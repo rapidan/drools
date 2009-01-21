@@ -51,6 +51,10 @@ public class CorePipelineProviderImpl
     public KnowledgeRuntimeCommand newStatefulKnowledgeSessionSetGlobal(String identifier) {
         return new StatefulKnowledgeSessionSetGlobalStage( identifier );
     }
+    
+    public KnowledgeRuntimeCommand newStatefulKnowledgeSessionGetObject() {
+        return new StatefulKnowledgeSessionGetObjectStage(  );
+    }    
 
     public KnowledgeRuntimeCommand newStatefulKnowledgeSessionSignalEvent(String eventType) {
         return new StatefulKnowledgeSessionSignalEventStage( eventType );
@@ -62,8 +66,8 @@ public class CorePipelineProviderImpl
                                                              id );
     }
 
-    public KnowledgeRuntimeCommand newStatefulKnowledgeSessionStartProcess(String eventType) {
-        return new StatefulKnowledgeSessionSignalEventStage( eventType );
+    public KnowledgeRuntimeCommand newStatefulKnowledgeSessionStartProcess(String id) {
+        return new StatefulKnowledgeSessionStartProcessStage( id );
     }
     
     public Action newAssignObjectAsResult() {

@@ -478,6 +478,80 @@ public class MiscTest extends TestCase {
         assertEquals( "rule 2 executed boo",
                       list.get( 1 ) );
     }
+    
+    public void testIncrementOperator() throws Exception {
+        String str = "";
+        str += "package org.drools \n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "    dialect \"java\" \n";
+        str += "when \n";
+        str += "    $I : Integer() \n";
+        str += "then \n";
+        str += "    int i = $I.intValue(); \n";
+        str += "    i += 5; \n";
+        str += "    list.add( i ); \n";
+        str += "end \n";
+        
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ), ResourceType.DRL );
+        
+        if ( kbuilder.hasErrors() ) {
+            System.err.println( kbuilder.getErrors() );
+        }
+        assertFalse( kbuilder.hasErrors() );
+        
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        ksession.insert( 5 );        
+        
+        ksession.fireAllRules();
+        
+        assertEquals( 1, list.size() );
+        assertEquals( 10, list.get( 0 ) );
+    }   
+    
+    public void testEvalWithBigDecimal() throws Exception {        
+        String str = "";
+        str += "package org.drools \n";
+        str += "import java.math.BigDecimal; \n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "    dialect \"java\" \n";
+        str += "when \n";
+        str += "    $bd : BigDecimal() \n";
+        str += "    eval( $bd.compareTo( BigDecimal.ZERO ) > 0 ) \n";        
+        str += "then \n";
+        str += "    list.add( $bd ); \n";
+        str += "end \n";
+        
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ), ResourceType.DRL );
+        
+        if ( kbuilder.hasErrors() ) {
+            System.err.println( kbuilder.getErrors() );
+        }
+        assertFalse( kbuilder.hasErrors() );
+        
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        ksession.insert( new BigDecimal( 1.5 ) );        
+        
+        ksession.fireAllRules();
+        
+        assertEquals( 1, list.size() );
+        assertEquals( new BigDecimal( 1.5 ), list.get( 0 ) );
+    }     
 
     public void testCustomGlobalResolver() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
@@ -933,7 +1007,7 @@ public class MiscTest extends TestCase {
 
         session.insert( notNullPerson );
 
-        final Person nullPerson = new Person( "whee" );
+        Person nullPerson = new Person( "whee" );
         nullPerson.setBigDecimal( null );
 
         session.insert( nullPerson );
@@ -944,6 +1018,13 @@ public class MiscTest extends TestCase {
         System.out.println( ((List) session.getGlobal( "list" )).get( 0 ) );
         assertEquals( 3,
                       ((List) session.getGlobal( "list" )).size() );
+        
+        nullPerson = new Person( null );
+
+        session.insert( nullPerson );     
+        session.fireAllRules();
+        assertEquals( 4,
+                      ((List) session.getGlobal( "list" )).size() );        
 
     }
 
@@ -1569,14 +1650,14 @@ public class MiscTest extends TestCase {
                       packageAttrs.size() );
 
         RuleDescr rule = (RuleDescr) desc.getRules().get( 0 );
-        List ruleAttrs = rule.getAttributes();
+        Map<String, AttributeDescr> ruleAttrs = rule.getAttributes();
         assertEquals( 1,
                       ruleAttrs.size() );
 
         assertEquals( "mvel",
-                      ((AttributeDescr) ruleAttrs.get( 0 )).getValue() );
+                      ((AttributeDescr) ruleAttrs.get( "dialect" )).getValue() );
         assertEquals( "dialect",
-                      ((AttributeDescr) ruleAttrs.get( 0 )).getName() );
+                      ((AttributeDescr) ruleAttrs.get( "dialect" )).getName() );
         RuleBase ruleBase = getRuleBase();
         ruleBase.addPackage( builder.getPackage() );
 
@@ -4277,7 +4358,7 @@ public class MiscTest extends TestCase {
         assertEquals( 1,
                       list.size() );
 
-        assertEquals( 10,
+        assertEquals( 12,
                       ((Integer) list.get( 0 )).intValue() );
     }
 
@@ -4303,7 +4384,7 @@ public class MiscTest extends TestCase {
         assertEquals( 1,
                       list.size() );
 
-        assertEquals( 10,
+        assertEquals( 12,
                       ((Integer) list.get( 0 )).intValue() );
     }
 
@@ -4420,6 +4501,51 @@ public class MiscTest extends TestCase {
 
         assertEquals( "rule1 for the package2",
                       results.get( 0 ) );
+    }
+    
+    public static class Foo {
+        public String aValue = "";
+        
+    }    
+    
+    // @FIXME see JBRULES-1808
+    public void FIXME_testKnowledgeHelperFixerInStrings() {
+        String str = "";
+        str += "package org.simple \n";
+        str += "global java.util.List list \n";
+        str += "rule xxx \n";
+        str += "  no-loop true ";        
+        str += "when \n";
+        str += "  $fact : String() \n";
+        str += "then \n";
+        str += "  list.add(\"This is an update()\"); \n";
+        str += "  list.add(\"This is an update($fact)\"); \n";
+        str += "  update($fact); \n";
+        str += "end  \n";
+        
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ), ResourceType.DRL );
+        
+        if ( kbuilder.hasErrors() ) {            
+                System.out.println( kbuilder.getErrors() );
+                assertTrue( kbuilder.hasErrors() );
+        }
+        
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        
+        ksession.insert( "hello" );
+        ksession.fireAllRules();
+        
+        ksession.dispose();
+        
+        assertEquals( 2, list.size() );
+        assertEquals( "This is an update()", list.get( 0 ) );
+        assertEquals( "This is an update($fact)", list.get( 1 ) );
     }
 
     public void testRuleReplacement() throws Exception {
@@ -5568,7 +5694,9 @@ public class MiscTest extends TestCase {
     public void testOrCE() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
         builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "test_OrCE.drl" ) ) );
-        final Package pkg = builder.getPackage();
+        Package pkg = builder.getPackage();
+        
+        pkg = SerializationHelper.serializeObject( pkg );
 
         RuleBase ruleBase = getRuleBase();
         ruleBase.addPackage( pkg );
@@ -5768,6 +5896,37 @@ public class MiscTest extends TestCase {
 		assertEquals("Hello World", list.get(0));
     }
 
+    //FIXME
+    public void FIXME_testListOfMaps(){
+//    	KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+//		kbuilder.add(ResourceFactory.newClassPathResource("test_TestMapVariableRef.drl", getClass()), ResourceType.DRL);
+//		KnowledgeBuilderErrors errors = kbuilder.getErrors();
+//		if (errors.size() > 0) {
+//			for (KnowledgeBuilderError error: errors) {
+//				System.err.println(error);
+//			}
+//			throw new IllegalArgumentException("Could not parse knowledge.");
+//		}
+//		KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+//		kbase.addKnowledgePackages(kbuilder.getKnowledgePackages());
+//		StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+//		List<Map<String,Object>> list = new ArrayList<Map<String,Object>>();
+//		
+//		Map mapOne = new HashMap<String,Object>();
+//		Map mapTwo = new HashMap<String,Object>();
+//		
+//		mapOne.put("MSG", "testMessage");
+//		mapTwo.put("MSGTWO", "testMessage");
+//		
+//		list.add(mapOne);
+//		list.add(mapTwo);
+//		ksession.insert(list);
+//		ksession.fireAllRules();
+//		
+//		assertEquals(3, list.size());
+		
+    }
+    
     public void testKnowledgeContextMVEL() {
     	KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
 		kbuilder.add(ResourceFactory.newClassPathResource("test_KnowledgeContextMVEL.drl", getClass()), ResourceType.DRL);
@@ -5788,5 +5947,4 @@ public class MiscTest extends TestCase {
 		assertEquals(1, list.size());
 		assertEquals("Hello World", list.get(0));
     }
-
 }
