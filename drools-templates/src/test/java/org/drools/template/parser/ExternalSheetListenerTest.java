@@ -327,7 +327,8 @@ public class ExternalSheetListenerTest extends TestCase {
                 	return 0;
                 }
 
-				public GlobalResolver getGlobalResolver() {
+                
+                public GlobalResolver getGlobalResolver() {
                     
                     return null;
                 }
@@ -424,6 +425,11 @@ public class ExternalSheetListenerTest extends TestCase {
 					// TODO Auto-generated method stub
 					
 				}
+
+                public Object getObject(org.drools.runtime.rule.FactHandle handle) {
+                    // TODO Auto-generated method stub
+                    return null;
+                }
 			};
 		}
 	}

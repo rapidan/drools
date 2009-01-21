@@ -95,7 +95,7 @@ public class ExplorerNodeConfig {
                 { "Event log", "images/error.gif", "4" }, // ID 4
                 { "User permission", "images/icoUsers.gif", "5" }, // ID 5
 				{ "Import/Export", "images/save_edit.gif", "3" }, //ID 3
-				{ "WebDAV", "images/information.gif", "6" }}; //ID 6
+				{ "About", "images/information.gif", "6" }}; //ID 6
 
 		for (int i = 0; i < adminStructure.length; i++) {
 
@@ -144,7 +144,14 @@ public class ExplorerNodeConfig {
 						final String value[] = (String[]) data;
 						if (value.length == 0) {
 							if (path.equals("/") && ExplorerLayoutManager.shouldShow(Capabilities.SHOW_ADMIN)) {
-								doNewRepoDialog();
+                                RepositoryServiceFactory.getService().listPackages(new GenericCallback<PackageConfigData[]>() {
+                                    public void onSuccess(PackageConfigData[] result) {
+                                        if (result.length == 1) {
+                                            doNewRepoDialog();
+                                        }
+                                    }
+                                });
+                                
 							}
 							infanticide(treeNode);
 						} else {

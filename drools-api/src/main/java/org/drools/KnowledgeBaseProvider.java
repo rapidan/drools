@@ -2,6 +2,9 @@ package org.drools;
 
 import java.util.Properties;
 
+import org.drools.runtime.Environment;
+import org.drools.runtime.KnowledgeSessionConfiguration;
+
 /**
  * KnowledgeBaseProvider is used by the KnowledgeBaseFacotry to "provide" it's concrete implementation.
  * 
@@ -33,6 +36,26 @@ public interface KnowledgeBaseProvider {
                                                                     ClassLoader classLoader);
 
     /**
+     * Instantiate and return a new KnowledgeSessionConfiguration
+     * 
+     * @return
+     *     the KnowledgeSessionConfiguration
+     */
+    public KnowledgeSessionConfiguration newKnowledgeSessionConfiguration();
+
+    /**
+     * Instantiate and return a new KnowledgeSessionConfiguration
+     * 
+     * @param properties
+     *     Properties file to process, can be null;
+     * @param classLoader
+     *     Provided ClassLoader, can be null and then ClassLoader defaults to Thread.currentThread().getContextClassLoader()
+     * @return
+     *     The KnowledgeSessionConfiguration
+     */
+    public KnowledgeSessionConfiguration newKnowledgeSessionConfiguration(Properties properties);
+
+    /**
      * Instantiate and return a KnowledgeBase using a default KnowledgeBaseConfiguration
      * 
      * @return
@@ -49,5 +72,13 @@ public interface KnowledgeBaseProvider {
      *     The KnowledgeBase
      */
     KnowledgeBase newKnowledgeBase(KnowledgeBaseConfiguration conf);
+
+    /**
+     * Instantiate and return an Environment
+     * 
+     * @return
+     *      The Environment
+     */
+    Environment newEnvironment();
 
 }

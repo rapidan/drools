@@ -47,6 +47,8 @@ import org.drools.event.knowlegebase.impl.BeforeKnowledgePackageAddedEventImpl;
 import org.drools.event.knowlegebase.impl.BeforeKnowledgePackageRemovedEventImpl;
 import org.drools.event.knowlegebase.impl.BeforeRuleAddedEventImpl;
 import org.drools.event.knowlegebase.impl.BeforeRuleRemovedEventImpl;
+import org.drools.process.command.CommandService;
+import org.drools.process.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.reteoo.ReteooRuleBase;
 import org.drools.reteoo.ReteooStatefulSession;
 import org.drools.rule.Package;
@@ -125,23 +127,25 @@ public class KnowledgeBaseImpl
     }
 
     public StatefulKnowledgeSession newStatefulKnowledgeSession() {
-        ReteooStatefulSession session = (ReteooStatefulSession) this.ruleBase.newStatefulSession();
-        return new StatefulKnowledgeSessionImpl( session,
-                                                 this );
+    	return newStatefulKnowledgeSession(new SessionConfiguration());
     }
     
-    public StatefulKnowledgeSession newStatefulSession(KnowledgeSessionConfiguration conf) {        
-        ReteooStatefulSession session = (ReteooStatefulSession) this.ruleBase.newStatefulSession( (SessionConfiguration) conf );
-        return new StatefulKnowledgeSessionImpl( session,
-                                                 this );
+    public StatefulKnowledgeSession newStatefulKnowledgeSession(KnowledgeSessionConfiguration conf) {
+    	CommandService commandService = ((SessionConfiguration) conf).getCommandService(this.ruleBase);
+    	if (commandService != null) {
+			return new CommandBasedStatefulKnowledgeSession(commandService);
+    	} else {
+    		ReteooStatefulSession session = (ReteooStatefulSession) this.ruleBase.newStatefulSession( (SessionConfiguration) conf );
+    		return new StatefulKnowledgeSessionImpl( session, this );
+    	}
     }    
     
     public StatelessKnowledgeSession newStatelessKnowledgeSession() {
-        return new StatelessKnowledgeSessionImpl( (InternalRuleBase) this.ruleBase );
+        return new StatelessKnowledgeSessionImpl( (InternalRuleBase) this.ruleBase, null );
     }
     
     public StatelessKnowledgeSession newStatelessKnowledgeSession(KnowledgeSessionConfiguration conf) {        
-        return new StatelessKnowledgeSessionImpl( (InternalRuleBase) this.ruleBase );
+        return new StatelessKnowledgeSessionImpl( (InternalRuleBase) this.ruleBase, conf );
     } 
 
     public void removeKnowledgePackage(String packageName) {

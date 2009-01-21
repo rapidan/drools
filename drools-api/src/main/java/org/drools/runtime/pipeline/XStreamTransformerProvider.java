@@ -3,5 +3,7 @@ package org.drools.runtime.pipeline;
 import com.thoughtworks.xstream.XStream;
 
 public interface XStreamTransformerProvider {
-    Transformer newXStreamTransformer(XStream xstream);
+    Transformer newXStreamFromXmlTransformer(XStream xstream);
+
+    Transformer newXStreamToXmlTransformer(XStream xstream);
 }

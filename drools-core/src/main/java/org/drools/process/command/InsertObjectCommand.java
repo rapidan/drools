@@ -1,28 +1,22 @@
 package org.drools.process.command;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.drools.StatefulSession;
+import org.drools.runtime.rule.FactHandle;
 
-import org.drools.WorkingMemory;
-
-public class InsertObjectCommand implements Command<Object> {
+public class InsertObjectCommand implements Command<FactHandle> {
 	
-	private List<Object> objects;
+	private Object object;
 	
 	public InsertObjectCommand(Object object) {
-		objects = new ArrayList<Object>();
-		objects.add(object);
+		this.object = object;
 	}
 	
-	public InsertObjectCommand(List<Object> objects) {
-		this.objects = objects;
+	public FactHandle execute(StatefulSession session) {
+		return session.insert(object);
 	}
-	
-	public Object execute(WorkingMemory workingMemory) {
-		for (Object object: objects) {
-			workingMemory.insert(object);
-		}
-		return null;
+
+	public String toString() {
+		return "session.insert(" + object + ");";
 	}
 
 }

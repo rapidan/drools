@@ -29,8 +29,8 @@ public class DirectoryScanner extends PackageProvider {
 		}
 		
 		scanner = new FileScanner();
-		scanner.setFiles( dir.listFiles() );
-
+		scanner.setFiles( dir.listFiles() );		
+		scanner.setAgentListener( this.listener );
 	}
 
 	PackageChangeInfo loadPackageChanges() {
@@ -72,6 +72,13 @@ public class DirectoryScanner extends PackageProvider {
 		
 		return info;
 	}
+	
+    public void setAgentListener(AgentEventListener listener) {
+        super.setAgentListener( listener );
+        if ( this.scanner != null ) {
+            this.scanner.setAgentListener( listener );
+        }
+    }
 	
 
 	public String toString() {

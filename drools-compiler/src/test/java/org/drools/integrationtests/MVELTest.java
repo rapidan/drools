@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -13,19 +14,26 @@ import junit.framework.Assert;
 import junit.framework.TestCase;
 
 import org.drools.Cheese;
+import org.drools.KnowledgeBase;
+import org.drools.KnowledgeBaseFactory;
 import org.drools.Person;
 import org.drools.RuleBase;
 import org.drools.RuleBaseFactory;
 import org.drools.StatefulSession;
 import org.drools.WorkingMemory;
 import org.drools.base.mvel.MVELDebugHandler;
+import org.drools.builder.KnowledgeBuilder;
+import org.drools.builder.KnowledgeBuilderFactory;
+import org.drools.builder.ResourceType;
 import org.drools.compiler.DrlParser;
 import org.drools.compiler.DroolsParserException;
 import org.drools.compiler.PackageBuilder;
 import org.drools.compiler.PackageBuilderConfiguration;
+import org.drools.io.ResourceFactory;
 import org.drools.lang.descr.PackageDescr;
 import org.drools.rule.Package;
 import org.drools.rule.builder.dialect.mvel.MVELDialect;
+import org.drools.runtime.StatefulKnowledgeSession;
 import org.drools.util.DateUtils;
 import org.mvel2.MVEL;
 
@@ -58,6 +66,77 @@ public class MVELTest extends TestCase {
         Date dt = DateUtils.parseDate( "10-Jul-1974" );
         assertEquals(dt, c.getUsedBy());
     }
+    
+    public void testIncrementOperator() throws Exception {
+        String str = "";
+        str += "package org.drools \n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "    dialect \"mvel\" \n";
+        str += "when \n";
+        str += "    $I : Integer() \n";
+        str += "then \n";
+        str += "    i = $I.intValue(); \n";
+        str += "    i += 5; \n";
+        str += "    list.add( i ); \n";
+        str += "end \n";
+        
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ), ResourceType.DRL );
+        
+        assertFalse( kbuilder.hasErrors() );
+        
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        ksession.insert( 5 );        
+        
+        ksession.fireAllRules();
+        
+        assertEquals( 1, list.size() );
+        assertEquals( 10, list.get( 0 ) );
+    }
+    
+    public void testEvalWithBigDecimal() throws Exception {        
+        String str = "";
+        str += "package org.drools \n";
+        str += "import java.math.BigDecimal; \n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "    dialect \"mvel\" \n";
+        str += "when \n";
+        str += "    $bd : BigDecimal() \n";
+        str += "    eval( $bd.compareTo( BigDecimal.ZERO ) > 0 ) \n";        
+        str += "then \n";
+        str += "    list.add( $bd ); \n";
+        str += "end \n";
+        
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ), ResourceType.DRL );
+        
+        if ( kbuilder.hasErrors() ) {
+            System.err.println( kbuilder.getErrors() );
+        }
+        assertFalse( kbuilder.hasErrors() );
+        
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        ksession.insert( new BigDecimal( 1.5 ) );        
+        
+        ksession.fireAllRules();
+        
+        assertEquals( 1, list.size() );
+        assertEquals( new BigDecimal( 1.5 ), list.get( 0 ) );
+    }      
 
     public void testLocalVariableMVELConsequence() throws Exception {
         final PackageBuilder builder = new PackageBuilder();

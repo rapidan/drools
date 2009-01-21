@@ -4,6 +4,7 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 
 import org.drools.RuleBase;
+import org.drools.SessionConfiguration;
 import org.drools.StatefulSession;
 import org.drools.marshalling.PlaceholderResolverStrategyFactory;
 import org.drools.persistence.Persister;
@@ -15,12 +16,16 @@ public class JPAPersisterManager {
 	private PlaceholderResolverStrategyFactory factory;
 	
 	public JPAPersisterManager(PlaceholderResolverStrategyFactory factory, EntityManagerFactory emf) {
-		this.emf = emf;
+		if (emf == null) {
+			this.emf = Persistence.createEntityManagerFactory("org.drools.persistence.jpa");
+		} else {
+			this.emf = emf;
+		}
 		this.factory = factory;
 	}
 	
 	public JPAPersisterManager(PlaceholderResolverStrategyFactory factory) {
-		this(factory, Persistence.createEntityManagerFactory("org.drools.persistence.jpa"));
+		this(factory, null);
 	}
 	
 	public void dispose() {
@@ -35,9 +40,17 @@ public class JPAPersisterManager {
 		return new JPAPersister<StatefulSession>(emf, new StatefulSessionSnapshotter(ruleBase.newStatefulSession(), factory));
 	}
 	
+	public Persister<StatefulSession> getSessionPersister(RuleBase ruleBase, SessionConfiguration conf) {
+		return new JPAPersister<StatefulSession>(emf, new StatefulSessionSnapshotter(ruleBase.newStatefulSession(conf), factory));
+	}
+	
 	public Persister<StatefulSession> getSessionPersister(String uniqueId, RuleBase ruleBase) {
+		return getSessionPersister(uniqueId, ruleBase, null);
+	}
+	
+	public Persister<StatefulSession> getSessionPersister(String uniqueId, RuleBase ruleBase, SessionConfiguration conf) {
 		Persister<StatefulSession> persister = new JPAPersister<StatefulSession>(
-			emf, new StatefulSessionSnapshotter(ruleBase, factory));
+			emf, new StatefulSessionSnapshotter(ruleBase, conf, factory));
 		persister.setUniqueId(uniqueId);
 		persister.load();
 		return persister;

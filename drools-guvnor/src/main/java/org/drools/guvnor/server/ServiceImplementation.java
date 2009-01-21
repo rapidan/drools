@@ -45,6 +45,7 @@ import org.drools.RuleBase;
 import org.drools.RuleBaseConfiguration;
 import org.drools.RuleBaseFactory;
 import org.drools.SessionConfiguration;
+import org.drools.runtime.rule.ConsequenceException;
 import org.drools.base.ClassTypeResolver;
 import org.drools.common.AbstractRuleBase;
 import org.drools.common.DroolsObjectOutputStream;
@@ -429,6 +430,7 @@ public class ServiceImplementation
     @WebRemote
     @Restrict("#{identity.loggedIn}")
     public RuleAsset loadRuleAsset(String uuid) throws SerializableException {
+        long time = System.currentTimeMillis();
         AssetItem item = repository.loadAssetByUUID( uuid );
         RuleAsset asset = new RuleAsset();
 
@@ -478,11 +480,14 @@ public class ServiceImplementation
         if ( pkgItem.isSnapshot() ) {
             asset.isreadonly = true;
         }
+
+        log.debug("Load time taken for asset: " + (System.currentTimeMillis() - time));
         return asset;
 
     }
 
     private RuleAsset loadAsset(AssetItem item) throws SerializableException {
+
         RuleAsset asset = new RuleAsset();
         asset.uuid = item.getUUID();
         // load standard meta data
@@ -494,6 +499,7 @@ public class ServiceImplementation
         handler.retrieveAssetContent( asset,
                                       pkgItem,
                                       item );
+        
         return asset;
     }
 
@@ -1857,7 +1863,11 @@ public class ServiceImplementation
             log.error( e );
             throw new DetailedSerializableException( "Unable to load a required class.",
                                                      e.getMessage() );
-        } finally {
+        } catch (ConsequenceException e) {
+           log.info( e );
+           throw new DetailedSerializableException( "There was an error executing the consequence of rule [" + e.getRule().getName() + "]", e.getMessage());
+        }  finally {
+
 
         }
     }

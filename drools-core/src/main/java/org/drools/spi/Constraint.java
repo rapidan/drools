@@ -1,10 +1,6 @@
 package org.drools.spi;
 
 import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.io.Serializable;
 
 import org.drools.rule.Declaration;
 
@@ -64,6 +60,13 @@ public interface Constraint
      * @return
      */
     public ConstraintType getType();
+    
+    /**
+     * Returns true in case this constraint is a temporal constraint
+     * 
+     * @return
+     */
+    public boolean isTemporal();
     
     /**
      * An enum for Constraint Types
