@@ -12,8 +12,11 @@ import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.dt.ActionSetFieldCol;
 import org.drools.guvnor.client.modeldriven.dt.ConditionCol;
 import org.drools.guvnor.client.modeldriven.dt.GuidedDecisionTable;
+import org.drools.guvnor.client.modeldriven.dt.ActionCol;
+import org.drools.guvnor.client.messages.Messages;
 
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ChangeListener;
 import com.google.gwt.user.client.ui.CheckBox;
@@ -23,6 +26,7 @@ import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.core.client.GWT;
 
 public class ActionSetColumn extends FormStylePopup {
 
@@ -31,8 +35,9 @@ public class ActionSetColumn extends FormStylePopup {
 	private TextBox fieldLabel = getFieldLabel();
 	private GuidedDecisionTable dt;
 	private SuggestionCompletionEngine sce;
+    private Messages constants = GWT.create(Messages.class);
 
-	public ActionSetColumn(SuggestionCompletionEngine sce, final GuidedDecisionTable dt, final Command refreshGrid, final ActionSetFieldCol col, final boolean isNew) {
+    public ActionSetColumn(SuggestionCompletionEngine sce, final GuidedDecisionTable dt, final Command refreshGrid, final ActionSetFieldCol col, final boolean isNew) {
 		this.editingCol = new ActionSetFieldCol();
 		this.dt = dt;
 		this.sce = sce;
@@ -45,7 +50,7 @@ public class ActionSetColumn extends FormStylePopup {
 		editingCol.update = col.update;
 
 		super.setModal(false);
-		setTitle("Column configuration (set a field on a fact)");
+		setTitle(constants.ColumnConfigurationSetAFieldOnAFact());
 
 
 
@@ -53,24 +58,24 @@ public class ActionSetColumn extends FormStylePopup {
 		pattern.add(bindingLabel);
 		doBindingLabel();
 
-		Image changePattern = new ImageButton("images/edit.gif", "Choose a bound fact that this column pertains to", new ClickListener() {
+		Image changePattern = new ImageButton("images/edit.gif", constants.ChooseABoundFactThatThisColumnPertainsTo(), new ClickListener() {
 			public void onClick(Widget w) {
 				showChangeFact(w);
 			}
 		});
 		pattern.add(changePattern);
-		addAttribute("Fact:", pattern);
+		addAttribute(constants.Fact(), pattern);
 
 
 		HorizontalPanel field = new HorizontalPanel();
 		field.add(fieldLabel);
-		Image editField = new ImageButton("images/edit.gif", "Edit the field that this column operates on", new ClickListener() {
+		Image editField = new ImageButton("images/edit.gif", constants.EditTheFieldThatThisColumnOperatesOn(), new ClickListener() {
 			public void onClick(Widget w) {
 				showFieldChange();
 			}
 		});
 		field.add(editField);
-		addAttribute("Field:", field);
+		addAttribute(constants.Field(), field);
 		doFieldLabel();
 
 		final TextBox valueList = new TextBox();
@@ -82,8 +87,8 @@ public class ActionSetColumn extends FormStylePopup {
 		});
 		HorizontalPanel vl = new HorizontalPanel();
 		vl.add(valueList);
-		vl.add(new InfoPopup("Value list", "Value lists are an optional comma separated list of values to show as a drop down."));
-		addAttribute("(optional) value list:", vl);
+		vl.add(new InfoPopup(constants.ValueList(), constants.ValueListsExplanation()));
+		addAttribute(constants.optionalValueList(), vl);
 
 		final TextBox header = new TextBox();
 		header.setText(col.header);
@@ -91,18 +96,33 @@ public class ActionSetColumn extends FormStylePopup {
 			public void onChange(Widget w) {
 				editingCol.header = header.getText();
 			} });
-		addAttribute("Column header (description):", header);
+		addAttribute(constants.ColumnHeaderDescription(), header);
 
-		addAttribute("Update engine with changes:", doUpdate());
+		addAttribute(constants.UpdateEngineWithChanges(), doUpdate());
 
 
-		Button apply = new Button("Apply changes");
+		Button apply = new Button(constants.ApplyChanges());
 		apply.addClickListener(new ClickListener() {
 			public void onClick(Widget w) {
+                if (null == editingCol.header || "".equals(editingCol.header)) {
+                    Window.alert(constants.YouMustEnterAColumnHeaderValueDescription());
+                    return;
+                }
 				if (isNew) {
+                    if (!unique(editingCol.header)) {
+                        Window.alert(constants.ThatColumnNameIsAlreadyInUsePleasePickAnother());
+                        return;
+                    }
 					dt.actionCols.add(editingCol);
 
 				} else {
+                    if (!col.header.equals(editingCol.header)) {
+                        if (!unique(editingCol.header)) {
+                            Window.alert(constants.ThatColumnNameIsAlreadyInUsePleasePickAnother());
+                            return;
+                        }
+                    }
+                    
 					col.boundName = editingCol.boundName;
 					col.factField = editingCol.factField;
 					col.header = editingCol.header;
@@ -120,7 +140,14 @@ public class ActionSetColumn extends FormStylePopup {
 
 	}
 
-	private Widget doUpdate() {
+    private boolean unique(String header) {
+        for (ActionCol o : dt.actionCols) {
+            if (o.header.equals(header)) return false;
+        }
+        return true;
+    }
+
+    private Widget doUpdate() {
 		HorizontalPanel hp = new HorizontalPanel();
 
 		final CheckBox cb = new CheckBox();
@@ -132,8 +159,7 @@ public class ActionSetColumn extends FormStylePopup {
 			}
 		});
 		hp.add(cb);
-		hp.add(new InfoPopup("Update fact", "Checking this will tell the engine that the value has changed." +
-				" This will cause the rules that depend on it to be re-evaulated. Use with care !"));
+		hp.add(new InfoPopup(constants.UpdateFact(), constants.UpdateDescription()));
 		return hp;
 	}
 
@@ -156,8 +182,8 @@ public class ActionSetColumn extends FormStylePopup {
 		for (int i = 0; i < fields.length; i++) {
 			box.addItem(fields[i]);
 		}
-		pop.addAttribute("Field:", box);
-		Button b = new Button("OK");
+		pop.addAttribute(constants.Field(), box);
+		Button b = new Button(constants.OK());
 		pop.addAttribute("", b);
 		b.addClickListener(new ClickListener() {
 			public void onClick(Widget w) {
@@ -175,7 +201,7 @@ public class ActionSetColumn extends FormStylePopup {
 		if (this.editingCol.factField != null) {
 			this.fieldLabel.setText(this.editingCol.factField);
 		} else {
-			this.fieldLabel.setText("(please choose a fact pattern first)");
+			this.fieldLabel.setText(constants.pleaseChooseAFactPatternFirst());
 		}
 	}
 
@@ -193,8 +219,8 @@ public class ActionSetColumn extends FormStylePopup {
 		final FormStylePopup pop = new FormStylePopup();
 
 		final ListBox pats = this.loadBoundFacts();
-		pop.addAttribute("Choose fact:", pats);
-		Button ok = new Button("OK");
+		pop.addAttribute(constants.ChooseFact(), pats);
+		Button ok = new Button(constants.OK());
 		pop.addAttribute("", ok);
 
 		ok.addClickListener(new ClickListener() {
@@ -235,7 +261,7 @@ public class ActionSetColumn extends FormStylePopup {
 		if (this.editingCol.boundName != null) {
 			this.bindingLabel.setText("" + this.editingCol.boundName);
 		} else {
-			this.bindingLabel.setText("(please choose a bound fact for this column)");
+			this.bindingLabel.setText(constants.pleaseChooseABoundFactForThisColumn());
 		}
 	}
 

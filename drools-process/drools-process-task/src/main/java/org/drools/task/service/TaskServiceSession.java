@@ -15,6 +15,7 @@ import javax.persistence.Query;
 
 import org.drools.RuleBase;
 import org.drools.StatefulSession;
+import org.drools.eventmessaging.EventKeys;
 import org.drools.task.Attachment;
 import org.drools.task.Comment;
 import org.drools.task.Content;
@@ -23,6 +24,7 @@ import org.drools.task.Group;
 import org.drools.task.OrganizationalEntity;
 import org.drools.task.PeopleAssignments;
 import org.drools.task.Status;
+import org.drools.task.SubTasksStrategy;
 import org.drools.task.Task;
 import org.drools.task.TaskData;
 import org.drools.task.User;
@@ -36,6 +38,7 @@ public class TaskServiceSession {
     private EntityManager em;
     private Map<String, RuleBase> ruleBases;  
     private Map<String, Map<String, Object>> globals;  
+    private EventKeys eventKeys;
 
     public TaskServiceSession(TaskService service,
                               EntityManager em) {
@@ -114,8 +117,17 @@ public class TaskServiceSession {
             List<OrganizationalEntity> potentialOwners = task.getPeopleAssignments().getPotentialOwners();
             if ( potentialOwners.size() == 1 ) {
                 // if there is a single potential owner, assign and set status to Reserved
+                OrganizationalEntity potentialOwner = potentialOwners.get( 0 );
+                // if there is a single potential user owner, assign and set status to Reserved
+                if(potentialOwner instanceof User){
                 taskData.setActualOwner( (User) potentialOwners.get( 0 ) );
                 taskData.setStatus( Status.Reserved );
+                }
+                //If there is a group set as potentialOwners, set the status to Ready ??
+                if(potentialOwner instanceof Group){
+
+                    taskData.setStatus( Status.Ready );
+                }
             } else if ( potentialOwners.size() > 1 ) {
                 // multiple potential owners, so set to Ready so one can claim.
                 taskData.setStatus( Status.Ready );
@@ -361,7 +373,9 @@ public class TaskServiceSession {
                                     targetEntityId );
         }
         
+        if(! em.getTransaction().isActive()){
         em.getTransaction().begin();
+        }
         TaskError error = null;
         try {
             Map<Operation, List<OperationCommand>> dsl = service.getOperations();
@@ -401,6 +415,7 @@ public class TaskServiceSession {
                 	// trigger event support
                     service.getEventSupport().fireTaskCompleted( task.getId(),
                                                                  task.getTaskData().getActualOwner().getId() );
+                    checkSubTaskStrategy(task);
                     break;
                 }
                 
@@ -427,6 +442,7 @@ public class TaskServiceSession {
                     // trigger event support
                     service.getEventSupport().fireTaskSkipped( task.getId(),
                                                                userId );
+                    checkSubTaskStrategy(task);
                     break;
                 }
                 
@@ -619,6 +635,56 @@ public class TaskServiceSession {
         List<TaskSummary> list = (List<TaskSummary>) tasksAssignedAsPotentialOwner.getResultList();
         return list;
     }
+     public List<TaskSummary> getTasksAssignedAsPotentialOwner(String userId, String groupId,
+                                                              String language) {
+        Query tasksAssignedAsPotentialOwner = em.createNamedQuery( "TasksAssignedAsPotentialOwnerWithGroup" );
+        tasksAssignedAsPotentialOwner.setParameter( "userId",
+                                                    userId );
+        tasksAssignedAsPotentialOwner.setParameter( "groupId",
+                                                    groupId );
+        tasksAssignedAsPotentialOwner.setParameter( "language",
+                                                    language );
+        List<TaskSummary> list = (List<TaskSummary>) tasksAssignedAsPotentialOwner.getResultList();
+        return list;
+    }
+
+
+
+    public List<TaskSummary> getSubTasksAssignedAsPotentialOwner(long parentId, String userId,
+                                                              String language) {
+        Query tasksAssignedAsPotentialOwner = em.createNamedQuery( "SubTasksAssignedAsPotentialOwner" );
+        tasksAssignedAsPotentialOwner.setParameter( "parentId",
+                                                    parentId );
+        tasksAssignedAsPotentialOwner.setParameter( "userId",
+                                                    userId );
+        tasksAssignedAsPotentialOwner.setParameter( "language",
+                                                    language );
+        List<TaskSummary> list = (List<TaskSummary>) tasksAssignedAsPotentialOwner.getResultList();
+        return list;
+    }
+    public List<TaskSummary> getTasksAssignedAsPotentialOwnerByGroup(String groupId,
+                                                              String language) {
+        Query tasksAssignedAsPotentialOwnerByGroup = em.createNamedQuery( "TasksAssignedAsPotentialOwnerByGroup" );
+        tasksAssignedAsPotentialOwnerByGroup.setParameter( "groupId",
+                                                    groupId );
+        tasksAssignedAsPotentialOwnerByGroup.setParameter( "language",
+                                                    language );
+
+        List<TaskSummary> list = (List<TaskSummary>) tasksAssignedAsPotentialOwnerByGroup.getResultList();
+        return list;
+    }
+
+    public List<TaskSummary> getSubTasksByParent(long parentId, String language) {
+        Query subTaskByParent = em.createNamedQuery( "GetSubTasksByParentTaskId" );
+        subTaskByParent.setParameter( "parentId",
+                                                    parentId );
+        subTaskByParent.setParameter( "language",
+                                                    language );
+
+
+        List<TaskSummary> list = (List<TaskSummary>) subTaskByParent.getResultList();
+        return list;
+    }
 
     public List<TaskSummary> getTasksAssignedAsRecipient(String userId,
                                                          String language) {
@@ -683,5 +749,20 @@ public class TaskServiceSession {
             sb.append( (char) charValue );
         }
         return sb.toString();
+    }
+
+    private void checkSubTaskStrategy(Task task){
+        if(task != null){
+            for(SubTasksStrategy strategy : task.getSubTaskStrategies()){
+                strategy.execute(this, service, task);
+            }
+        }
+        Task parentTask = null;
+        if(task.getTaskData().getParentId() != -1){
+            parentTask = getTask(task.getTaskData().getParentId());
+            for(SubTasksStrategy strategy : parentTask.getSubTaskStrategies()){
+                strategy.execute(this, service, parentTask);
+            }
+        }
     }
 }
