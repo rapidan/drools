@@ -21,9 +21,13 @@ import org.drools.runtime.process.WorkItemHandler;
 import org.drools.runtime.process.WorkItemManager;
 import org.drools.task.AccessType;
 import org.drools.task.Content;
+import org.drools.task.Group;
 import org.drools.task.I18NText;
+import org.drools.task.OnParentAbortAllSubTasksEndStrategy;
 import org.drools.task.OrganizationalEntity;
 import org.drools.task.PeopleAssignments;
+import org.drools.task.SubTasksStrategy;
+import org.drools.task.SubTasksStrategyFactory;
 import org.drools.task.Task;
 import org.drools.task.TaskData;
 import org.drools.task.User;
@@ -95,24 +99,59 @@ public class WSHumanTaskHandler implements WorkItemHandler {
 		TaskData taskData = new TaskData();
 		taskData.setWorkItemId(workItem.getId());
 		taskData.setSkipable(!"false".equals(workItem.getParameter("Skippable")));
-		task.setTaskData(taskData);
-		String actorId = (String) workItem.getParameter("ActorId");
+        //Sub Task Data
+        Long parentId = (Long) workItem.getParameter("ParentId");
+        if(parentId != null){
+            taskData.setParentId(parentId);
+        }
+
+        String subTaskStrategiesCommaSeparated = (String) workItem.getParameter("SubTaskStrategies");
+        if(subTaskStrategiesCommaSeparated!= null && !subTaskStrategiesCommaSeparated.equals("")){
+            String[] subTaskStrategies =  subTaskStrategiesCommaSeparated.split(",");
+            List<SubTasksStrategy> strategies = new ArrayList<SubTasksStrategy>();
+            for(String subTaskStrategyString : subTaskStrategies){
+                SubTasksStrategy subTaskStrategy = SubTasksStrategyFactory.newStrategy(subTaskStrategyString);
+                strategies.add(subTaskStrategy);
+            }
+            task.setSubTaskStrategies(strategies);
+        }
+
+        PeopleAssignments assignments = new PeopleAssignments();
+		List<OrganizationalEntity> potentialOwners = new ArrayList<OrganizationalEntity>();
+
+        String actorId = (String) workItem.getParameter("ActorId");
 		if (actorId != null) {
-			PeopleAssignments assignments = new PeopleAssignments();
-			List<OrganizationalEntity> potentialOwners = new ArrayList<OrganizationalEntity>();
+			
 			String[] actorIds = actorId.split(",");
 			for (String id: actorIds) {
 				User user = new User();
 				user.setId(id.trim());
 				potentialOwners.add(user);
 			}
-			assignments.setPotentialOwners(potentialOwners);
-			List<OrganizationalEntity> businessAdministrators = new ArrayList<OrganizationalEntity>();
-			businessAdministrators.add(new User("Administrator"));
-			assignments.setBusinessAdministrators(businessAdministrators);
-			task.setPeopleAssignments(assignments);
+            //Set the first user as creator ID??? hmmm might be wrong
+            if (potentialOwners.size() > 0){
+                taskData.setCreatedBy((User)potentialOwners.get(0));
+            }
+        }
+        String groupId = (String) workItem.getParameter("GroupId");
+		if (groupId != null) {
+			
+			String[] groupIds = groupId.split(",");
+			for (String id: groupIds) {
+
+				potentialOwners.add(new Group(id));
+			}
+			
 		}
-		
+
+        assignments.setPotentialOwners(potentialOwners);
+		List<OrganizationalEntity> businessAdministrators = new ArrayList<OrganizationalEntity>();
+		businessAdministrators.add(new User("Administrator"));
+		assignments.setBusinessAdministrators(businessAdministrators);
+		task.setPeopleAssignments(assignments);
+        
+		task.setTaskData(taskData);
+
 		ContentData content = null;
 		Object contentObject = workItem.getParameter("Content");
 		if (contentObject != null) {
