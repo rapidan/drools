@@ -22,7 +22,7 @@ import org.drools.guvnor.client.common.ImageButton;
 import org.drools.guvnor.client.common.LoadingPopup;
 import org.drools.guvnor.client.common.PrettyFormLayout;
 import org.drools.guvnor.client.common.RulePackageSelector;
-import org.drools.guvnor.client.messages.Messages;
+import org.drools.guvnor.client.messages.Constants;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Window;
@@ -46,7 +46,7 @@ import com.google.gwt.user.client.ui.Widget;
  */
 public class BackupManager extends Composite {
 
-    private Messages constants = GWT.create(Messages.class);
+    private Constants constants = GWT.create(Constants.class);
 
     public BackupManager() {
 
@@ -212,7 +212,7 @@ public class BackupManager extends Composite {
         upload.setName( HTMLFileManagerFields.FILE_UPLOAD_FIELD_NAME_IMPORT );
         panel.add( upload );
 
-        panel.add( new Label( "import:" ) );
+        panel.add( new Label( constants.Import() + ":" ) );
         ImageButton ok = new ImageButton( "images/upload.gif" );
         ok.addClickListener( new ClickListener() {
             public void onClick(Widget sender) {
@@ -232,7 +232,7 @@ public class BackupManager extends Composite {
 
         uploadFormPanel.addFormHandler( new FormHandler() {
             public void onSubmitComplete(FormSubmitCompleteEvent event) {
-                if ( event.getResults().indexOf( "OK" ) > -1 ) {
+                if ( event.getResults().indexOf( "OK" ) > -1 ) { //NON-NLS
                     Window.alert(constants.PackageImportDone());
                 } else {
                     ErrorPopup.showMessage(constants.PackageImportFailed());
@@ -244,7 +244,7 @@ public class BackupManager extends Composite {
                 if ( upload.getFilename().length() == 0 ) {
                     Window.alert(constants.PackageExportNoName());
                     event.setCancelled( true );
-                } else if ( !upload.getFilename().endsWith( ".xml" ) ) {
+                } else if ( !upload.getFilename().endsWith( ".xml" ) ) {   //NON-NLS
                     Window.alert(constants.PackageExportName());
                     event.setCancelled( true );
                 }

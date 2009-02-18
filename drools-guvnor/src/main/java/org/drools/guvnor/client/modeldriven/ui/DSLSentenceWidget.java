@@ -1,4 +1,5 @@
 package org.drools.guvnor.client.modeldriven.ui;
+
 /*
  * Copyright 2005 JBoss Inc
  *
@@ -15,8 +16,6 @@ package org.drools.guvnor.client.modeldriven.ui;
  * limitations under the License.
  */
 
-
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -24,14 +23,14 @@ import java.util.List;
 
 import org.drools.guvnor.client.common.DirtyableComposite;
 import org.drools.guvnor.client.common.SmallLabel;
+import org.drools.guvnor.client.explorer.Preferences;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
+import org.drools.guvnor.client.messages.Constants;
 
-import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.ChangeListener;
-import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTML;
@@ -41,179 +40,202 @@ import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.gwtext.client.widgets.Component;
+import com.google.gwt.core.client.GWT;
 import com.gwtext.client.widgets.DatePicker;
-import com.gwtext.client.widgets.event.DatePickerListener;
 import com.gwtext.client.widgets.event.DatePickerListenerAdapter;
 import com.gwtext.client.widgets.form.DateField;
+import com.gwtext.client.util.Format;
 
 /**
  * This displays a widget to edit a DSL sentence.
+ * 
  * @author Michael Neale
  */
 public class DSLSentenceWidget extends Composite {
 
-	private static final String ENUM_TAG = "ENUM";
-	private static final String DATE_TAG = "DATE";
-	private static final String BOOLEAN_TAG = "BOOLEAN";
-    private final List  widgets;
-    private final DSLSentence sentence;
+    private static final String        ENUM_TAG    = "ENUM";
+    private static final String        DATE_TAG    = "DATE";
+    private static final String        BOOLEAN_TAG = "BOOLEAN";
+    private final List                 widgets;
+    private final DSLSentence          sentence;
     private SuggestionCompletionEngine completions;
-	private final VerticalPanel layout;
-	private HorizontalPanel currentRow;
-    public DSLSentenceWidget(DSLSentence sentence, SuggestionCompletionEngine completions) {
+    private final VerticalPanel        layout;
+    private HorizontalPanel            currentRow;
+
+    public DSLSentenceWidget(DSLSentence sentence,
+                             SuggestionCompletionEngine completions) {
         widgets = new ArrayList();
         this.sentence = sentence;
         this.completions = completions;
         this.layout = new VerticalPanel();
         this.currentRow = new HorizontalPanel();
-        this.layout.add(currentRow);
-        this.layout.setCellWidth(currentRow, "100%");
-        this.layout.setWidth("100%");
-        init(  );
+        this.layout.add( currentRow );
+        this.layout.setCellWidth( currentRow,
+                                  "100%" );
+        this.layout.setWidth( "100%" );
+        init();
     }
 
-    private void init( ) {
-        makeWidgets(this.sentence.sentence);
+    private void init() {
+        makeWidgets( this.sentence.sentence );
         initWidget( this.layout );
     }
 
-
     /**
-     * This will take a DSL line item, and split it into widget thingamies for displaying.
-     * One day, if this is too complex, this will have to be done on the server side.
+     * This will take a DSL line item, and split it into widget thingamies for
+     * displaying. One day, if this is too complex, this will have to be done on
+     * the server side.
      */
     public void makeWidgets(String dslLine) {
 
-        int startVariable = dslLine.indexOf("{");
+        int startVariable = dslLine.indexOf( "{" );
         List<Widget> lineWidgets = new ArrayList<Widget>();
 
+        boolean firstOneIsBracket = (dslLine.indexOf( "{" ) == 0);
+
         String startLabel = "";
-        if(startVariable>0){
-        	startLabel = dslLine.substring(0,startVariable);
-
-        }else{
-        	startLabel = dslLine;
+        if ( startVariable > 0 ) {
+            startLabel = dslLine.substring( 0,
+                                            startVariable );
+        } else if ( !firstOneIsBracket ) {
+            // There are no curly brackets in the text.
+            // Just print it
+            startLabel = dslLine;
         }
 
-        Widget label = getLabel(startLabel);
-    	lineWidgets.add(label);
+        Widget label = getLabel( startLabel );
+        lineWidgets.add( label );
 
-        while(startVariable>0){
-        	int endVariable = dslLine.indexOf("}",startVariable);
-        	String currVariable = dslLine.substring(startVariable+1, endVariable);
+        while ( startVariable > 0 || firstOneIsBracket ) {
+            firstOneIsBracket = false;
 
-        	Widget varWidget = processVariable(currVariable);
-        	lineWidgets.add(varWidget);
+            int endVariable = dslLine.indexOf( "}",
+                                               startVariable );
+            String currVariable = dslLine.substring( startVariable + 1,
+                                                     endVariable );
 
-        	//Parse out the next label between variables
-        	startVariable = dslLine.indexOf("{",endVariable);
-        	String lbl;
-        	if(startVariable>0){
-	        	lbl = dslLine.substring(endVariable+1,startVariable);
-        	}else{
-        		lbl = dslLine.substring(endVariable+1, dslLine.length());
-        	}
+            Widget varWidget = processVariable( currVariable );
+            lineWidgets.add( varWidget );
 
-        	if (lbl.indexOf("\\n") > -1) {
-        		String[] lines = lbl.split("\\\\n");
-        		for (int i = 0; i < lines.length; i++) {
-        			lineWidgets.add(new NewLine());
-					lineWidgets.add(getLabel(lines[i]));
-				}
-        	} else {
-            	Widget currLabel = getLabel(lbl);
-            	lineWidgets.add(currLabel);
-        	}
+            // Parse out the next label between variables
+            startVariable = dslLine.indexOf( "{",
+                                             endVariable );
+            String lbl;
+            if ( startVariable > 0 ) {
+                lbl = dslLine.substring( endVariable + 1,
+                                         startVariable );
+            } else {
+                lbl = dslLine.substring( endVariable + 1,
+                                         dslLine.length() );
+            }
+
+            if ( lbl.indexOf( "\\n" ) > -1 ) {
+                String[] lines = lbl.split( "\\\\n" );
+                for ( int i = 0; i < lines.length; i++ ) {
+                    lineWidgets.add( new NewLine() );
+                    lineWidgets.add( getLabel( lines[i] ) );
+                }
+            } else {
+                Widget currLabel = getLabel( lbl );
+                lineWidgets.add( currLabel );
+            }
 
         }
 
-        for(Widget widg : lineWidgets){
-        	addWidget(widg);
+        for ( Widget widg : lineWidgets ) {
+            addWidget( widg );
         }
         updateSentence();
     }
 
-    class NewLine extends Widget {}
-
-    public Widget processVariable(String currVariable){
-
-    	Widget result = null;
-    	//Formats are: <varName>:ENUM:<Field.type>
-    	//			   <varName>:DATE:<dateFormat>
-    	//			   <varName>:BOOLEAN:[checked | unchecked] <-initial value
-
-    	int colonIndex = currVariable.indexOf(":");
-    	if(colonIndex>0){
-
-    		String definition = currVariable.substring(colonIndex+1,currVariable.length());
-
-    		int secondColonIndex = definition.indexOf(":");
-    		if(secondColonIndex>0){
-
-    			String type = currVariable.substring(colonIndex+1,colonIndex+secondColonIndex+1);
-    			if(type.equalsIgnoreCase(ENUM_TAG)){
-    				result = getEnumDropdown(currVariable);
-    			}else if(type.equalsIgnoreCase(DATE_TAG)){
-    				result = getDateSelector(currVariable);
-    			}else if(type.equalsIgnoreCase(BOOLEAN_TAG)){
-    				result = getCheckbox(currVariable);
-    			}
-    		}else{
-    			String regex = currVariable.substring(colonIndex+1,currVariable.length());
-    			result = getBox(currVariable,regex);
-    		}
-    	}
-    	else{
-    		result = getBox(currVariable,"");
-    	}
-
-    	return result;
+    class NewLine extends Widget {
     }
 
-    public Widget getEnumDropdown(String variableDef){
+    public Widget processVariable(String currVariable) {
 
-    	Widget resultWidget = new DSLDropDown(variableDef);
-    	return resultWidget;
+        Widget result = null;
+        // Formats are: <varName>:ENUM:<Field.type>
+        // <varName>:DATE:<dateFormat>
+        // <varName>:BOOLEAN:[checked | unchecked] <-initial value
+
+        int colonIndex = currVariable.indexOf( ":" );
+        if ( colonIndex > 0 ) {
+
+            String definition = currVariable.substring( colonIndex + 1,
+                                                        currVariable.length() );
+
+            int secondColonIndex = definition.indexOf( ":" );
+            if ( secondColonIndex > 0 ) {
+
+                String type = currVariable.substring( colonIndex + 1,
+                                                      colonIndex + secondColonIndex + 1 );
+                if ( type.equalsIgnoreCase( ENUM_TAG ) ) {
+                    result = getEnumDropdown( currVariable );
+                } else if ( type.equalsIgnoreCase( DATE_TAG ) ) {
+                    result = getDateSelector( currVariable );
+                } else if ( type.equalsIgnoreCase( BOOLEAN_TAG ) ) {
+                    result = getCheckbox( currVariable );
+                }
+            } else {
+                String regex = currVariable.substring( colonIndex + 1,
+                                                       currVariable.length() );
+                result = getBox( currVariable,
+                                 regex );
+            }
+        } else {
+            result = getBox( currVariable,
+                             "" );
+        }
+
+        return result;
     }
 
-    public Widget getBox(String variableDef, String regex){
+    public Widget getEnumDropdown(String variableDef) {
 
-    	int colonIndex = variableDef.indexOf(":");
-    	if(colonIndex>0){
-    		variableDef = variableDef.substring(0,colonIndex);
-    	}
-    	FieldEditor currentBox = new FieldEditor();
-    	currentBox.setVisibleLength(variableDef.length()+1);
-    	currentBox.setText(variableDef);
-    	currentBox.setRestriction(regex);
-
-    	return currentBox;
+        Widget resultWidget = new DSLDropDown( variableDef );
+        return resultWidget;
     }
 
-    public Widget getCheckbox(String variableDef){
-    	return new DSLCheckBox(variableDef);
+    public Widget getBox(String variableDef,
+                         String regex) {
+
+        int colonIndex = variableDef.indexOf( ":" );
+        if ( colonIndex > 0 ) {
+            variableDef = variableDef.substring( 0,
+                                                 colonIndex );
+        }
+        FieldEditor currentBox = new FieldEditor();
+        currentBox.setVisibleLength( variableDef.length() + 1 );
+        currentBox.setText( variableDef );
+        currentBox.setRestriction( regex );
+
+        return currentBox;
     }
 
-    public Widget getDateSelector(String variableDef){
-    	return new DSLDateSelector(variableDef);
+    public Widget getCheckbox(String variableDef) {
+        return new DSLCheckBox( variableDef );
     }
 
-    public Widget getLabel(String labelDef){
-    	Label label = new SmallLabel();
-    	label.setText(labelDef+" ");
+    public Widget getDateSelector(String variableDef) {
+        return new DSLDateSelector( variableDef );
+    }
 
-    	return label;
+    public Widget getLabel(String labelDef) {
+        Label label = new SmallLabel();
+        label.setText( labelDef + " " );
+
+        return label;
     }
 
     private void addWidget(Widget currentBox) {
-    	if (currentBox instanceof NewLine) {
-    		currentRow = new HorizontalPanel();
-    		layout.add(currentRow);
-    		layout.setCellWidth(currentRow, "100%");
-    	} else {
-    		currentRow.add(currentBox);
-    	}
+        if ( currentBox instanceof NewLine ) {
+            currentRow = new HorizontalPanel();
+            layout.add( currentRow );
+            layout.setCellWidth( currentRow,
+                                 "100%" );
+        } else {
+            currentRow.add( currentBox );
+        }
         widgets.add( currentBox );
     }
 
@@ -224,39 +246,40 @@ public class DSLSentenceWidget extends Composite {
         String newSentence = "";
         for ( Iterator iter = widgets.iterator(); iter.hasNext(); ) {
             Widget wid = (Widget) iter.next();
-            if (wid instanceof Label) {
+            if ( wid instanceof Label ) {
                 newSentence = newSentence + ((Label) wid).getText();
-            } else if (wid instanceof FieldEditor) {
-            	FieldEditor editor  = (FieldEditor) wid;
+            } else if ( wid instanceof FieldEditor ) {
+                FieldEditor editor = (FieldEditor) wid;
 
-            	String varString = editor.getText();
-            	String restriction  =editor.getRestriction();
-            	if(!restriction.equals("")){
-            		varString = varString+":"+restriction;
-            	}
+                String varString = editor.getText();
+                String restriction = editor.getRestriction();
+                if ( !restriction.equals( "" ) ) {
+                    varString = varString + ":" + restriction;
+                }
 
                 newSentence = newSentence + " {" + varString + "} ";
-            }else if (wid instanceof DSLDropDown){
+            } else if ( wid instanceof DSLDropDown ) {
 
-            	//Add the meta-data back to the field so that is shows up as a dropdown when refreshed from repo
-            	DSLDropDown drop  = (DSLDropDown)wid;
-            	ListBox box = drop.getListBox();
-            	String type = drop.getType();
-            	String factAndField = drop.getFactAndField();
+                // Add the meta-data back to the field so that is shows up as a
+                // dropdown when refreshed from repo
+                DSLDropDown drop = (DSLDropDown) wid;
+                ListBox box = drop.getListBox();
+                String type = drop.getType();
+                String factAndField = drop.getFactAndField();
 
-            	newSentence = newSentence + "{"+box.getValue(box.getSelectedIndex())+":"+type+":"+factAndField+ "} ";
-            }else if(wid instanceof DSLCheckBox){
+                newSentence = newSentence + "{" + box.getValue( box.getSelectedIndex() ) + ":" + type + ":" + factAndField + "} ";
+            } else if ( wid instanceof DSLCheckBox ) {
 
-            	DSLCheckBox check = (DSLCheckBox)wid;
-            	boolean checkValue  = check.getCheckedValue();
-            	newSentence = newSentence + "{"+checkValue+":"+check.getType()+":"+checkValue+ "} ";
-            }else if(wid instanceof DSLDateSelector){
-            	DSLDateSelector dateSel = (DSLDateSelector)wid;
-            	String dateString = dateSel.getDateString();
-            	String format = dateSel.getFormat();
-            	newSentence = newSentence + "{"+dateString+":"+dateSel.getType()+":"+format+ "} ";
-            } else if (wid instanceof NewLine) {
-            	newSentence = newSentence + "\\n";
+                DSLCheckBox check = (DSLCheckBox) wid;
+                boolean checkValue = check.getCheckedValue();
+                newSentence = newSentence + "{" + checkValue + ":" + check.getType() + ":" + checkValue + "} ";
+            } else if ( wid instanceof DSLDateSelector ) {
+                DSLDateSelector dateSel = (DSLDateSelector) wid;
+                String dateString = dateSel.getDateString();
+                String format = dateSel.getJavascriptFormat();
+                newSentence = newSentence + "{" + dateString + ":" + dateSel.getType() + ":" + format + "} ";
+            } else if ( wid instanceof NewLine ) {
+                newSentence = newSentence + "\\n";
             }
         }
         this.sentence.sentence = newSentence.trim();
@@ -264,32 +287,35 @@ public class DSLSentenceWidget extends Composite {
 
     class FieldEditor extends DirtyableComposite {
 
-        private TextBox box;
-        private HorizontalPanel panel = new HorizontalPanel();
-        private String oldValue = "";
-        private String regex = "";
+        private TextBox         box;
+        private HorizontalPanel panel     = new HorizontalPanel();
+        private String          oldValue  = "";
+        private String          regex     = "";
+        private Constants       constants = ((Constants) GWT.create( Constants.class ));
+
         public FieldEditor() {
             box = new TextBox();
-            //box.setStyleName( "dsl-field-TextBox" );
+            // box.setStyleName( "dsl-field-TextBox" );
 
-            panel.add( new HTML("&nbsp;") );
+            panel.add( new HTML( "&nbsp;" ) );
             panel.add( box );
-            panel.add( new HTML("&nbsp;") );
+            panel.add( new HTML( "&nbsp;" ) );
 
             box.addChangeListener( new ChangeListener() {
                 public void onChange(Widget w) {
-                	TextBox otherBox = (TextBox)w;
+                    TextBox otherBox = (TextBox) w;
 
-                	if(!regex.equals("") && !otherBox.getText().matches(regex)){
-                		Window.alert("The value "+otherBox.getText()+" is not valid for this field");
-                		box.setText(oldValue);
-                	}else{
-                		oldValue = otherBox.getText();
-                		updateSentence();
-                		makeDirty();
-                	}
+                    if ( !regex.equals( "" ) && !otherBox.getText().matches( regex ) ) {
+                        Window.alert( Format.format( constants.TheValue0IsNotValidForThisField(),
+                                                     otherBox.getText() ) );
+                        box.setText( oldValue );
+                    } else {
+                        oldValue = otherBox.getText();
+                        updateSentence();
+                        makeDirty();
+                    }
                 }
-            });
+            } );
 
             initWidget( panel );
         }
@@ -306,141 +332,157 @@ public class DSLSentenceWidget extends Composite {
             return box.getText();
         }
 
-        public void setRestriction(String regex){
-        	this.regex = regex;
+        public void setRestriction(String regex) {
+            this.regex = regex;
         }
 
-        public String getRestriction(){
-        	return this.regex;
+        public String getRestriction() {
+            return this.regex;
         }
 
-        public boolean isValid(){
-        	boolean result = true;
-        	if(!regex.equals(""))
-        		result = this.box.getText().matches(this.regex);
+        public boolean isValid() {
+            boolean result = true;
+            if ( !regex.equals( "" ) ) result = this.box.getText().matches( this.regex );
 
-        	return result;
+            return result;
         }
     }
 
+    class DSLDropDown extends DirtyableComposite {
 
-    class DSLDropDown extends DirtyableComposite{
+        ListBox        resultWidget = null;
+        // Format for the dropdown def is <varName>:<type>:<Fact.field>
+        private String varName      = "";
+        private String type         = "";
+        private String factAndField = "";
 
-    	ListBox resultWidget = null;
-    	//Format for the dropdown def is <varName>:<type>:<Fact.field>
-    	private String varName ="";
-    	private String type  ="";
-    	private String factAndField = "";
+        public DSLDropDown(String variableDef) {
+            int firstIndex = variableDef.indexOf( ":" );
+            int lastIndex = variableDef.lastIndexOf( ":" );
+            varName = variableDef.substring( 0,
+                                             firstIndex );
+            type = variableDef.substring( firstIndex + 1,
+                                          lastIndex );
+            factAndField = variableDef.substring( lastIndex + 1,
+                                                  variableDef.length() );
 
-    	public DSLDropDown(String variableDef){
-    		int firstIndex = variableDef.indexOf(":");
-        	int lastIndex  = variableDef.lastIndexOf(":");
-    		varName = variableDef.substring(0,firstIndex);
-    		type = variableDef.substring(firstIndex+1,lastIndex);
-    		factAndField = variableDef.substring(lastIndex+1, variableDef.length());
+            int dotIndex = factAndField.indexOf( "." );
+            String type = factAndField.substring( 0,
+                                                  dotIndex );
+            String field = factAndField.substring( dotIndex + 1,
+                                                   factAndField.length() );
 
-    		int dotIndex = factAndField.indexOf(".");
-    		String type = factAndField.substring(0,dotIndex);
-    		String field= factAndField.substring(dotIndex+1,factAndField.length());
+            String[] data = completions.getEnumValues( type,
+                                                       field );
+            ListBox list = new ListBox();
 
-			String[] data = completions.getEnumValues(type, field);
-	    	ListBox list = new ListBox();
-
-	    	if(data!=null){
-		    	int selected = -1;
-			    	for(int i=0;i<data.length;i++){
-                        String realValue = data[i];
-                        String display = data[i];
-                        if (data[i].indexOf('=') > -1) {
-                            String[] vs = ConstraintValueEditorHelper.splitValue(data[i]);
-                            realValue = vs[0];
-                            display = vs[1];
-                        }
-                        if(varName.equals(realValue)){
-                            selected=i;
-                        }
-                        list.addItem(display, realValue);
-			    	}
-			    	if(selected>=0) list.setSelectedIndex(selected);
-	    	}
-	    	list.addChangeListener( new ChangeListener() {
+            if ( data != null ) {
+                int selected = -1;
+                for ( int i = 0; i < data.length; i++ ) {
+                    String realValue = data[i];
+                    String display = data[i];
+                    if ( data[i].indexOf( '=' ) > -1 ) {
+                        String[] vs = ConstraintValueEditorHelper.splitValue( data[i] );
+                        realValue = vs[0];
+                        display = vs[1];
+                    }
+                    if ( varName.equals( realValue ) ) {
+                        selected = i;
+                    }
+                    list.addItem( display,
+                                  realValue );
+                }
+                if ( selected >= 0 ) list.setSelectedIndex( selected );
+            }
+            list.addChangeListener( new ChangeListener() {
                 public void onChange(Widget w) {
                     updateSentence();
                     makeDirty();
                 }
-            });
+            } );
 
-	    	initWidget(list);
-	    	resultWidget = list;
-    	}
-		public ListBox getListBox() {
-			return resultWidget;
-		}
-		public void setListBox(ListBox resultWidget) {
-			this.resultWidget = resultWidget;
-		}
-		public String getType() {
-			return type;
-		}
-		public void setType(String type) {
-			this.type = type;
-		}
-		public String getFactAndField() {
-			return factAndField;
-		}
-		public void setFactAndField(String factAndField) {
-			this.factAndField = factAndField;
-		}
+            initWidget( list );
+            resultWidget = list;
+        }
+
+        public ListBox getListBox() {
+            return resultWidget;
+        }
+
+        public void setListBox(ListBox resultWidget) {
+            this.resultWidget = resultWidget;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public void setType(String type) {
+            this.type = type;
+        }
+
+        public String getFactAndField() {
+            return factAndField;
+        }
+
+        public void setFactAndField(String factAndField) {
+            this.factAndField = factAndField;
+        }
     }
 
     class DSLCheckBox extends Composite {
-    	ListBox resultWidget = null;
-    	//Format for the dropdown def is <varName>:<type>:<Fact.field>
-    	private String varName ="";
+        ListBox        resultWidget = null;
+        // Format for the dropdown def is <varName>:<type>:<Fact.field>
+        private String varName      = "";
 
-    	public DSLCheckBox(String variableDef){
+        public DSLCheckBox(String variableDef) {
 
-    		int firstIndex = variableDef.indexOf(":");
-        	int lastIndex  = variableDef.lastIndexOf(":");
-    		varName = variableDef.substring(0,firstIndex);
-    		String checkedUnchecked = variableDef.substring(lastIndex+1, variableDef.length());
+            int firstIndex = variableDef.indexOf( ":" );
+            int lastIndex = variableDef.lastIndexOf( ":" );
+            varName = variableDef.substring( 0,
+                                             firstIndex );
+            String checkedUnchecked = variableDef.substring( lastIndex + 1,
+                                                             variableDef.length() );
 
-    		resultWidget = new ListBox();
-            resultWidget.addItem("true");
-            resultWidget.addItem("false");
+            resultWidget = new ListBox();
+            resultWidget.addItem( "true" );
+            resultWidget.addItem( "false" );
 
-	    	if(checkedUnchecked.equalsIgnoreCase("checked")){
-                resultWidget.setSelectedIndex(0);
-	    	}else{
-                resultWidget.setSelectedIndex(1);
-	    	}
+            if ( checkedUnchecked.equalsIgnoreCase( "checked" ) ) {
+                resultWidget.setSelectedIndex( 0 );
+            } else {
+                resultWidget.setSelectedIndex( 1 );
+            }
 
-	    	resultWidget.addClickListener( new ClickListener() {
+            resultWidget.addClickListener( new ClickListener() {
                 public void onClick(Widget w) {
                     updateSentence();
                 }
-            });
+            } );
 
-	    	resultWidget.setVisible(true);
-	    	initWidget(resultWidget);
-    	}
-		public ListBox getListBox() {
-			return resultWidget;
-		}
-		public void setListBox(ListBox resultWidget) {
-			this.resultWidget = resultWidget;
-		}
-		public String getType() {
-			return BOOLEAN_TAG;
-		}
+            resultWidget.setVisible( true );
+            initWidget( resultWidget );
+        }
 
+        public ListBox getListBox() {
+            return resultWidget;
+        }
 
-		public String getVarName() {
-			return varName;
-		}
-		public void setVarName(String varName) {
-			this.varName = varName;
-		}
+        public void setListBox(ListBox resultWidget) {
+            this.resultWidget = resultWidget;
+        }
+
+        public String getType() {
+            return BOOLEAN_TAG;
+        }
+
+        public String getVarName() {
+            return varName;
+        }
+
+        public void setVarName(String varName) {
+            this.varName = varName;
+        }
 
         public boolean getCheckedValue() {
             return this.resultWidget.getSelectedIndex() == 0;
@@ -448,86 +490,93 @@ public class DSLSentenceWidget extends Composite {
         }
     }
 
-    class DSLDateSelector extends DirtyableComposite{
-    	DateField resultWidget = null;
-    	//Format for the dropdown def is <varName>:<type>:<Fact.field>
-    	private String varName ="";
-    	private String format  ="";
-    	private String defaultFormat = "dd-MMM-yyyy";
-    	private DateTimeFormat formatter = null;
-    	public DSLDateSelector(String variableDef){
+    class DSLDateSelector extends DirtyableComposite {
+        DateField              resultWidget            = null;
+        // Format for the dropdown def is <varName>:<type>:<Fact.field>
+        private String         varName                 = "";
+        private String         javascriptFormat        = "";
+        private final String   defaultJavascriptFormat = "d-M-y";
+        private final String   javaFormat              = Preferences.getStringPref( "drools.dateformat" );
+        private DateTimeFormat formatter               = null;
 
-    		int firstIndex = variableDef.indexOf(":");
-        	int lastIndex  = variableDef.lastIndexOf(":");
-    		varName = variableDef.substring(0,firstIndex);
-    		format = variableDef.substring(lastIndex+1, variableDef.length());
+        public DSLDateSelector(String variableDef) {
 
-    		//Ugly ugly way to get a date format
-    		if(format.equals("") || format.equals("default")){
-    			formatter = DateTimeFormat.getFormat(defaultFormat);
-    		}else{
-    			try{
-    				formatter = DateTimeFormat.getFormat(format);
-    			}catch(Exception e){
-    				formatter = DateTimeFormat.getFormat(defaultFormat);
-    			}
-    		}
+            int firstIndex = variableDef.indexOf( ":" );
+            int lastIndex = variableDef.lastIndexOf( ":" );
+            varName = variableDef.substring( 0,
+                                             firstIndex );
+            javascriptFormat = variableDef.substring( lastIndex + 1,
+                                                      variableDef.length() );
 
-    		Date origDate = null;
-    		if(!varName.equals("")){
-	    		try{
-	    			origDate = formatter.parse(varName);
-	    		}catch(Exception e){
+            // Resolve the javascript format
+            if ( javascriptFormat.equals( "" ) || javascriptFormat.equals( "default" ) ) {
+                javascriptFormat = defaultJavascriptFormat;
+            }
 
-	    		}
-    		}
+            // Set the java format for formatter
+            formatter = DateTimeFormat.getFormat( javaFormat );
 
-    		resultWidget = new DateField();
-    		if(origDate!=null)
-    			resultWidget.setValue(origDate);
+            Date origDate = null;
+            if ( !varName.equals( "" ) ) {
+                try {
+                    origDate = formatter.parse( varName );
+                } catch ( Exception e ) {
 
-	    	resultWidget.addListener( new DatePickerListenerAdapter() {
+                }
+            }
 
-				public void onSelect(DatePicker dataPicker, Date date) {
-					resultWidget.setValue(date);
-					updateSentence();
+            resultWidget = new DateField();
+            resultWidget.setFormat( javascriptFormat );
+
+            if ( origDate != null ) resultWidget.setValue( origDate );
+
+            resultWidget.addListener( new DatePickerListenerAdapter() {
+
+                public void onSelect(DatePicker dataPicker,
+                                     Date date) {
+                    resultWidget.setValue( date );
+                    updateSentence();
                     makeDirty();
 
-				}
-            });
+                }
+            } );
 
-	    	resultWidget.setVisible(true);
-	    	initWidget(resultWidget);
-    	}
-		public DateField getListBox() {
-			return resultWidget;
-		}
-		public void setListBox(DateField resultWidget) {
-			this.resultWidget = resultWidget;
-		}
-		public String getType() {
-			return DATE_TAG;
-		}
+            resultWidget.setVisible( true );
+            initWidget( resultWidget );
+        }
 
-		public String getFormat(){
-			return this.format;
-		}
-		public String getDateString() {
-			Date value  = resultWidget.getValue();
-			String result ="";
-			if(value!=null)
-				result =formatter.format(value);
-			else
-				result = varName;
-			
-			return  result;
-		}
-		public String getVarName() {
-			return varName;
-		}
-		public void setVarName(String varName) {
-			this.varName = varName;
-		}
+        public DateField getListBox() {
+            return resultWidget;
+        }
+
+        public void setListBox(DateField resultWidget) {
+            this.resultWidget = resultWidget;
+        }
+
+        public String getType() {
+            return DATE_TAG;
+        }
+
+        public String getJavascriptFormat() {
+            return this.javascriptFormat;
+        }
+
+        public String getDateString() {
+            Date value = resultWidget.getValue();
+            String result = "";
+            if ( value != null ) result = formatter.format( value );
+            else result = varName;
+
+            return result;
+        }
+
+        public String getVarName() {
+            return varName;
+        }
+
+        public void setVarName(String varName) {
+            this.varName = varName;
+        }
 
     }
 }

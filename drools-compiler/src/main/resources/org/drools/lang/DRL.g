@@ -576,8 +576,8 @@ decl_metadata
 	{	emit($AT, DroolsEditorType.SYMBOL);	}
 		ID
 	{	emit($ID, DroolsEditorType.IDENTIFIER);	}
-		paren_chunk
-		-> ^(AT ID paren_chunk)
+		paren_chunk?
+		-> ^(AT ID paren_chunk?)
 	;
 
 decl_field
@@ -1784,10 +1784,6 @@ WHEN
 	:	'when'
 	;
 
-GRAVE_ACCENT
-	:	'`'
-	;
-
 AT	:	'@'
 	;
 
@@ -1837,7 +1833,7 @@ ARROW
 
 ID	
 	:	('a'..'z'|'A'..'Z'|'_'|'$'|'\u00c0'..'\u00ff')('a'..'z'|'A'..'Z'|'_'|'0'..'9'|'\u00c0'..'\u00ff')*
-	|	'%' ('a'..'z'|'A'..'Z'|'_'|'$'|'\u00c0'..'\u00ff')('a'..'z'|'A'..'Z'|'_'|'0'..'9'|'\u00c0'..'\u00ff')+ '%'
+	|	'`' ('a'..'z'|'A'..'Z'|'_'|'$'|'\u00c0'..'\u00ff')('a'..'z'|'A'..'Z'|'_'|'0'..'9'|'\u00c0'..'\u00ff')+ '`'
 	{	state.text = $text.substring(1, $text.length() - 1);	}
 	;
 

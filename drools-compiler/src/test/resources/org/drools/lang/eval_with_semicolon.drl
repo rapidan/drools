@@ -1,7 +1,6 @@
-
 rule simple_rule 
   when
-	eval(abc();)
+    eval(abc();)
   then
 	Kapow
 	Poof

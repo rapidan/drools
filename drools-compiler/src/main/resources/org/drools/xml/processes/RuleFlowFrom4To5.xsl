@@ -2,11 +2,13 @@
 <xsl:stylesheet version="2.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 	<xsl:output method="xml" indent="yes" />
+	<!-- Converts a drools version 4 non-graphical ruleflow file (i.e. .rfm file) to version5 .rf file-->
 	<!-- How to get the first node so the the implementing class need not be mentioned here.-->
 	<xsl:variable name="type">RuleFlow</xsl:variable>
 	<xsl:variable name="name"><xsl:value-of select="./org.drools.ruleflow.core.impl.RuleFlowProcessImpl/name"/></xsl:variable>
 	<xsl:variable name="id"><xsl:value-of select="./org.drools.ruleflow.core.impl.RuleFlowProcessImpl/id"/></xsl:variable>
 	<xsl:variable name="packageName"><xsl:value-of select="./org.drools.ruleflow.core.impl.RuleFlowProcessImpl/packageName"/></xsl:variable>
+	<xsl:variable name="version"><xsl:value-of select="./org.drools.ruleflow.core.impl.RuleFlowProcessImpl/version"/></xsl:variable>
 	<xsl:param name="generateTypes">false</xsl:param>
 	<xsl:param name="generateImports">false</xsl:param>
 	<xsl:param name="generateIncludes">false</xsl:param>
@@ -20,7 +22,12 @@
 			<xsl:attribute name="name"><xsl:value-of select="$name"/></xsl:attribute>
 			<xsl:attribute name="id"><xsl:value-of select="$id"/></xsl:attribute>
 			<xsl:attribute name="package-name"><xsl:value-of select="$packageName"/></xsl:attribute>
+			<xsl:attribute name="version"><xsl:value-of select="$version"/></xsl:attribute>
 			<!-- TODO Could not add other namespace related attributes on the element node especially for schema location. -->
+			<xsl:element name="header">
+				<xsl:call-template name="processImports"/>
+				<xsl:call-template name="processGlobals"/>
+			</xsl:element>
 			<xsl:element name="nodes">
 				<xsl:call-template name="processNodes"/>
 			</xsl:element>
@@ -28,6 +35,31 @@
 				<xsl:call-template name="formConnections" />
 			</xsl:element>
 		</xsl:element>
+	</xsl:template>
+	
+	<xsl:template name="processImports">
+		<xsl:if test="//imports">
+			<xsl:element name="imports">
+			<xsl:for-each select="//imports/string">
+				<xsl:element name="import">
+					<xsl:attribute name="name"><xsl:value-of select="."/></xsl:attribute>
+				</xsl:element>
+			</xsl:for-each>
+			</xsl:element>
+		</xsl:if>
+	</xsl:template>
+	
+	<xsl:template name="processGlobals">
+		<xsl:if test="//globals">
+			<xsl:element name="globals">
+			<xsl:for-each select="//globals/entry">
+				<xsl:element name="global">
+					<xsl:attribute name="identifier"><xsl:value-of select="./string[1]/."/></xsl:attribute>
+					<xsl:attribute name="type"><xsl:value-of select="./string[2]/."/></xsl:attribute>
+				</xsl:element>
+			</xsl:for-each>
+			</xsl:element>
+		</xsl:if>
 	</xsl:template>
 
 	<xsl:template name="processNodes">
