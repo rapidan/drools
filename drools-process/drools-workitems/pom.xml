@@ -12,7 +12,18 @@
   <packaging>jar</packaging>
   <name>Drools :: Process :: WorkItems</name>
 
-  <build/>
+  <!--build>
+     <plugins>
+         <plugin>
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-surefire-plugin</artifactId>
+             <version>2.3</version>
+             <configuration>
+               <argLine>-Xdebug -Djava.compiler=none -Xnoagent -Xrunjdwp:transport=dt_socket,server=n,address=${jpda.address}</argLine>
+             </configuration>
+         </plugin>
+     </plugins>
+ </build-->
 
   <dependencies>
     <!-- Internal dependencies -->
@@ -64,7 +75,44 @@
       <version>1.2</version>
       <scope>test</scope>
     </dependency>
-        
+    <!-- Smack Jabber LIB -->
+   <dependency>
+        <groupId>jivesoftware</groupId>
+        <artifactId>smack</artifactId>
+        <version>3.0.4</version>
+    </dependency>
+    
+     <!-- Rome RSS Feeds LIB -->
+   <dependency>
+        <groupId>rome</groupId>
+        <artifactId>rome</artifactId>
+        <version>0.9</version>
+    </dependency>
+
+   <!-- FTP Client LIB -->
+   <dependency> 
+        <groupId>commons-net</groupId>
+        <artifactId>commons-net</artifactId>
+        <version>2.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.ftpserver</groupId>
+        <artifactId>ftpserver-core</artifactId>
+        <version>1.0.0-RC2</version>
+        <scope>test</scope>
+    </dependency>
+  <dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-api</artifactId>
+    <version>1.5.6</version>
+  </dependency>
+  <dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-log4j12</artifactId>
+    <version>1.5.6</version>
+    <scope>test</scope>
+  </dependency>
+   <!-- END FTP Client LIB -->
   </dependencies>
 
 </project>

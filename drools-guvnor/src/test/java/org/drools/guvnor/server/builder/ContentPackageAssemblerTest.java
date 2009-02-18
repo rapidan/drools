@@ -439,6 +439,36 @@ public class ContentPackageAssemblerTest extends TestCase {
 
     }
 
+    public void testEventingExample() throws Exception {
+
+        RulesRepository repo = getRepo();
+
+        PackageItem pkg = repo.createPackage( "testEventingExample",
+                                              "" );
+        AssetItem model = pkg.addAsset( "model",
+                                        "qed" );
+        model.updateFormat( AssetFormats.MODEL );
+
+        model.updateBinaryContentAttachment( this.getClass().getResourceAsStream( "/eventing-example.jar" ) );
+        model.checkin( "" );
+
+        ServiceImplementation.updateDroolsHeader( "import org.drools.examples.eventing.EventRequest\n",
+                                                  pkg );
+        AssetItem asset = pkg.addAsset("whee", "");
+        asset.updateFormat(AssetFormats.DRL);
+        asset.updateContent("rule 'zaa'\n  when \n  request: EventRequest( status == EventRequest.Status.ACTIVE )\n   then \n request.setStatus(EventRequest.Status.ACTIVE); \n  end");
+        asset.checkin("");
+
+        ContentPackageAssembler asm = new ContentPackageAssembler( pkg );
+        if (asm.hasErrors()) {
+            for ( ContentAssemblyError err : asm.getErrors() ) {
+                System.err.println(err.errorReport);
+            }
+            fail();
+        }
+
+    }
+
     /**
      * This time, we mix up stuff a bit
      *

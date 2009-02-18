@@ -211,17 +211,19 @@ public class ClassTypeResolver
 
         return clazz;
     }
-
+    
     private Class importClass(final String importText,
                               final String className) {
         String qualifiedClass = null;
         Class clazz = null;
-
+        
         if ( importText.endsWith( "*" ) ) {
             qualifiedClass = importText.substring( 0,
                                                    importText.indexOf( '*' ) ) + className;
         } else if ( importText.endsWith( "." + className ) ) {
             qualifiedClass = importText;
+        } else if ( ( className.indexOf( '.' ) > 0 ) && (importText.endsWith( className.split( "\\." )[0] )) ) {
+            qualifiedClass = importText + className.substring( className.indexOf( '.' ) );
         } else if ( importText.equals( className ) ) {
             qualifiedClass = importText;
         }

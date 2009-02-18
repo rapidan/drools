@@ -137,7 +137,7 @@ public class RepositoryView extends ViewPart {
 					// for the server, currently we do not have a situation requiring authentication
 					// for specific files. This might be different in the future if the Guvnor security
 					// model changes, or users can directly connect to specific files.
-					Activator.getDefault().displayError(IStatus.ERROR, e.getMessage(), e);
+					Activator.getDefault().displayError(IStatus.ERROR, e.getMessage(), e, true);
 				}
 			}
 			
@@ -179,7 +179,7 @@ public class RepositoryView extends ViewPart {
 						msg.append("\r\n"); //$NON-NLS-1$
 					}
 					Activator.getDefault().
-						displayMessage(IStatus.ERROR, msg.toString());
+						displayError(IStatus.ERROR, msg.toString(), new Exception(), true);
 				}
 				if (items.length != errors.length) {
 					// At least one item did not have an error,
@@ -328,12 +328,25 @@ public class RepositoryView extends ViewPart {
 		manager.add(new Separator());
 		manager.add(refreshAction);
 	}
-
+	
+	private boolean shouldAddDeleteAction() {
+		ISelection selection = viewer.getSelection();
+		if (selection == null) {
+			return false;
+		}
+		Object obj = ((IStructuredSelection)selection).getFirstElement();
+		if (obj instanceof TreeParent) {
+			return ((TreeParent)obj).getNodeType() == TreeObject.Type.REPOSITORY;
+		} else {
+			return false;
+		}
+	}
+	
 	private void fillContextMenu(IMenuManager manager) {
-		manager.add(deleteRepositoryLocAction);
-		manager.add(addRepositoryLocAction);
+		if (shouldAddDeleteAction()) {
+			manager.add(deleteRepositoryLocAction);
+		}
 		manager.add(refreshAction);
-		manager.add(new Separator());
 		drillDownAdapter.addNavigationActions(manager);
 		// Other plug-ins can contribute there actions here
 		manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
@@ -438,7 +451,7 @@ public class RepositoryView extends ViewPart {
 				// for the server, currently we do not have a situation requiring authentication
 				// for specific files. This might be different in the future if the Guvnor security
 				// model changes, or users can directly connect to specific files.
-				Activator.getDefault().displayError(IStatus.ERROR, e.getMessage(), e);
+				Activator.getDefault().displayError(IStatus.ERROR, e.getMessage(), e, true);
 			}
 		}
 	}

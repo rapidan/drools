@@ -16,10 +16,7 @@ package org.drools.guvnor.client.rulelist;
  * limitations under the License.
  */
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 import org.drools.guvnor.client.common.GenericCallback;
 import org.drools.guvnor.client.common.LoadingPopup;
@@ -28,7 +25,7 @@ import org.drools.guvnor.client.rpc.TableConfig;
 import org.drools.guvnor.client.rpc.TableDataResult;
 import org.drools.guvnor.client.rpc.TableDataRow;
 import org.drools.guvnor.client.ruleeditor.EditorLauncher;
-import org.drools.guvnor.client.messages.Messages;
+import org.drools.guvnor.client.messages.Constants;
 
 import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.Command;
@@ -84,7 +81,7 @@ public class AssetItemGrid extends Composite {
 
     protected Store             store;
     private GridPanel           currentGrid;
-    private Messages constants = GWT.create(Messages.class);
+    private Constants constants = GWT.create(Constants.class);
 
     public AssetItemGrid(final EditItemEvent event,
                          final String tableConfig,
@@ -171,7 +168,7 @@ public class AssetItemGrid extends Composite {
                                  Toolbar tb = new Toolbar();
                                  currentGrid.setTopToolbar( tb );
                                  if ( result.total > -1 ) {
-                                     tb.addItem( new ToolbarTextItem( Format.format(constants.ShowingNofXItems().replace("X", "{0}").replace("Y", "{1}"),
+                                     tb.addItem( new ToolbarTextItem( Format.format(constants.ShowingNofXItems().replace("X", "{0}").replace("Y", "{1}"),  //NON-NLS
                                                                                      new String[]{"" + result.data.length, "" + result.total} ) ) );
                                  } else {
                                      tb.addItem( new ToolbarTextItem( Format.format(constants.NItems().replace("X", "{0}"),
@@ -352,7 +349,8 @@ public class AssetItemGrid extends Composite {
             cfgs[i + 1] = new ColumnConfig() {
                 {
                     if ( !header.equals( "Description" ) ) {
-                        setHeader( header );
+
+                        setupHeader();
                         setSortable( true );
                         setDataIndex( header );
                         if ( header.equals( "Name" ) ) { //name is special !
@@ -390,6 +388,19 @@ public class AssetItemGrid extends Composite {
                         setHidden( true ); //don't want to show a separate description
                     }
 
+                }
+
+                /**
+                 * This dirty hack is needed to cope with keys that may not be localised.
+                 * ie not built in ones (eg a user adds a custom column).
+                 */
+                private void setupHeader() {
+                    try {
+                        String headerDisplay = constants.getString(header);
+                        setHeader( headerDisplay );
+                    } catch (MissingResourceException me) {
+                        setHeader( header );
+                    }
                 }
             };
         }
