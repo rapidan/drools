@@ -8,4 +8,5 @@
 
 # these annoying files are created from the build/test process
 drools-pipeline/drools-messenger-jms/activemq-data/
-drools-guvnor/src/main/java/org/drools/guvnor/public/version.txt
+/drools-guvnor/src/main/java/org/drools/guvnor/public/version.txt
+
