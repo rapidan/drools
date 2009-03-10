@@ -154,7 +154,7 @@ public class ServiceImplementation
 
     private static final DateFormat dateFormatter                     = DateFormat.getInstance();
 
-    private static final Logger     log                               = LoggingHelper.getLogger();
+    private static final Logger     log                               = LoggingHelper.getLogger(ServiceImplementation.class);
 
     private MetaDataMapper          metaDataMapper                    = new MetaDataMapper();
 
@@ -1273,11 +1273,6 @@ public class ServiceImplementation
                 break;
             }
             AssetItem item = (AssetItem) it.next();
-            try {
-                System.err.println( "jcr:path=" + item.getNode().getPath() );
-            } catch ( RepositoryException e ) {
-                e.printStackTrace();
-            }
             if ( filter.accept( item,
                                 RoleTypes.PACKAGE_READONLY ) ) {
                 TableDataRow row = new TableDataRow();
@@ -1876,8 +1871,9 @@ public class ServiceImplementation
             log.info( e );
             throw new DetailedSerializableException( "There was an error executing the consequence of rule [" + e.getRule().getName() + "]",
                                                      e.getMessage() );
-        } finally {
-
+        } catch (Exception e) {
+            log.error(e);            
+            throw new DetailedSerializableException("Unable to run the scenario.", e.getMessage());
         }
     }
 

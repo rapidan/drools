@@ -16,14 +16,20 @@ package org.drools.base;
  * limitations under the License.
  */
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.drools.FactException;
 import org.drools.common.InternalWorkingMemoryActions;
 import org.drools.impl.StatefulKnowledgeSessionImpl;
 import org.drools.reteoo.ReteooStatefulSession;
+import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.rule.Declaration;
 import org.drools.rule.GroupElement;
 import org.drools.rule.Rule;
+import org.drools.runtime.ExitPoint;
 import org.drools.runtime.KnowledgeRuntime;
+import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 import org.drools.FactHandle;
 import org.drools.WorkingMemory;
 import org.drools.spi.Activation;
@@ -147,7 +153,7 @@ public class SequentialKnowledgeHelper
     }
     
     public KnowledgeRuntime getKnowledgeRuntime() {        
-        return new StatefulKnowledgeSessionImpl( (ReteooStatefulSession) this.workingMemory );
+        return new StatefulKnowledgeSessionImpl( (ReteooWorkingMemory) this.workingMemory );
      }
 
     public Activation getActivation() {
@@ -181,5 +187,21 @@ public class SequentialKnowledgeHelper
     
     public void halt() {
         this.workingMemory.halt();
-    }    
+    }
+
+    public WorkingMemoryEntryPoint getEntryPoint(String id) {
+        return this.workingMemory.getEntryPoints().get( id );
+    }
+
+    public ExitPoint getExitPoint(String id) {
+        return this.workingMemory.getExitPoints().get( id );
+    }
+
+    public Map<String, WorkingMemoryEntryPoint> getEntryPoints() {
+        return Collections.unmodifiableMap( this.workingMemory.getEntryPoints() );
+    }
+
+    public Map<String, ExitPoint> getExitPoints() {
+        return Collections.unmodifiableMap( this.workingMemory.getExitPoints() );
+    }
 }

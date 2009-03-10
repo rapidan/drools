@@ -38,10 +38,10 @@ import org.drools.runtime.rule.StatefulRuleSession;
  * Also, it is a good practice to set your globals before inserting your facts. Rules engines evaluate rules at fact insertion
  * time, and so, if you are using a global to constraint a fact pattern, and the global is not set, you may receive a 
  * <code>NullPointerException</code>. </p> 
- * <p>Globals can be resolved in two ways. The StatefulKnowledgeSession supports setGlobalResolver() and setGlobal().
- * Calling of setGlobal(String, Object) will set the global on an internal Collection. Identifiers in this internal 
- * Collection will have priority over the externally supplied GlobalResolver. If an identifier cannot be found in 
- * the internal Collection, it will then check the externally supplied Global Resolver, if one has been set.
+ * <p>Globals can be resolved in two ways. The StatefulKnowledgeSession supports getGlobals() which returns the internal Globals, which itself
+ * can take a delegate. Calling of setGlobal(String, Object) will set the global on an internal Collection. Identifiers in this internal 
+ * Collection will have priority over the externally supplied Globals delegate. If an identifier cannot be found in 
+ * the internal Collection, it will then check the externally supplied Globals delegate, if one has been set.
  * </p>
  * 
  * <p>Code snippet for setting a global:</p>
@@ -55,14 +55,22 @@ import org.drools.runtime.rule.StatefulRuleSession;
  * ksession.dispose();
  * </pre>
  * 
- * @see org.drools.runtime.GlobalResolver
+ * <p>
+ * Like StatelessKnowledgeSession this also implements BatchExecutor which can be used to script a StatefulKnowledgeSession. See BatchExecutor
+ * for more details.
+ * </p>
+ * 
+ * @see org.drools.runtime.Globals
  */
 public interface StatefulKnowledgeSession
     extends
     StatefulRuleSession,
     StatefulProcessSession,
+    BatchExecutor,
     KnowledgeRuntime {
 
+    int getId();
+    
     /**
      * Releases all the current session resources, setting up the session for garbage collection.
      * This method <b>must</b> always be called after finishing using the session, or the engine

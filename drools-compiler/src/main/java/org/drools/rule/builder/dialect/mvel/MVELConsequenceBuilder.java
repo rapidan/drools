@@ -2,7 +2,6 @@ package org.drools.rule.builder.dialect.mvel;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.drools.base.mvel.MVELCompilationUnit;
 import org.drools.base.mvel.MVELConsequence;
@@ -19,10 +18,7 @@ public class MVELConsequenceBuilder
     implements
     ConsequenceBuilder {
 
-    //private final Interceptor assertInterceptor;
-    //private final Interceptor modifyInterceptor;
-
-    private static final Map macros = new HashMap( 5 );
+    private static final Map<String, Macro> macros = new HashMap<String,Macro>( 10 );
     static {
         macros.put( "insert",
                     new Macro() {
@@ -57,7 +53,19 @@ public class MVELConsequenceBuilder
                         public String doMacro() {
                             return "drools.retract";
                         }
-                    } );;
+                    } );
+        macros.put( "entryPoints",
+                    new Macro() {
+                        public String doMacro() {
+                            return "drools.entryPoints";
+                        }
+                    } );
+        macros.put( "exitPoints",
+                    new Macro() {
+                        public String doMacro() {
+                            return "drools.exitPoints";
+                        }
+                    } );
     }
 
     public MVELConsequenceBuilder() {
@@ -77,7 +85,7 @@ public class MVELConsequenceBuilder
                                                                     context.getRuleDescr(),
                                                                     dialect.getInterceptors(),
                                                                     text,
-                                                                    new Set[]{context.getDeclarationResolver().getDeclarations(context.getRule()).keySet(), context.getPkg().getGlobals().keySet()},
+                                                                    new Map[]{context.getDeclarationResolver().getDeclarationClasses(context.getRule()), context.getPackageBuilder().getGlobals()},
                                                                     null );
             
             Declaration[] previousDeclarations = (Declaration[]) context.getDeclarationResolver().getDeclarations(context.getRule()).values().toArray( new Declaration[context.getDeclarationResolver().getDeclarations(context.getRule()).size()] );

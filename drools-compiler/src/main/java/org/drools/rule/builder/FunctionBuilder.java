@@ -23,7 +23,7 @@ import org.drools.base.TypeResolver;
 import org.drools.lang.descr.FunctionDescr;
 import org.drools.rule.Package;
 
-public interface FunctionBuilder {
+public interface FunctionBuilder extends EngineElementBuilder {
     public String build(final Package pkg,
                         final FunctionDescr functionDescr,
                         final TypeResolver typeResolver,

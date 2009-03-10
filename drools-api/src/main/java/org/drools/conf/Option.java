@@ -19,7 +19,7 @@ package org.drools.conf;
 import java.io.Serializable;
 
 /**
- * A base interface for type safe options
+ * A base interface for type safe options in configuration objects
  * 
  * @author etirelli
  */

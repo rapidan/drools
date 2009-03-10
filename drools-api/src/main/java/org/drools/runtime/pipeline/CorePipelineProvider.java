@@ -3,6 +3,10 @@ package org.drools.runtime.pipeline;
 import org.drools.runtime.StatefulKnowledgeSession;
 import org.drools.runtime.StatelessKnowledgeSession;
 
+/**
+ * 
+ * <p>This api is experimental and thus the classes and the interfaces returned are subject to change.</p>
+ */
 public interface CorePipelineProvider {
 
     Pipeline newStatefulKnowledgeSessionPipeline(StatefulKnowledgeSession ksession);
@@ -10,11 +14,16 @@ public interface CorePipelineProvider {
     Pipeline newStatefulKnowledgeSessionPipeline(StatefulKnowledgeSession ksession,
                                                  String entryPointName);
 
-    Pipeline newStatelessKnowledgeSessionPipelineImpl(StatelessKnowledgeSession ksession);
+    Pipeline newStatelessKnowledgeSessionPipeline(StatelessKnowledgeSession ksession);
+    
+    KnowledgeRuntimeCommand newBatchExecutor();
+    
+    KnowledgeRuntimeCommand newInsertObjectCommand();
+    
+    KnowledgeRuntimeCommand newInsertElementsCommand();
 
     KnowledgeRuntimeCommand newStatefulKnowledgeSessionInsert();
 
-    KnowledgeRuntimeCommand newStatelessKnowledgeSessionExecute();
 
     KnowledgeRuntimeCommand newStatefulKnowledgeSessionGetGlobal();
 

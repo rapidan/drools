@@ -19,11 +19,10 @@ package org.drools.rule.builder.dialect.java;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.drools.compiler.Dialect;
 import org.drools.lang.descr.ActionDescr;
-import org.drools.process.core.context.variable.VariableScope;
+import org.drools.process.core.ContextResolver;
 import org.drools.rule.builder.ActionBuilder;
 import org.drools.rule.builder.PackageBuildContext;
 import org.drools.rule.builder.ProcessBuildContext;
@@ -37,21 +36,10 @@ public class JavaActionBuilder extends AbstractJavaProcessBuilder
     implements
     ActionBuilder {
 
-    /* (non-Javadoc)
-     * @see org.drools.semantics.java.builder.ConsequenceBuilder#buildConsequence(org.drools.semantics.java.builder.BuildContext, org.drools.semantics.java.builder.BuildUtils, org.drools.lang.descr.RuleDescr)
-     */
-    public void build(final PackageBuildContext context,
-                      final DroolsAction action,
-                      final ActionDescr actionDescr) {
-        build( context,
-               action,
-               actionDescr,
-               null );
-    }
     public void build(final PackageBuildContext context,
                       final DroolsAction action,
                       final ActionDescr actionDescr,
-                      final VariableScope variableScope) {
+                      final ContextResolver contextResolver) {
 
         final String className = "action" + context.getNextId();               
 
@@ -60,20 +48,22 @@ public class JavaActionBuilder extends AbstractJavaProcessBuilder
         Dialect.AnalysisResult analysis = dialect.analyzeBlock( context,
                                                                 actionDescr,
                                                                 actionDescr.getText(),
-                                                                new Set[]{Collections.EMPTY_SET, context.getPkg().getGlobals().keySet()} );
+                                                                new Map[]{Collections.EMPTY_MAP, context.getPackageBuilder().getGlobals()} );
 
         if ( analysis == null ) {
             // not possible to get the analysis results
             return;
         }
 
-        final List[] usedIdentifiers = analysis.getBoundIdentifiers();
+        final List<String>[] usedIdentifiers = analysis.getBoundIdentifiers();
 
 
         final Map map = createVariableContext( className,
                                                actionDescr.getText(),
                                                (ProcessBuildContext) context,
-                                               (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ) );
+                                               (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ),
+                                               analysis.getNotBoundedIdentifiers(),
+                                               contextResolver);
         map.put( "text",
                  dialect.getKnowledgeHelperFixer().fix( actionDescr.getText() ));
 

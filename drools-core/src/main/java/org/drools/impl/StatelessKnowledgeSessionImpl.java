@@ -1,17 +1,17 @@
 package org.drools.impl;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.drools.RuleBaseConfiguration;
 import org.drools.SessionConfiguration;
 import org.drools.base.MapGlobalResolver;
+import org.drools.command.Command;
 import org.drools.common.InternalRuleBase;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.event.AgendaEventSupport;
@@ -28,13 +28,13 @@ import org.drools.reteoo.InitialFactHandleDummyObject;
 import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.reteoo.ReteooWorkingMemory.WorkingMemoryReteAssertAction;
 import org.drools.rule.EntryPoint;
+import org.drools.runtime.BatchExecutionResults;
 import org.drools.runtime.Environment;
+import org.drools.runtime.Globals;
 import org.drools.runtime.KnowledgeSessionConfiguration;
-import org.drools.runtime.Parameters;
 import org.drools.runtime.StatelessKnowledgeSession;
 import org.drools.runtime.StatelessKnowledgeSessionResults;
 import org.drools.spi.AgendaFilter;
-import org.drools.spi.GlobalResolver;
 
 public class StatelessKnowledgeSessionImpl
     implements
@@ -42,7 +42,7 @@ public class StatelessKnowledgeSessionImpl
 
     private InternalRuleBase                                                  ruleBase;
     private AgendaFilter                                                      agendaFilter;
-    private GlobalResolver                                                    sessionGlobals            = new MapGlobalResolver();
+    private MapGlobalResolver                                                 sessionGlobals            = new MapGlobalResolver();
 
     /** The event mapping */
     public Map<WorkingMemoryEventListener, WorkingMemoryEventListenerWrapper> mappedWorkingMemoryListeners;
@@ -53,17 +53,24 @@ public class StatelessKnowledgeSessionImpl
     public WorkingMemoryEventSupport                                          workingMemoryEventSupport = new WorkingMemoryEventSupport();
     public AgendaEventSupport                                                 agendaEventSupport        = new AgendaEventSupport();
     public RuleFlowEventSupport                                               ruleFlowEventSupport      = new RuleFlowEventSupport();
-    
-    private KnowledgeSessionConfiguration conf;
-    private Environment environment;
+
+    private KnowledgeSessionConfiguration                                     conf;
+    private Environment                                                       environment;
 
     public StatelessKnowledgeSessionImpl() {
     }
 
-    public StatelessKnowledgeSessionImpl(final InternalRuleBase ruleBase, final KnowledgeSessionConfiguration conf) {
+    public StatelessKnowledgeSessionImpl(final InternalRuleBase ruleBase,
+                                         final KnowledgeSessionConfiguration conf) {
         this.ruleBase = ruleBase;
-        this.conf = ( conf != null ) ? conf : new SessionConfiguration() ;
+        this.conf = (conf != null) ? conf : new SessionConfiguration();
         this.environment = EnvironmentFactory.newEnvironment();
+        
+        synchronized ( this.ruleBase.getPackagesMap() ) {
+            if ( ruleBase.getConfiguration().isSequential() ) {
+                this.ruleBase.getReteooBuilder().order();
+            }
+        }        
     }
 
     public InternalRuleBase getRuleBase() {
@@ -72,15 +79,15 @@ public class StatelessKnowledgeSessionImpl
 
     public InternalWorkingMemory newWorkingMemory() {
         synchronized ( this.ruleBase.getPackagesMap() ) {
-            InternalWorkingMemory wm = new ReteooWorkingMemory( this.ruleBase.nextWorkingMemoryCounter(),
+            ReteooWorkingMemory wm = new ReteooWorkingMemory( this.ruleBase.nextWorkingMemoryCounter(),
                                                                 this.ruleBase,
                                                                 (SessionConfiguration) this.conf,
                                                                 this.environment );
 
-            DelegatingGlobalResolver resolver = new DelegatingGlobalResolver();
-            resolver.setDelegate( this.sessionGlobals );
-
-            wm.setGlobalResolver( resolver );
+            StatefulKnowledgeSessionImpl ksession = new StatefulKnowledgeSessionImpl( wm, new KnowledgeBaseImpl( this.ruleBase ), mappedWorkingMemoryListeners, mappedAgendaListeners, mappedProcessListeners ); 
+            
+            ((Globals) wm.getGlobalResolver()).setDelegate( this.sessionGlobals );
+            wm.setKnowledgeRuntime( ksession );
             wm.setWorkingMemoryEventSupport( this.workingMemoryEventSupport );
             wm.setAgendaEventSupport( this.agendaEventSupport );
             wm.setRuleFlowEventSupport( this.ruleFlowEventSupport );
@@ -101,22 +108,39 @@ public class StatelessKnowledgeSessionImpl
     }
 
     public void addEventListener(WorkingMemoryEventListener listener) {
+        if ( this.mappedWorkingMemoryListeners == null ) {
+            this.mappedWorkingMemoryListeners = new IdentityHashMap<WorkingMemoryEventListener, WorkingMemoryEventListenerWrapper>();
+        }
+        
         WorkingMemoryEventListenerWrapper wrapper = new WorkingMemoryEventListenerWrapper( listener );
         this.mappedWorkingMemoryListeners.put( listener,
                                                wrapper );
         this.workingMemoryEventSupport.addEventListener( wrapper );
     }
 
+    
     public void removeEventListener(WorkingMemoryEventListener listener) {
+        if ( this.mappedWorkingMemoryListeners == null ) {
+            this.mappedWorkingMemoryListeners = new IdentityHashMap<WorkingMemoryEventListener, WorkingMemoryEventListenerWrapper>();
+        }
+        
         WorkingMemoryEventListenerWrapper wrapper = this.mappedWorkingMemoryListeners.remove( listener );
         this.workingMemoryEventSupport.removeEventListener( wrapper );
     }
 
     public Collection<WorkingMemoryEventListener> getWorkingMemoryEventListeners() {
+        if ( this.mappedWorkingMemoryListeners == null ) {
+            this.mappedWorkingMemoryListeners = new IdentityHashMap<WorkingMemoryEventListener, WorkingMemoryEventListenerWrapper>();
+        }
+        
         return Collections.unmodifiableCollection( this.mappedWorkingMemoryListeners.keySet() );
     }
 
     public void addEventListener(AgendaEventListener listener) {
+        if ( this.mappedAgendaListeners == null ) {
+            this.mappedAgendaListeners = new IdentityHashMap<AgendaEventListener, AgendaEventListenerWrapper>();
+        }
+        
         AgendaEventListenerWrapper wrapper = new AgendaEventListenerWrapper( listener );
         this.mappedAgendaListeners.put( listener,
                                         wrapper );
@@ -124,15 +148,27 @@ public class StatelessKnowledgeSessionImpl
     }
 
     public Collection<AgendaEventListener> getAgendaEventListeners() {
+        if ( this.mappedAgendaListeners == null ) {
+            this.mappedAgendaListeners = new IdentityHashMap<AgendaEventListener, AgendaEventListenerWrapper>();
+        }
+        
         return Collections.unmodifiableCollection( this.mappedAgendaListeners.keySet() );
     }
 
     public void removeEventListener(AgendaEventListener listener) {
+        if ( this.mappedAgendaListeners == null ) {
+            this.mappedAgendaListeners = new IdentityHashMap<AgendaEventListener, AgendaEventListenerWrapper>();
+        }
+        
         AgendaEventListenerWrapper wrapper = this.mappedAgendaListeners.remove( listener );
         this.agendaEventSupport.removeEventListener( wrapper );
     }
 
     public void addEventListener(ProcessEventListener listener) {
+        if ( this.mappedProcessListeners == null ) {
+            this.mappedProcessListeners = new IdentityHashMap<ProcessEventListener, ProcessEventListenerWrapper>();
+        }
+        
         ProcessEventListenerWrapper wrapper = new ProcessEventListenerWrapper( listener );
         this.mappedProcessListeners.put( listener,
                                          wrapper );
@@ -140,10 +176,18 @@ public class StatelessKnowledgeSessionImpl
     }
 
     public Collection<ProcessEventListener> getProcessEventListeners() {
+        if ( this.mappedProcessListeners == null ) {
+            this.mappedProcessListeners = new IdentityHashMap<ProcessEventListener, ProcessEventListenerWrapper>();
+        }
+        
         return Collections.unmodifiableCollection( this.mappedProcessListeners.keySet() );
     }
 
     public void removeEventListener(ProcessEventListener listener) {
+        if ( this.mappedProcessListeners == null ) {
+            this.mappedProcessListeners = new IdentityHashMap<ProcessEventListener, ProcessEventListenerWrapper>();
+        }
+        
         ProcessEventListenerWrapper wrapper = this.mappedProcessListeners.get( listener );
         this.ruleFlowEventSupport.removeEventListener( wrapper );
     }
@@ -153,183 +197,39 @@ public class StatelessKnowledgeSessionImpl
         this.sessionGlobals.setGlobal( identifier,
                                        value );
     }
-
-    public void setGlobalResolver(org.drools.runtime.GlobalResolver globalResolver) {
-        this.sessionGlobals = (GlobalResolver) globalResolver;
-
-    }
-
-    public void executeObject(Object object) {
-        InternalWorkingMemory wm = newWorkingMemory();
-
-        wm.insert( object );
-        wm.fireAllRules( this.agendaFilter );
-    }
-
-    public void executeIterable(Iterable< ? > objects) {
-        InternalWorkingMemory wm = newWorkingMemory();
-
-        for ( Object object : objects ) {
-            wm.insert( object );
-        }
-        wm.fireAllRules( this.agendaFilter );
-    }
-
-    public StatelessKnowledgeSessionResults executeObjectWithParameters(Object object,
-                                                                        Parameters parameters) {
-        InternalWorkingMemory wm = newWorkingMemory();
-
-        wm.insert( object );
-
-        Map<String, Object> results = new HashMap<String, Object>();
-
-        executeInParams( wm,
-                         parameters,
-                         results );
-
-        wm.fireAllRules( this.agendaFilter );
-
-        getOutParams( wm,
-                      parameters,
-                      results );
-
-        return new StatelessKnowledgeSessionResultsImpl( results );
-
-    }
-
-    public StatelessKnowledgeSessionResults executeIterableWithParameters(Iterable< ? > objects,
-                                                                          Parameters parameters) {
-        InternalWorkingMemory wm = newWorkingMemory();
-
-        for ( Object object : objects ) {
-            wm.insert( object );
-        }
-
-        Map<String, Object> results = new HashMap<String, Object>();
-
-        executeInParams( wm,
-                         parameters,
-                         results );
-
-        wm.fireAllRules( this.agendaFilter );
-
-        getOutParams( wm,
-                      parameters,
-                      results );
-
-        return new StatelessKnowledgeSessionResultsImpl( results );
-
-    }
-
-    private void executeInParams(InternalWorkingMemory wm,
-                                 Parameters parameters,
-                                 Map<String, Object> results) {
-        Map<String, ? > map = ((FactParamsImpl) parameters.getFactParams()).getIn();
-        if ( map != null && !map.isEmpty() ) {
-            for ( Iterator it = map.entrySet().iterator(); it.hasNext(); ) {
-                Entry<String, Object> entry = (Entry<String, Object>) it.next();
-                sessionGlobals.setGlobal( entry.getKey(),
-                                          entry.getValue() );
-                wm.insert( entry.getValue() );
-            }
-        }
-
-        map = ((FactParamsImpl) parameters.getFactParams()).getInOut();
-        if ( map != null && !map.isEmpty() ) {
-            for ( Iterator it = map.entrySet().iterator(); it.hasNext(); ) {
-                Entry<String, Object> entry = (Entry<String, Object>) it.next();
-                sessionGlobals.setGlobal( entry.getKey(),
-                                          entry.getValue() );
-                results.put( entry.getKey(),
-                             entry.getValue() );
-                wm.insert( entry.getValue() );
-            }
-        }
-
-        map = ((GlobalParamsImpl) parameters.getGlobalParams()).getIn();
-        if ( map != null && !map.isEmpty() ) {
-            for ( Iterator it = map.entrySet().iterator(); it.hasNext(); ) {
-                Entry<String, Object> entry = (Entry<String, Object>) it.next();
-                sessionGlobals.setGlobal( entry.getKey(),
-                                          entry.getValue() );
-            }
-        }
-
-        map = ((GlobalParamsImpl) parameters.getGlobalParams()).getInOut();
-        if ( map != null && !map.isEmpty() ) {
-            for ( Iterator it = map.entrySet().iterator(); it.hasNext(); ) {
-                Entry<String, Object> entry = (Entry<String, Object>) it.next();
-                results.put( entry.getKey(),
-                             entry.getValue() );
-                sessionGlobals.setGlobal( entry.getKey(),
-                                          entry.getValue() );
-            }
-        }
-    }
-
-    private void getOutParams(InternalWorkingMemory wm,
-                              Parameters parameters,
-                              Map<String, Object> results) {
-        Collection<String> col = ((FactParamsImpl) parameters.getFactParams()).getOut();
-        if ( col != null && !col.isEmpty() ) {
-            for ( String identifer : col ) {
-                results.put( identifer,
-                             wm.getGlobal( identifer ) );
-            }
-        }
-
-        col = ((GlobalParamsImpl) parameters.getGlobalParams()).getOut();
-        if ( col != null && !col.isEmpty() ) {
-            for ( String identifer : col ) {
-                results.put( identifer,
-                             wm.getGlobal( identifer ) );
-            }
-        }
-    }
     
-    public Parameters newParameters() {
-        return new ParametersImpl();
+    public Globals getGlobals() {
+        return this.sessionGlobals;
     }
 
-    public static class DelegatingGlobalResolver
-        implements
-        GlobalResolver {
-        MapGlobalResolver resolver;
-        GlobalResolver    delegate;
-
-        public DelegatingGlobalResolver() {
-            this.resolver = new MapGlobalResolver();
-        }
-
-        public void setDelegate(GlobalResolver delegate) {
-            this.delegate = delegate;
-        }
-
-        public Object resolveGlobal(String identifier) {
-            Object object = this.resolver.resolveGlobal( identifier );
-            if ( object == null ) {
-                return this.delegate.resolveGlobal( identifier );
-            } else {
-                return object;
-            }
-        }
-
-        public void setGlobal(String identifier,
-                              Object value) {
-            resolver.setGlobal( identifier,
-                                value );
-        }
-
-        public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject( this.resolver );
-            out.writeObject( this.delegate );
-        }
-
-        public void readExternal(ObjectInput in) throws IOException,
-                                                ClassNotFoundException {
-            this.resolver = (MapGlobalResolver) in.readObject();
-            this.delegate = (GlobalResolver) in.readObject();
+    public BatchExecutionResults execute(Command command) {        
+        ReteooWorkingMemory session = ( ReteooWorkingMemory ) newWorkingMemory();
+        try {
+            session.startBatchExecution();
+            ((org.drools.process.command.Command)command).execute( session );
+            session.fireAllRules( this.agendaFilter );
+            BatchExecutionResults result = session.getBatchExecutionResult();
+            return result;
+        } finally {
+            session.endBatchExecution();
         }
     }
+
+    public void execute(Object object) {
+        InternalWorkingMemory wm = newWorkingMemory();
+
+        wm.insert( object );
+        wm.fireAllRules( this.agendaFilter );
+    }
+
+    public void execute(Iterable objects) {
+        InternalWorkingMemory wm = newWorkingMemory();
+
+        for ( Object object : objects ) {
+            wm.insert( object );
+        }
+        wm.fireAllRules( this.agendaFilter );
+    }
+
 
 }

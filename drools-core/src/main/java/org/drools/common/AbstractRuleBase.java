@@ -19,7 +19,6 @@ package org.drools.common;
 import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
@@ -46,8 +45,8 @@ import org.drools.definition.type.FactType;
 import org.drools.event.RuleBaseEventListener;
 import org.drools.event.RuleBaseEventSupport;
 import org.drools.impl.EnvironmentFactory;
-import org.drools.marshalling.Marshaller;
 import org.drools.process.core.Process;
+import org.drools.reteoo.ReteooBuilder;
 import org.drools.rule.CompositeClassLoader;
 import org.drools.rule.DialectRuntimeRegistry;
 import org.drools.rule.Function;
@@ -246,7 +245,7 @@ abstract public class AbstractRuleBase
         this.config = (RuleBaseConfiguration) droolsStream.readObject();
         this.config.setClassLoader( droolsStream.getParentClassLoader() );
         
-        this.pkgs = (Map) droolsStream.readObject();
+        this.pkgs = (Map<String, Package>) droolsStream.readObject();
 
 
         for ( final Object object : this.pkgs.values() ) {
@@ -344,13 +343,6 @@ abstract public class AbstractRuleBase
         }
     }
 
-    public StatefulSession readStatefulSession(final InputStream stream,
-                                               Marshaller marshaller) throws IOException,
-                                                                     ClassNotFoundException {
-        return readStatefulSession( stream,
-                                    true,
-                                    marshaller );
-    }
 
     /**
      * @see RuleBase
@@ -445,7 +437,7 @@ abstract public class AbstractRuleBase
      * @param newPkg
      *            The package to add.
      */    
-    public synchronized void addPackages(final Collection<Package> newPkgs) {
+    public void addPackages(final Collection<Package> newPkgs) {
         synchronized ( this.pkgs ) {
             boolean doUnlock = false;
             // only acquire the lock if it hasn't been done explicitely
@@ -628,16 +620,18 @@ abstract public class AbstractRuleBase
         return this.classTypeDeclaration.values();
     }
     
-    public synchronized void addRule(final Package pkg,
+    public  void addRule(final Package pkg,
                                      final Rule rule) throws InvalidPatternException {
-        this.eventSupport.fireBeforeRuleAdded( pkg,
-                                               rule );
-//        if ( !rule.isValid() ) {
-//            throw new IllegalArgumentException( "The rule called " + rule.getName() + " is not valid. Check for compile errors reported." );
-//        }
-        addRule( rule );
-        this.eventSupport.fireAfterRuleAdded( pkg,
-                                              rule );
+        synchronized ( this.pkgs ) {
+            this.eventSupport.fireBeforeRuleAdded( pkg,
+                                                   rule );
+    //        if ( !rule.isValid() ) {
+    //            throw new IllegalArgumentException( "The rule called " + rule.getName() + " is not valid. Check for compile errors reported." );
+    //        }
+            addRule( rule );
+            this.eventSupport.fireAfterRuleAdded( pkg,
+                                                  rule );
+        }
     }
 
     protected abstract void addRule(final Rule rule) throws InvalidPatternException;
@@ -744,11 +738,14 @@ abstract public class AbstractRuleBase
 
     public void removeRule(final Package pkg,
                            final Rule rule) {
-        this.eventSupport.fireBeforeRuleRemoved( pkg,
-                                                 rule );
-        removeRule( rule );
-        this.eventSupport.fireAfterRuleRemoved( pkg,
-                                                rule );
+        synchronized ( this.pkgs ) {
+            this.eventSupport.fireBeforeRuleRemoved( pkg,
+                                                     rule );
+            
+            removeRule( rule );
+            this.eventSupport.fireAfterRuleRemoved( pkg,
+                                                    rule );
+        }
     }
 
     protected abstract void removeRule(Rule rule);
@@ -780,7 +777,7 @@ abstract public class AbstractRuleBase
         }
     }
 
-    public synchronized void addProcess(final Process process) {
+    public void addProcess(final Process process) {
         synchronized ( this.pkgs ) {
             this.processes.put( process.getId(),
                                 process );
@@ -788,7 +785,7 @@ abstract public class AbstractRuleBase
 
     }
 
-    public synchronized void removeProcess(final String id) {
+    public void removeProcess(final String id) {
         synchronized ( this.pkgs ) {
             this.processes.remove( id );
         }
@@ -802,8 +799,10 @@ abstract public class AbstractRuleBase
         return process;
     }
 
-    protected synchronized void addStatefulSession(final StatefulSession statefulSession) {
-        this.statefulSessions.add( statefulSession );
+    public void addStatefulSession(final StatefulSession statefulSession) {
+        synchronized ( this.statefulSessions ) {
+            this.statefulSessions.add( statefulSession );
+        }
     }
 
     public Package getPackage(final String name) {

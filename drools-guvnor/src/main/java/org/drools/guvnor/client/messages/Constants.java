@@ -23,6 +23,8 @@ public interface Constants extends ConstantsWithLookup {
 
 
     String Category();
+    
+    String CategoryColon();
 
     String AddAnotherFieldToThisSoYouCanSetItsValue();
 
@@ -908,7 +910,7 @@ public interface Constants extends ConstantsWithLookup {
 
     String CreateANewPackage();
 
-    String CreateNewPackage();
+    
 
     String ImportDRLDesc1();
 
@@ -1779,4 +1781,12 @@ public interface Constants extends ConstantsWithLookup {
 
 
     String RestoreThisVersionQ();
+
+    String NoteNewPackageDrlImportWarning();
+
+    String PleaseEnterANameForFact();
+
+    String PleaseEnterANameThatIsNotTheSameAsTheFactType();
+
+    String ThatNameIsInUsePleaseTryAnother();
 }

@@ -19,10 +19,10 @@ package org.drools.rule.builder.dialect.java;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.drools.compiler.Dialect;
 import org.drools.compiler.ReturnValueDescr;
+import org.drools.process.core.ContextResolver;
 import org.drools.rule.builder.PackageBuildContext;
 import org.drools.rule.builder.ProcessBuildContext;
 import org.drools.rule.builder.ReturnValueEvaluatorBuilder;
@@ -41,7 +41,8 @@ public class JavaReturnValueEvaluatorBuilder extends AbstractJavaProcessBuilder
      */
     public void build(final PackageBuildContext context,
                       final ReturnValueConstraintEvaluator constraintNode,
-                      final ReturnValueDescr descr) {
+                      final ReturnValueDescr descr,
+                      final ContextResolver contextResolver) {
 
         final String className = "returnValueEvaluator" + context.getNextId();
 
@@ -50,7 +51,7 @@ public class JavaReturnValueEvaluatorBuilder extends AbstractJavaProcessBuilder
         Dialect.AnalysisResult analysis = dialect.analyzeBlock( context,
                                                                 descr,
                                                                 descr.getText(),
-                                                                new Set[]{Collections.EMPTY_SET, context.getPkg().getGlobals().keySet()} );
+                                                                new Map[]{Collections.EMPTY_MAP, context.getPackageBuilder().getGlobals()} );
 
         if ( analysis == null ) {
             // not possible to get the analysis results
@@ -63,7 +64,9 @@ public class JavaReturnValueEvaluatorBuilder extends AbstractJavaProcessBuilder
         final Map map = createVariableContext( className,
                                                descr.getText(),
                                                (ProcessBuildContext) context,
-                                               (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ) );
+                                               (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ),
+                                               analysis.getNotBoundedIdentifiers(),
+                                               contextResolver );
         map.put( "text",
                  descr.getText() );
 

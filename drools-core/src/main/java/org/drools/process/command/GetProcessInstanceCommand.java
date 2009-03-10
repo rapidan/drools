@@ -1,9 +1,7 @@
 package org.drools.process.command;
 
-import java.util.Map;
-
-import org.drools.StatefulSession;
 import org.drools.process.instance.ProcessInstance;
+import org.drools.reteoo.ReteooWorkingMemory;
 
 public class GetProcessInstanceCommand implements Command<ProcessInstance> {
 	
@@ -17,7 +15,7 @@ public class GetProcessInstanceCommand implements Command<ProcessInstance> {
 		this.processInstanceId = processInstanceId;
 	}
 	
-	public ProcessInstance execute(StatefulSession session) {
+	public ProcessInstance execute(ReteooWorkingMemory session) {
 		if (processInstanceId == null) {
 			return null;
 		}

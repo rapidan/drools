@@ -13,7 +13,7 @@
     <url>http://www.jboss.com/products/rules</url>
 
     <properties>
-        <mvel.dep.version>2.0.7-SNAPSHOT</mvel.dep.version>
+        <mvel.dep.version>2.0.8-SNAPSHOT</mvel.dep.version>
     </properties>
 
 
@@ -179,7 +179,7 @@
             </releases>
         </repository>
         
-        <repository><!-- TODO dead code, this probably isn't used anymore -->
+        <repository><!-- used by mvel to publish snapshots -->
             <id>codehaus-snapshot</id>
             <url>http://snapshots.repository.codehaus.org</url>
             <snapshots>
@@ -222,8 +222,8 @@
             </releases>
         </repository>
         <repository>
-    	    <id>codehaus-snapshot</id>
-    	    <url>http://snapshots.repository.codehaus.org</url>
+    	    <id>codehaus</id>
+    	    <url>http://repository.codehaus.org</url>
     	</repository>        
         <repository>
             <id>apache-incubating</id>
@@ -362,6 +362,107 @@
                 <module>drools-examples</module>
             </modules>
         </profile>
+        <profile>
+            <id>soa</id>
+            <activation>
+                <property>
+                    <name>soa</name>
+                </property>
+            </activation>
+            <modules>
+                <module>drools-api</module>    
+                <module>drools-core</module>
+                <module>drools-compiler</module>
+                <module>drools-jsr94</module>
+                <!--module>drools-templates</module-->
+                <module>drools-decisiontables</module>
+                <!--module>drools-clips</module>
+                <module>drools-pipeline</module>    
+                <module>drools-process</module>                  
+                <module>drools-server</module-->
+                <module>drools-verifier</module>        
+                <module>drools-ant</module>
+                <module>drools-repository</module>
+                <module>drools-guvnor</module>
+                <!--module>drools-solver</module-->
+                <module>drools-container/drools-mc</module>
+            </modules>
+            <build>
+                    <pluginManagement>
+                        <plugins>
+                            <plugin>
+		                    <groupId>org.apache.maven.plugins</groupId>
+		                    <artifactId>maven-assembly-plugin</artifactId>
+		                    <version>2.2-beta-2</version>
+		                    <configuration>
+		                        <descriptors>
+		                            <descriptor>src/main/assembly/pre-bin_soaversion.xml</descriptor>
+		                            <descriptor>src/main/assembly/bin.xml</descriptor>
+					    <descriptor>src/main/assembly/guvnor.xml</descriptor>
+		                            <descriptor>src/main/assembly/src_soaversion.xml</descriptor>
+		                            <descriptor>src/main/assembly/eclipse.xml</descriptor>
+		                            <descriptor>src/main/assembly/examples.xml</descriptor>
+		                            <descriptor>src/main/assembly/solver.xml</descriptor>
+		                            <descriptor>src/main/assembly/docs_soaversion.xml</descriptor>
+		                            <descriptor>src/main/assembly/javadocs_soaversion.xml</descriptor>
+		                        </descriptors>
+		                    </configuration>
+		                    
+                            </plugin>
+                        </plugins>
+                    </pluginManagement>
+            </build>        
+        </profile>             
+        <profile>
+            <id>default</id>
+            <activation>
+                    <activeByDefault>true</activeByDefault> 
+            </activation>            
+            <modules>
+	            <module>drools-api</module>    
+	            <module>drools-core</module>
+	            <module>drools-compiler</module>
+	            <module>drools-jsr94</module>
+	            <module>drools-templates</module>
+	            <module>drools-decisiontables</module>
+	            <module>drools-clips</module>
+	            <module>drools-pipeline</module>    
+	            <module>drools-process</module>                  
+	            <module>drools-server</module>
+	            <module>drools-verifier</module>        
+	            <module>drools-ant</module>
+	            <module>drools-repository</module>
+	            <module>drools-guvnor</module>
+	            <module>drools-solver</module>
+	            <module>drools-container/drools-mc</module>
+            </modules>
+            <build>
+                    <pluginManagement>
+                        <plugins>
+                            <plugin>
+		                    <groupId>org.apache.maven.plugins</groupId>
+		                    <artifactId>maven-assembly-plugin</artifactId>
+		                    <version>2.2-beta-2</version>
+		                    <configuration>
+		                        <descriptors>
+		                            <descriptor>src/main/assembly/pre-bin.xml</descriptor>
+		                            <descriptor>src/main/assembly/bin.xml</descriptor>
+					    <descriptor>src/main/assembly/guvnor.xml</descriptor>
+		                            <descriptor>src/main/assembly/src.xml</descriptor>
+		                            <descriptor>src/main/assembly/eclipse.xml</descriptor>
+		                            <descriptor>src/main/assembly/examples.xml</descriptor>
+		                            <descriptor>src/main/assembly/solver.xml</descriptor>
+		                            <descriptor>src/main/assembly/docs.xml</descriptor>
+		                            <descriptor>src/main/assembly/javadocs.xml</descriptor>
+		                        </descriptors>
+		                    </configuration>
+		                    
+                            </plugin>
+                        </plugins>
+                    </pluginManagement>
+            </build>
+    
+        </profile>        
     </profiles>
 
 
@@ -513,7 +614,7 @@
                             <descriptor>src/main/assembly/src.xml</descriptor>
                             <descriptor>src/main/assembly/eclipse.xml</descriptor>
                             <descriptor>src/main/assembly/examples.xml</descriptor>
-                            <descriptor>src/main/assembly/solver.xml</descriptor>
+                            <!--descriptor>src/main/assembly/solver.xml</descriptor-->
                             <descriptor>src/main/assembly/docs.xml</descriptor>
                             <descriptor>src/main/assembly/javadocs.xml</descriptor>
                         </descriptors>
@@ -711,17 +812,18 @@
         <module>drools-core</module>
         <module>drools-compiler</module>
         <module>drools-jsr94</module>
-        <module>drools-templates</module>
+        <!--module>drools-templates</module-->
         <module>drools-decisiontables</module>
-        <module>drools-clips</module>
+        <!--module>drools-clips</module-->
         <module>drools-pipeline</module>    
         <module>drools-process</module>                  
+	<module>drools-persistence-jpa</module>  
         <module>drools-server</module>
         <module>drools-verifier</module>        
         <module>drools-ant</module>
         <module>drools-repository</module>
         <module>drools-guvnor</module>
-        <module>drools-solver</module>
+        <!--module>drools-solver</module-->
         <module>drools-container/drools-mc</module>
     </modules>
 
@@ -967,7 +1069,7 @@
             <dependency>
                 <groupId>joda-time</groupId>
                 <artifactId>joda-time</artifactId>
-                <version>1.5.2</version>
+                <version>1.6</version>
             </dependency>
 
             <!-- drools-compiler -->
@@ -1010,7 +1112,7 @@
             <dependency>
                 <groupId>xerces</groupId>
                 <artifactId>xercesImpl</artifactId>
-                <version>2.8.0</version>
+                <version>2.9.1</version>
             </dependency>
             <dependency>
                 <groupId>xml-apis</groupId>
@@ -1040,6 +1142,7 @@
                 <groupId>jexcelapi</groupId>
                 <artifactId>jxl</artifactId>
                 <version>2.4.2</version>
+
             </dependency>
             
             <dependency>
@@ -1052,25 +1155,25 @@
             <dependency>
                 <groupId>jboss</groupId>
                 <artifactId>jboss-remoting</artifactId>
-                <version>1.4.1_final</version>
+                <version>1.4.4</version>
             </dependency>
 
             <!-- Logging for drools-repository and drools-solver -->
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.4.3</version>
+                <version>1.5.0</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
-                <version>1.4.3</version>
+                <version>1.5.0</version>
                 <!--<scope>runtime</scope> TODO default me on runtime-->
             </dependency>
             <dependency>
                 <groupId>log4j</groupId>
                 <artifactId>log4j</artifactId>
-                <version>1.2.13</version>
+                <version>1.2.14</version>
                 <!--<scope>runtime</scope> TODO default me on runtime-->
             </dependency>
 

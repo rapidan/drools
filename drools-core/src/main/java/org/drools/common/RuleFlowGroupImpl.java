@@ -22,8 +22,8 @@ import java.io.ObjectOutput;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.drools.marshalling.MarshallerReaderContext;
-import org.drools.marshalling.MarshallerWriteContext;
+import org.drools.marshalling.impl.MarshallerReaderContext;
+import org.drools.marshalling.impl.MarshallerWriteContext;
 import org.drools.spi.Activation;
 import org.drools.util.Iterator;
 import org.drools.util.LinkedList;
@@ -167,6 +167,8 @@ public class RuleFlowGroupImpl
             final Activation activation = node.getActivation();
             ((InternalAgendaGroup) activation.getAgendaGroup()).add( activation );
         }
+        // making sure we re-evaluate agenda in case we are waiting for activations
+        ((InternalAgenda) workingMemory.getAgenda()).notifyHalt();
     }
 
     public void clear() {

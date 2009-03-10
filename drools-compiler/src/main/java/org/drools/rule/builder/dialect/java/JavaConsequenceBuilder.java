@@ -17,12 +17,11 @@
 package org.drools.rule.builder.dialect.java;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,7 +31,10 @@ import org.drools.lang.descr.RuleDescr;
 import org.drools.rule.Declaration;
 import org.drools.rule.builder.ConsequenceBuilder;
 import org.drools.rule.builder.RuleBuildContext;
+import org.drools.rule.builder.dialect.java.parser.JavaBlockDescr;
+import org.drools.rule.builder.dialect.java.parser.JavaInterfacePointsDescr;
 import org.drools.rule.builder.dialect.java.parser.JavaModifyBlockDescr;
+import org.drools.rule.builder.dialect.java.parser.JavaBlockDescr.BlockType;
 import org.drools.rule.builder.dialect.mvel.MVELDialect;
 import org.drools.spi.PatternExtractor;
 import org.drools.util.ClassUtils;
@@ -46,7 +48,7 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
     implements
     ConsequenceBuilder {
 
-    private final Pattern lineBreakFinder = Pattern.compile( "\\r\\n|\\r|\\n" ); 
+    private final Pattern lineBreakFinder = Pattern.compile( "\\r\\n|\\r|\\n" );
 
     /* (non-Javadoc)
      * @see org.drools.semantics.java.builder.ConsequenceBuilder#buildConsequence(org.drools.semantics.java.builder.BuildContext, org.drools.semantics.java.builder.BuildUtils, org.drools.lang.descr.RuleDescr)
@@ -60,40 +62,44 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
 
         final RuleDescr ruleDescr = context.getRuleDescr();
 
+        Map<String, Class< ? >> variables = context.getDeclarationResolver().getDeclarationClasses( context.getRule() );
         Dialect.AnalysisResult analysis = context.getDialect().analyzeBlock( context,
                                                                              ruleDescr,
                                                                              (String) ruleDescr.getConsequence(),
-                                                                             new Set[]{context.getDeclarationResolver().getDeclarations(context.getRule()).keySet(), context.getPkg().getGlobals().keySet()} );
+                                                                             new Map[]{variables, context.getPackageBuilder().getGlobals()} );
 
         if ( analysis == null ) {
             // not possible to get the analysis results
             return;
         }
-        
-        String fixedConsequence = this.fixModifyBlocks( context, (JavaAnalysisResult) analysis, (String) ruleDescr.getConsequence() );
-        
+
+        String fixedConsequence = this.fixBlockDescr( context,
+                                                      (JavaAnalysisResult) analysis,
+                                                      (String) ruleDescr.getConsequence() );
+
         if ( fixedConsequence == null ) {
             // not possible to rewrite the modify blocks
             return;
         }
-        fixedConsequence = ((JavaDialect) context.getDialect()).getKnowledgeHelperFixer().fix( fixedConsequence );        
+        fixedConsequence = ((JavaDialect) context.getDialect()).getKnowledgeHelperFixer().fix( fixedConsequence );
 
-        final List[] usedIdentifiers = analysis.getBoundIdentifiers();
+        final List<String>[] usedIdentifiers = (List<String>[]) analysis.getBoundIdentifiers();
 
         final Declaration[] declarations = new Declaration[usedIdentifiers[0].size()];
-        
-        for ( int i = 0, size = usedIdentifiers[0].size(); i < size; i++ ) {    	
-            declarations[i] = context.getDeclarationResolver().getDeclaration(context.getRule(), (String) usedIdentifiers[0].get( i ) );
+
+        for ( int i = 0, size = usedIdentifiers[0].size(); i < size; i++ ) {
+            declarations[i] = context.getDeclarationResolver().getDeclaration( context.getRule(),
+                                                                               (String) usedIdentifiers[0].get( i ) );
         }
 
-        final Map map = createVariableContext( className,
-                                               null,
-                                               context,
-                                               declarations,
-                                               null,
-                                               (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ) );
+        final Map<String, Object> map = createVariableContext( className,
+                                                               null,
+                                                               context,
+                                                               declarations,
+                                                               null,
+                                                               (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ) );
         map.put( "text",
-                  fixedConsequence);
+                 fixedConsequence );
 
         // Must use the rule declarations, so we use the same order as used in the generated invoker
         final List list = Arrays.asList( context.getRule().getDeclarations() );
@@ -131,107 +137,148 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
         context.getBuildStack().pop();
     }
 
-    protected String fixModifyBlocks(final RuleBuildContext context,
-                                     final JavaAnalysisResult analysis,
-                                     final String originalCode) {
+    protected String fixBlockDescr(final RuleBuildContext context,
+                                   final JavaAnalysisResult analysis,
+                                   final String originalCode) {
         MVELDialect mvel = (MVELDialect) context.getDialect( "mvel" );
 
-        TreeSet blocks = new TreeSet( new Comparator() {
-            public int compare(Object o1,
-                               Object o2) {
-                JavaModifyBlockDescr d1 = (JavaModifyBlockDescr) o1;
-                JavaModifyBlockDescr d2 = (JavaModifyBlockDescr) o2;
-                return d1.getStart() - d2.getStart();
-            }
-        } );
+        // sorting exit points for correct order iteration
+        List<JavaBlockDescr> blocks = analysis.getBlockDescrs();
+        Collections.sort( blocks,
+                          new Comparator<JavaBlockDescr>() {
+                              public int compare(JavaBlockDescr o1,
+                                                 JavaBlockDescr o2) {
+                                  return o1.getStart() - o2.getStart();
+                              }
+                          } );
 
-        for ( Iterator it = analysis.getModifyBlocks().iterator(); it.hasNext(); ) {
-            blocks.add( it.next() );
-        }
-
-        StringBuffer consequence = new StringBuffer();
+        StringBuilder consequence = new StringBuilder();
         int lastAdded = 0;
-        for ( Iterator it = blocks.iterator(); it.hasNext(); ) {
-            JavaModifyBlockDescr d = (JavaModifyBlockDescr) it.next();
+        for ( JavaBlockDescr block : blocks ) {
             // adding chunk
             consequence.append( originalCode.substring( lastAdded,
-                                                        d.getStart() - 1 ) );
-            lastAdded = d.getEnd();
+                                                        block.getStart() - 1 ) );
+            lastAdded = block.getEnd();
 
-            Dialect.AnalysisResult mvelAnalysis = mvel.analyzeBlock( context,
-                                                                     context.getRuleDescr(),
-                                                                     mvel.getInterceptors(),
-                                                                     d.getModifyExpression(),
-                                                                     new Set[]{context.getDeclarationResolver().getDeclarations(context.getRule()).keySet(), context.getPkg().getGlobals().keySet()},
-                                                                     null );
-
-            final ExecutableStatement expr = (ExecutableStatement) mvel.compile( d.getModifyExpression(),
-                                                                                 mvelAnalysis,
-                                                                                 mvel.getInterceptors(),
-                                                                                 null,
-                                                                                 null,
-                                                                                 context );
-
-            Class ret = expr.getKnownEgressType();
-            
-            if( ret == null ) {
-                // not possible to evaluate expression return value
-                context.getErrors().add( new DescrBuildError( context.getParentDescr(),
-                                                              context.getRuleDescr(),
-                                                              originalCode,
-                                                              "Unable to determine the resulting type of the expression: " + d.getModifyExpression()+"\n" ) );
-                
-                return null;
+            switch ( block.getType() ) {
+                case MODIFY :
+                    rewriteModify( context,
+                                   originalCode,
+                                   mvel,
+                                   consequence,
+                                   (JavaModifyBlockDescr) block );
+                    break;
+                case ENTRY :
+                case EXIT :
+                    rewriteInterfacePoint( originalCode,
+                                           consequence,
+                                           (JavaInterfacePointsDescr) block );
+                    break;
             }
-            String retString = ClassUtils.canonicalName( ret );
-
-            // adding modify expression
-            consequence.append( "{ " );
-            consequence.append( retString );
-            consequence.append( " __obj__ = (" );
-            consequence.append( retString );
-            consequence.append( ") " );
-            consequence.append( d.getModifyExpression() );
-            consequence.append( "; " );
-            // adding the modifyRetract call:
-            consequence.append( "modifyRetract( __obj__ ); " );
-
-            // the following is a hack to preserve line breaks.
-            String originalBlock = originalCode.substring( d.getStart()-1,
-                                                           d.getEnd() );
-            int end = originalBlock.indexOf( "{" );
-            addLineBreaks( consequence,
-                           originalBlock.substring( 0,
-                                                    end ) );
-
-            int start = end+1;
-            // adding each of the expressions:
-            for ( Iterator exprIt = d.getExpressions().iterator(); exprIt.hasNext(); ) {
-                String exprStr = (String) exprIt.next();
-                end = originalBlock.indexOf( exprStr,
-                                             start );
-                addLineBreaks( consequence,
-                               originalBlock.substring( start,
-                                                        end ) );
-                consequence.append( "__obj__." );
-                consequence.append( exprStr );
-                consequence.append( "; " );
-                start = end + exprStr.length();
-            }
-            // adding the modifyInsert call:
-            addLineBreaks( consequence, originalBlock.substring( end ) );
-            consequence.append( "modifyInsert( __obj__ ); }" );
         }
         consequence.append( originalCode.substring( lastAdded ) );
 
         return consequence.toString();
     }
 
+    private void rewriteInterfacePoint(final String originalCode,
+                                       StringBuilder consequence,
+                                       JavaInterfacePointsDescr ep) {
+        // rewriting it for proper exitPoints access
+        consequence.append( "drools.get" );
+        if ( ep.getType() == BlockType.EXIT ) {
+            consequence.append( "ExitPoint( " );
+        } else {
+            consequence.append( "EntryPoint( " );
+        }
+        consequence.append( ep.getId() );
+        consequence.append( " )" );
+
+        // the following is a hack to preserve line breaks.
+        String originalBlock = originalCode.substring( ep.getStart() - 1,
+                                                       ep.getEnd() );
+        int end = originalBlock.indexOf( "]" );
+        addLineBreaks( consequence,
+                       originalBlock.substring( 0,
+                                                end ) );
+    }
+
+    private void rewriteModify(final RuleBuildContext context,
+                               final String originalCode,
+                               MVELDialect mvel,
+                               StringBuilder consequence,
+                               JavaModifyBlockDescr d) {
+        Map<String, Class< ? >> variables = context.getDeclarationResolver().getDeclarationClasses( context.getRule() );
+        Dialect.AnalysisResult mvelAnalysis = mvel.analyzeBlock( context,
+                                                                 context.getRuleDescr(),
+                                                                 mvel.getInterceptors(),
+                                                                 d.getModifyExpression(),
+                                                                 new Map[]{variables, context.getPackageBuilder().getGlobals()},
+                                                                 null );
+
+        final ExecutableStatement expr = (ExecutableStatement) mvel.compile( d.getModifyExpression(),
+                                                                             mvelAnalysis,
+                                                                             mvel.getInterceptors(),
+                                                                             null,
+                                                                             null,
+                                                                             context );
+
+        Class ret = expr.getKnownEgressType();
+
+        if ( ret == null ) {
+            // not possible to evaluate expression return value
+            context.getErrors().add( new DescrBuildError( context.getParentDescr(),
+                                                          context.getRuleDescr(),
+                                                          originalCode,
+                                                          "Unable to determine the resulting type of the expression: " + d.getModifyExpression() + "\n" ) );
+
+            return;
+        }
+        String retString = ClassUtils.canonicalName( ret );
+
+        // adding modify expression
+        consequence.append( "{ " );
+        consequence.append( retString );
+        consequence.append( " __obj__ = (" );
+        consequence.append( retString );
+        consequence.append( ") " );
+        consequence.append( d.getModifyExpression() );
+        consequence.append( "; " );
+        // adding the modifyRetract call:
+        consequence.append( "modifyRetract( __obj__ ); " );
+
+        // the following is a hack to preserve line breaks.
+        String originalBlock = originalCode.substring( d.getStart() - 1,
+                                                       d.getEnd() );
+        int end = originalBlock.indexOf( "{" );
+        addLineBreaks( consequence,
+                       originalBlock.substring( 0,
+                                                end ) );
+
+        int start = end + 1;
+        // adding each of the expressions:
+        for ( String exprStr : d.getExpressions() ) {
+            end = originalBlock.indexOf( exprStr,
+                                         start );
+            addLineBreaks( consequence,
+                           originalBlock.substring( start,
+                                                    end ) );
+            consequence.append( "__obj__." );
+            consequence.append( exprStr );
+            consequence.append( "; " );
+            start = end + exprStr.length();
+        }
+        // adding the modifyInsert call:
+        addLineBreaks( consequence,
+                       originalBlock.substring( end ) );
+        consequence.append( "modifyInsert( __obj__ ); }" );
+    }
+
     /**
      * @param consequence
      * @param chunk
      */
-    private void addLineBreaks(StringBuffer consequence,
+    private void addLineBreaks(StringBuilder consequence,
                                String chunk) {
         Matcher m = lineBreakFinder.matcher( chunk );
         while ( m.find() ) {

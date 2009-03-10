@@ -33,8 +33,10 @@ import org.drools.builder.conf.AccumulateFunctionOption;
 import org.drools.builder.conf.DefaultDialectOption;
 import org.drools.builder.conf.DumpDirOption;
 import org.drools.builder.conf.EvaluatorOption;
+import org.drools.builder.conf.KnowledgeBuilderOption;
+import org.drools.builder.conf.MultiValueKnowledgeBuilderOption;
 import org.drools.builder.conf.ProcessStringEscapesOption;
-import org.drools.conf.Option;
+import org.drools.builder.conf.SingleValueKnowledgeBuilderOption;
 import org.drools.process.builder.ProcessNodeBuilder;
 import org.drools.process.builder.ProcessNodeBuilderRegistry;
 import org.drools.rule.Package;
@@ -610,7 +612,7 @@ public class PackageBuilderConfiguration
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Option> T getOption(Class<T> option) {
+    public <T extends SingleValueKnowledgeBuilderOption> T getOption(Class<T> option) {
         if ( DefaultDialectOption.class.equals( option ) ) {
             return (T) this.defaultDialect;
         } else if ( DumpDirOption.class.equals( option ) ) {
@@ -622,7 +624,7 @@ public class PackageBuilderConfiguration
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Option> T getOption(Class<T> option,
+    public <T extends MultiValueKnowledgeBuilderOption> T getOption(Class<T> option,
                                           String key) {
         if ( AccumulateFunctionOption.class.equals( option ) ) {
             return (T) AccumulateFunctionOption.get( key,
@@ -634,7 +636,7 @@ public class PackageBuilderConfiguration
         return null;
     }
 
-    public <T extends Option> void setOption(T option) {
+    public <T extends KnowledgeBuilderOption> void setOption(T option) {
         if ( option instanceof DefaultDialectOption ) {
             this.defaultDialect = (DefaultDialectOption) option;
         } else if ( option instanceof AccumulateFunctionOption ) {
@@ -645,7 +647,7 @@ public class PackageBuilderConfiguration
         } else if ( option instanceof EvaluatorOption ) {
             this.evaluatorRegistry.addEvaluatorDefinition( (EvaluatorDefinition) ((EvaluatorOption)option).getEvaluatorDefinition() );
         } else if ( option instanceof ProcessStringEscapesOption ) {
-            this.processStringEscapes = ( option == ProcessStringEscapesOption.YES );
+            this.processStringEscapes = ((ProcessStringEscapesOption) option).isProcessStringEscapes();
         }
     }
 }

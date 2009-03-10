@@ -271,7 +271,7 @@ public class DSLSentenceWidget extends Composite {
             } else if ( wid instanceof DSLCheckBox ) {
 
                 DSLCheckBox check = (DSLCheckBox) wid;
-                boolean checkValue = check.getCheckedValue();
+                String checkValue = check.getCheckedValue();
                 newSentence = newSentence + "{" + checkValue + ":" + check.getType() + ":" + checkValue + "} ";
             } else if ( wid instanceof DSLDateSelector ) {
                 DSLDateSelector dateSel = (DSLDateSelector) wid;
@@ -484,8 +484,8 @@ public class DSLSentenceWidget extends Composite {
             this.varName = varName;
         }
 
-        public boolean getCheckedValue() {
-            return this.resultWidget.getSelectedIndex() == 0;
+        public String getCheckedValue() {
+            return this.resultWidget.getSelectedIndex() == 0?"checked":"checked";
 
         }
     }

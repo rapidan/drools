@@ -16,6 +16,7 @@ import org.drools.FactException;
 import org.drools.FactHandle;
 import org.drools.QueryResults;
 import org.drools.RuleBase;
+import org.drools.SessionConfiguration;
 import org.drools.WorkingMemoryEntryPoint;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalRuleBase;
@@ -46,6 +47,7 @@ import org.drools.rule.TimeMachine;
 import org.drools.runtime.Environment;
 import org.drools.runtime.ExitPoint;
 import org.drools.runtime.KnowledgeRuntime;
+import org.drools.runtime.impl.BatchExecutionResultImpl;
 import org.drools.spi.Activation;
 import org.drools.spi.AgendaFilter;
 import org.drools.spi.AsyncExceptionHandler;
@@ -123,7 +125,7 @@ public class MockWorkingMemory implements InternalWorkingMemory {
         return null;
     }
 
-    public long getId() {
+    public int getId() {
         // TODO Auto-generated method stub
         return 0;
     }
@@ -223,7 +225,7 @@ public class MockWorkingMemory implements InternalWorkingMemory {
         
     }
 
-    public void setId(long id) {
+    public void setId(int id) {
         // TODO Auto-generated method stub
         
     }
@@ -512,6 +514,31 @@ public class MockWorkingMemory implements InternalWorkingMemory {
     public Environment getEnvironment() {
         // TODO Auto-generated method stub
         return null;
+    }
+    
+    public SessionConfiguration getSessionConfiguration() {
+        // TODO Auto-generated method stub
+    	return null;
+    }
+
+    public Map<String, WorkingMemoryEntryPoint> getEntryPoints() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public void endBatchExecution() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    public BatchExecutionResultImpl getBatchExecutionResult() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public void startBatchExecution() {
+        // TODO Auto-generated method stub
+        
     }
 
 }

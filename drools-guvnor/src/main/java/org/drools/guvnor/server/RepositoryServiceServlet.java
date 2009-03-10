@@ -27,7 +27,7 @@ import com.google.gwt.user.server.rpc.RemoteServiceServlet;
  */
 public class RepositoryServiceServlet extends RemoteServiceServlet implements RepositoryService {
 
-    private static final Logger     log              = LoggingHelper.getLogger();
+    private static final Logger     log              = LoggingHelper.getLogger(RepositoryServiceServlet.class);
 	/**
 	 * This is used by the pass through methods below.
 	 * Michael got tired of trying to read other peoples overly abstracted code, so its just generated dumb code to
@@ -60,24 +60,34 @@ public class RepositoryServiceServlet extends RemoteServiceServlet implements Re
 		    }
 		} else if (e.getCause() instanceof RulesRepositoryException) {
 			log.error(e.getCause());
- 			HttpServletResponse response = getThreadLocalResponse();
- 		   response.setContentType("text/plain");
-		   response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-		   try {
-			   response.getWriter().write(e.getCause().getMessage());
-		   } catch (IOException ex) {
-		      getServletContext().log(
-			          "respondWithUnexpectedFailure failed while sending the previous failure to the client",
-			          ex);
-		   }
+            sendErrorMessage(e.getCause().getMessage());
 		} else {
-			log.error(e.getCause());
-			super.doUnexpectedFailure(e);
+            if (e.getCause() != null) {
+			    log.error(e.getCause());
+                e.printStackTrace();
+            } else {
+                log.error(e);
+                e.printStackTrace();
+            }
+			sendErrorMessage("Sorry, a technical error occurred. Please contact a system administrator.");
 		}
 	}
 
+    private void sendErrorMessage(String msg) {
+        HttpServletResponse response = getThreadLocalResponse();
+        response.setContentType("text/plain");
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        try {
+            response.getWriter().write(msg);
+        } catch (IOException ex) {
+           getServletContext().log(
+                   "respondWithUnexpectedFailure failed while sending the previous failure to the client",
+                   ex);
+        }
+    }
 
-	/**
+
+    /**
 	 * START GENERATED CODE SECTION. DO NOT MODIFY WHAT IS BELOW
 	 */
 

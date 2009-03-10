@@ -20,12 +20,10 @@ public interface KnowledgeRuntime
                    Object object);
 
     Object getGlobal(String identifier);
-
-    /**
-     * Delegate used to resolve any global names not found in the global map.
-     * @param globalResolver
-     */
-    void setGlobalResolver(GlobalResolver globalResolver);
+    
+    Globals getGlobals();
+    
+    Environment getEnvironment();
 
     /**
      * Returns the KnowledgeBase reference from which this stateful session was created.

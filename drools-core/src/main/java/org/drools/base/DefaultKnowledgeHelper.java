@@ -20,15 +20,21 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Collections;
+import java.util.Map;
 
 import org.drools.FactException;
 import org.drools.common.InternalWorkingMemoryActions;
 import org.drools.impl.StatefulKnowledgeSessionImpl;
 import org.drools.reteoo.ReteooStatefulSession;
+import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.rule.Declaration;
+import org.drools.rule.EntryPoint;
 import org.drools.rule.GroupElement;
 import org.drools.rule.Rule;
+import org.drools.runtime.ExitPoint;
 import org.drools.runtime.KnowledgeRuntime;
+import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 import org.drools.FactHandle;
 import org.drools.WorkingMemory;
 import org.drools.spi.Activation;
@@ -37,39 +43,42 @@ import org.drools.spi.Tuple;
 
 public class DefaultKnowledgeHelper
     implements
-    KnowledgeHelper, Externalizable {
+    KnowledgeHelper,
+    Externalizable {
 
-    private static final long                  serialVersionUID = 400L;
+    private static final long            serialVersionUID = 400L;
 
-    private Rule                               rule;
-    private GroupElement                       subrule;
-    private Activation                         activation;
-    private Tuple                              tuple;
+    private Rule                         rule;
+    private GroupElement                 subrule;
+    private Activation                   activation;
+    private Tuple                        tuple;
     private InternalWorkingMemoryActions workingMemory;
 
     public DefaultKnowledgeHelper() {
 
     }
+
     public DefaultKnowledgeHelper(final WorkingMemory workingMemory) {
         this.workingMemory = (InternalWorkingMemoryActions) workingMemory;
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        rule    = (Rule)in.readObject();
-        subrule    = (GroupElement)in.readObject();
-        activation    = (Activation)in.readObject();
-        tuple    = (Tuple)in.readObject();
-        workingMemory    = (InternalWorkingMemoryActions)in.readObject();
+    public void readExternal(ObjectInput in) throws IOException,
+                                            ClassNotFoundException {
+        rule = (Rule) in.readObject();
+        subrule = (GroupElement) in.readObject();
+        activation = (Activation) in.readObject();
+        tuple = (Tuple) in.readObject();
+        workingMemory = (InternalWorkingMemoryActions) in.readObject();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeObject(rule);
-        out.writeObject(subrule);
-        out.writeObject(activation);
-        out.writeObject(tuple);
-        out.writeObject(workingMemory);
+        out.writeObject( rule );
+        out.writeObject( subrule );
+        out.writeObject( activation );
+        out.writeObject( tuple );
+        out.writeObject( workingMemory );
     }
-    
+
     public void setActivation(final Activation agendaItem) {
         this.rule = agendaItem.getRule();
         this.subrule = agendaItem.getSubRule();
@@ -155,21 +164,31 @@ public class DefaultKnowledgeHelper
 
     public void modifyRetract(final Object object) {
         FactHandle handle = this.workingMemory.getFactHandleByIdentity( object );
-        this.workingMemory.modifyRetract( handle, rule, activation );
+        this.workingMemory.modifyRetract( handle,
+                                          rule,
+                                          activation );
     }
 
     public void modifyRetract(final FactHandle factHandle) {
-        this.workingMemory.modifyRetract( factHandle, rule, activation );
+        this.workingMemory.modifyRetract( factHandle,
+                                          rule,
+                                          activation );
     }
 
     public void modifyInsert(final Object object) {
         FactHandle handle = this.workingMemory.getFactHandleByIdentity( object );
-        this.workingMemory.modifyInsert( handle, object, rule, activation );
+        this.workingMemory.modifyInsert( handle,
+                                         object,
+                                         rule,
+                                         activation );
     }
 
     public void modifyInsert(final FactHandle factHandle,
                              final Object object) {
-        this.workingMemory.modifyInsert( factHandle, object, rule, activation );
+        this.workingMemory.modifyInsert( factHandle,
+                                         object,
+                                         rule,
+                                         activation );
     }
 
     public Rule getRule() {
@@ -199,9 +218,9 @@ public class DefaultKnowledgeHelper
     public WorkingMemory getWorkingMemory() {
         return this.workingMemory;
     }
-    
-    public KnowledgeRuntime getKnowledgeRuntime() {        
-       return new StatefulKnowledgeSessionImpl( (ReteooStatefulSession) this.workingMemory );
+
+    public KnowledgeRuntime getKnowledgeRuntime() {
+        return new StatefulKnowledgeSessionImpl( (ReteooWorkingMemory) this.workingMemory );
     }
 
     public Activation getActivation() {
@@ -226,7 +245,8 @@ public class DefaultKnowledgeHelper
     //    }
 
     public Object get(final Declaration declaration) {
-        return declaration.getValue( workingMemory, this.tuple.get( declaration ).getObject() );
+        return declaration.getValue( workingMemory,
+                                     this.tuple.get( declaration ).getObject() );
     }
 
     public Declaration getDeclaration(final String identifier) {
@@ -235,5 +255,21 @@ public class DefaultKnowledgeHelper
 
     public void halt() {
         this.workingMemory.halt();
+    }
+
+    public WorkingMemoryEntryPoint getEntryPoint(String id) {
+        return this.workingMemory.getEntryPoints().get( id );
+    }
+
+    public ExitPoint getExitPoint(String id) {
+        return this.workingMemory.getExitPoints().get( id );
+    }
+
+    public Map<String, WorkingMemoryEntryPoint> getEntryPoints() {
+        return Collections.unmodifiableMap( this.workingMemory.getEntryPoints() );
+    }
+
+    public Map<String, ExitPoint> getExitPoints() {
+        return Collections.unmodifiableMap( this.workingMemory.getExitPoints() );
     }
 }

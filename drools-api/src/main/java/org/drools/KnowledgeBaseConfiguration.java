@@ -1,6 +1,6 @@
 package org.drools;
 
-import org.drools.conf.OptionsConfiguration;
+import org.drools.conf.KnowledgeBaseOptionsConfiguration;
 
 /**
  *<p>
@@ -36,7 +36,6 @@ import org.drools.conf.OptionsConfiguration;
  * <li>drools.removeIdentities = &lt;true|false&gt;</li>
  * <li>drools.shareAlphaNodes  = &lt;true|false&gt;</li>
  * <li>drools.shareBetaNodes = &lt;true|false&gt;</li>
- * <li>drools.alphaMemory = &lt;true/false&gt;</li>
  * <li>drools.alphaNodeHashingThreshold = &lt;1...n&gt;</li>
  * <li>drools.compositeKeyDepth  = &lt;1..3&gt;</li>
  * <li>drools.indexLeftBetaMemory = &lt;true/false&gt;</li>
@@ -57,6 +56,7 @@ import org.drools.conf.OptionsConfiguration;
  */
 public interface KnowledgeBaseConfiguration
     extends
-    PropertiesConfiguration {
+    PropertiesConfiguration,
+    KnowledgeBaseOptionsConfiguration {
 
 }

@@ -90,8 +90,8 @@ options {k=2; backtrack=true; memoize=true;}
 	public static final CommonToken IGNORE_TOKEN = new CommonToken(null,0,99,0,0);
 	private List errors = new ArrayList();
 	private int localVariableLevel = 0;
-	private List modifyBlocks = new ArrayList();
-	public List getModifyBlocks() { return modifyBlocks; }
+	private List<JavaBlockDescr> blocks = new ArrayList<JavaBlockDescr>();
+	public List<JavaBlockDescr> getBlockDescr() { return blocks; }
 	
 	private String source = "unknown";
 	
@@ -693,7 +693,7 @@ modifyStatement
 	{
 	    d = new JavaModifyBlockDescr( $parExpression.text );
 	    d.setStart( ((CommonToken)$s).getStartIndex() );
-	    this.modifyBlocks.add( d );
+	    this.blocks.add( d );
 	    
 	}
 	'{' ( e = expression { d.getExpressions().add( $e.text ); }
@@ -704,6 +704,30 @@ modifyStatement
             d.setEnd( ((CommonToken)$c).getStopIndex() ); 
         }
 	;	
+	
+epStatement
+	@init {
+	    JavaInterfacePointsDescr d = null;
+	}
+        : 
+        ( s='exitPoints' '[' id=StringLiteral c=']' 
+        {
+	    d = new JavaInterfacePointsDescr( $id.text );
+	    d.setType( JavaBlockDescr.BlockType.EXIT );
+	    d.setStart( ((CommonToken)$s).getStartIndex() );
+            d.setEnd( ((CommonToken)$c).getStopIndex() ); 
+	    this.blocks.add( d );
+        }
+        |  s='entryPoints' '[' id=StringLiteral c=']' 
+        {
+	    d = new JavaInterfacePointsDescr( $id.text );
+	    d.setType( JavaBlockDescr.BlockType.ENTRY );
+	    d.setStart( ((CommonToken)$s).getStartIndex() );
+            d.setEnd( ((CommonToken)$c).getStopIndex() ); 
+	    this.blocks.add( d );
+        }
+        ) 
+        ;	
 	
 catches
 	:	catchClause (catchClause)*
@@ -881,6 +905,7 @@ primary
         (explicitGenericInvocationSuffix | 'this' arguments)
     |   'this' ('.' Identifier)* (identifierSuffix)?
     |   'super' superSuffix
+    |   epStatement ('.' Identifier)* (identifierSuffix)?
     |   literal
     |   'new' creator
     |   i=Identifier { if( ! "(".equals( input.LT(1) == null ? "" : input.LT(1).getText() ) ) identifiers.add( $i.text );  } ('.' Identifier)* (identifierSuffix)?

@@ -860,35 +860,43 @@ public class DefaultAgenda
     }
 
     /**
-     * Fire the next scheduled <code>Agenda</code> item.
+     * Fire the next scheduled <code>Agenda</code> item, skipping items
+     * that are not allowed by the agenda filter.
+     * 
+     * @return true if an activation was fired. false if no more activations 
+     *              to fire
      * 
      * @throws ConsequenceException
      *             If an error occurs while firing an agenda item.
      */
     public boolean fireNextItem(final AgendaFilter filter) throws ConsequenceException {
-        final InternalAgendaGroup group = (InternalAgendaGroup) getNextFocus();
+        boolean tryagain, result;
+        do {
+            tryagain = result = false;
+            final InternalAgendaGroup group = (InternalAgendaGroup) getNextFocus();
+            // if there is a group with focus
+            if ( group != null ) {
+                final AgendaItem item = (AgendaItem) group.getNext();
+                // if there is an item to fire from that group
+                if ( item != null ) {
+                    // if that item is allowed to fire
+                    if ( filter == null || filter.accept( item ) ) {
+                        // fire it
+                        fireActivation( item );
+                        result = true;
+                    } else {
+                        // otherwise cancel it and try the next
+                        final EventSupport eventsupport = (EventSupport) this.workingMemory;
 
-        // return if there are no Activations to fire
-        if ( group == null ) {
-            return false;
-        }
-
-        final AgendaItem item = (AgendaItem) group.getNext();
-        if ( item == null ) {
-            return false;
-        }
-
-        if ( filter == null || filter.accept( item ) ) {
-            fireActivation( item );
-        } else {
-            final EventSupport eventsupport = (EventSupport) this.workingMemory;
-            
-            eventsupport.getAgendaEventSupport().fireActivationCancelled( item,
-                                                                          this.workingMemory,
-                                                                          ActivationCancelledCause.FILTER );
-        }
-
-        return true;
+                        eventsupport.getAgendaEventSupport().fireActivationCancelled( item,
+                                                                                      this.workingMemory,
+                                                                                      ActivationCancelledCause.FILTER );
+                        tryagain = true;
+                    }
+                }
+            }
+        } while ( tryagain );
+        return result;
     }
 
     /**
@@ -1050,7 +1058,9 @@ public class DefaultAgenda
     public void fireUntilHalt(final AgendaFilter agendaFilter) {
         this.halt.set( false );
         while ( continueFiring( -1 ) ) {
-            boolean fired = fireNextItem( agendaFilter );
+        	boolean fired = fireNextItem( agendaFilter );
+        	fired = fired || !((AbstractWorkingMemory) this.workingMemory).getActionQueue().isEmpty();
+        	this.workingMemory.executeQueuedActions();
             if ( !fired ) {
                 try {
                     synchronized ( this.halt ) {
@@ -1088,12 +1098,16 @@ public class DefaultAgenda
     private final int updateFireLimit(final int fireLimit) {
         return fireLimit > 0 ? fireLimit - 1 : fireLimit;
     }
-
-    public void halt() {
-        this.halt.set( true );
+    
+    public void notifyHalt() {
         synchronized ( this.halt ) {
             this.halt.notifyAll();
         }
+    }
+
+    public void halt() {
+        this.halt.set( true );
+        notifyHalt();
     }
 
     public ConsequenceExceptionHandler getConsequenceExceptionHandler() {

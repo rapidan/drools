@@ -1,7 +1,7 @@
 package org.drools.process.command;
 
-import org.drools.StatefulSession;
 import org.drools.process.instance.ProcessInstance;
+import org.drools.reteoo.ReteooWorkingMemory;
 
 public class SignalEventCommand implements Command<Object> {
 	
@@ -33,13 +33,13 @@ public class SignalEventCommand implements Command<Object> {
 		this.event = event;
 	}
 
-	public Object execute(StatefulSession session) {
+	public Object execute(ReteooWorkingMemory session) {
 		if (processInstanceId == -1) {
 			session.getSignalManager().signalEvent(eventType, event);
 		} else {
 			ProcessInstance processInstance = session.getProcessInstance(processInstanceId);
 			if (processInstance != null) {
-				processInstance.signalEvent(eventType, processInstance);
+				processInstance.signalEvent(eventType, event);
 			}
 		}
 		return null;

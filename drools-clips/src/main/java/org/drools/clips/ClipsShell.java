@@ -63,6 +63,7 @@ import org.drools.rule.ImportDeclaration;
 import org.drools.rule.MVELDialectRuntimeData;
 import org.drools.rule.Namespaceable;
 import org.drools.rule.Package;
+import org.drools.runtime.Globals;
 import org.drools.runtime.rule.FactHandle;
 import org.drools.spi.GlobalResolver;
 import org.mvel2.MVEL;
@@ -287,41 +288,40 @@ public class ClipsShell
         implements
         GlobalResolver {
         private Map<String, Object> vars;
-        private GlobalResolver      resolver;
+        private GlobalResolver      delegate;
 
         public GlobalResolver2() {
         }
 
         public GlobalResolver2(Map<String, Object> vars,
-                               GlobalResolver resolver) {
+                               GlobalResolver delegate) {
             this.vars = vars;
-            this.resolver = resolver;
+            this.delegate = delegate;
         }
 
         public void readExternal(ObjectInput in) throws IOException,
                                                 ClassNotFoundException {
             vars = (Map<String, Object>) in.readObject();
-            resolver = (GlobalResolver) in.readObject();
+            delegate = (GlobalResolver) in.readObject();
         }
 
         public void writeExternal(ObjectOutput out) throws IOException {
             out.writeObject( vars );
-            out.writeObject( resolver );
+            out.writeObject( delegate );
         }
 
         public Object resolveGlobal(String identifier) {
             Object object = this.vars.get( identifier );
             if ( object == null ) {
-                object = resolver.resolveGlobal( identifier );
+                object = delegate.resolveGlobal( identifier );
             }
             return object;
         }
 
         public void setGlobal(String identifier,
                               Object value) {
-            this.resolver.setGlobal( identifier,
+            this.delegate.setGlobal( identifier,
                                      value );
-
         }
     }
 

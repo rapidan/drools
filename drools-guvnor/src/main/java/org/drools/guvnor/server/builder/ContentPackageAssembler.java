@@ -236,12 +236,14 @@ public class ContentPackageAssembler {
 		AssetItemIterator it = this.pkg
 				.listAssetsByFormat(new String[] { AssetFormats.FUNCTION });
 		while (it.hasNext()) {
-			AssetItem func = (AssetItem) it.next();
-			addDrl(func.getContent());
-			if (builder.hasErrors()) {
-				recordBuilderErrors(func);
-				builder.clearErrors();
-			}
+			AssetItem func = it.next();
+            if (!func.getDisabled()) {
+                addDrl(func.getContent());
+                if (builder.hasErrors()) {
+                    recordBuilderErrors(func);
+                    builder.clearErrors();
+                }
+            }
 		}
 
 		return errors.size() == 0;
@@ -252,20 +254,29 @@ public class ContentPackageAssembler {
 				.listAssetsByFormat(new String[] { AssetFormats.DRL_MODEL });
 		while (it.hasNext()) {
 			AssetItem as = it.next();
-			try {
-				builder.addPackageFromDrl(new StringReader(as.getContent()));
-			} catch (DroolsParserException e) {
-				this.errors.add(new ContentAssemblyError(as,
-						"Parser exception: " + e.getMessage()));
-			} catch (IOException e) {
-				this.errors.add(new ContentAssemblyError(as, "IOException: "
-						+ e.getMessage()));
-			}
+            if (!as.getDisabled()) {
+                try {
+                    String content = as.getContent();
+                    if (nonEmpty(content)) {
+                        builder.addPackageFromDrl(new StringReader(as.getContent()));
+                    }
+                } catch (DroolsParserException e) {
+                    this.errors.add(new ContentAssemblyError(as,
+                            "Parser exception: " + e.getMessage()));
+                } catch (IOException e) {
+                    this.errors.add(new ContentAssemblyError(as, "IOException: "
+                            + e.getMessage()));
+                }
+            }
 		}
 
 	}
 
-	private void loadDSLFiles() {
+    private boolean nonEmpty(String content) {
+        return content != null && content.trim().length() > 0;
+    }
+
+    private void loadDSLFiles() {
 		// now we load up the DSL files
 		builder.setDSLFiles(BRMSPackageBuilder.getDSLMappingFiles(pkg,
 				new BRMSPackageBuilder.DSLErrorEvent() {
@@ -367,9 +378,9 @@ public class ContentPackageAssembler {
 		AssetItemIterator it = this.pkg.listAssetsByFormat(new String[] {
 				AssetFormats.FUNCTION, AssetFormats.DRL_MODEL });
 		while (it.hasNext()) {
-			AssetItem func = (AssetItem) it.next();
-			if (!func.isArchived()) {
-				src.append(func.getContent() + "\n\n");
+			AssetItem func = it.next();
+			if (!func.isArchived() && !func.getDisabled()) {
+                src.append(func.getContent()).append("\n\n");
 			}
 		}
 

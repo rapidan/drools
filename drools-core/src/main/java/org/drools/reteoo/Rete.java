@@ -20,6 +20,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -82,7 +83,7 @@ public class Rete extends ObjectSource
 
     public Rete(InternalRuleBase ruleBase) {
         super( 0, RuleBasePartitionId.MAIN_PARTITION, ruleBase != null ? ruleBase.getConfiguration().isMultithreadEvaluation() : false );
-        this.entryPoints = new HashMap<EntryPoint, EntryPointNode>();
+        this.entryPoints = Collections.synchronizedMap( new HashMap<EntryPoint, EntryPointNode>() );
         this.ruleBase = ruleBase;
     }
 
@@ -238,5 +239,9 @@ public class Rete extends ObjectSource
         entryPoints = (Map<EntryPoint, EntryPointNode>) in.readObject();
         ruleBase = ((DroolsObjectInputStream)in).getRuleBase();
         super.readExternal( in );
+    }
+
+    public Map<EntryPoint,EntryPointNode> getEntryPointNodes() {
+        return this.entryPoints;
     }
 }

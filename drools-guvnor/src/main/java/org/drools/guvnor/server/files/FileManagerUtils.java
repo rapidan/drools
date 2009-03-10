@@ -114,6 +114,10 @@ public class FileManagerUtils {
 
     }
 
+    public RulesRepository getRepository() {
+        return this.repository;
+    }
+
     /**
      * The get returns files based on UUID of an asset.
      */
@@ -222,15 +226,6 @@ public class FileManagerUtils {
 
     }
 
-    public byte[] exportRulesRepository() {
-        try {
-            return this.repository.exportRulesRepository();
-        } catch ( RepositoryException e ) {
-            throw new RulesRepositoryException( e );
-        } catch ( IOException e ) {
-            throw new RulesRepositoryException( e );
-        }
-    }
 
     public byte[] exportPackageFromRepository(String packageName) {
         try {
@@ -242,14 +237,18 @@ public class FileManagerUtils {
         }
     }
 
+    public void exportRulesRepository(OutputStream out) {
+        this.repository.exportRulesRepositoryToStream(out);
+    }
+
     @Restrict("#{identity.loggedIn}")
-    public void importRulesRepository(byte[] data) {
+    public void importRulesRepository(InputStream in) {
 		if (Contexts.isSessionContextActive()) {
 			Identity.instance().checkPermission(
 					new AdminType(),
 					RoleTypes.ADMIN);
 		}
-        repository.importRulesRepository( data );
+        repository.importRulesRepositoryFromStream( in );
         
         //
         //Migrate v4 ruleflows to v5
@@ -335,13 +334,15 @@ public class FileManagerUtils {
                                                       pkg );
         }
 
+        boolean newVer = Boolean.parseBoolean(System.getProperty("drools.createNewVersionOnImport", "true"));
+
         for ( Asset as : imp.getAssets() ) {
 
             if ( existing && pkg.containsAsset( as.name ) ) {
                 AssetItem asset = pkg.loadAsset( as.name );
                 if ( asset.getFormat().equals( as.format ) ) {
                     asset.updateContent( as.content );
-                    asset.checkin( "Imported change form external DRL" );
+                    if (newVer) asset.checkin( "Imported change form external DRL" );
                 } //skip it if not the right format
 
             } else {
@@ -352,11 +353,14 @@ public class FileManagerUtils {
 
                 asset.updateContent( as.content );
                 asset.updateExternalSource( "Imported from external DRL" );
-                asset.checkin( "Imported change form external DRL" );
+                if (newVer) asset.checkin( "Imported change form external DRL" );
+
             }
         }
 
         repository.save();
+
+
     }
 
     /**

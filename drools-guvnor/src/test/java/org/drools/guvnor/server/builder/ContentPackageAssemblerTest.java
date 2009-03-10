@@ -173,18 +173,18 @@ public class ContentPackageAssemblerTest extends TestCase {
 
         AssetItem props1 = pkg.addAsset("conf1", "");
         props1.updateFormat("properties");
-        props1.updateContent("drools.accumulate.function.groupCount = wee");
+        props1.updateContent("drools.accumulate.function.groupCount = org.drools.base.accumulators.MaxAccumulateFunction");
         props1.checkin("");
 
 
         AssetItem props2 = pkg.addAsset("conf2", "");
         props2.updateFormat("conf");
-        props2.updateBinaryContentAttachment(new ByteArrayInputStream("drools.accumulate.function.groupFun = wah".getBytes()));
+        props2.updateBinaryContentAttachment(new ByteArrayInputStream("drools.accumulate.function.groupFun = org.drools.base.accumulators.MinAccumulateFunction".getBytes()));
         props2.checkin("");
 
         ContentPackageAssembler asm = new ContentPackageAssembler(pkg);
-        assertEquals("wee", asm.builder.getPackageBuilderConfiguration().getAccumulateFunctionsMap().get("groupCount"));
-        assertEquals("wah", asm.builder.getPackageBuilderConfiguration().getAccumulateFunctionsMap().get("groupFun"));
+        assertEquals("org.drools.base.accumulators.MaxAccumulateFunction", asm.builder.getPackageBuilderConfiguration().getAccumulateFunction( "groupCount" ).getClass().getName());
+        assertEquals("org.drools.base.accumulators.MinAccumulateFunction", asm.builder.getPackageBuilderConfiguration().getAccumulateFunction("groupFun").getClass().getName());
 
     }
 
@@ -251,10 +251,26 @@ public class ContentPackageAssemblerTest extends TestCase {
                       ((Class) o2).getName() );
     }
 
+    public void testWithNoDeclaredTypes() throws Exception {
+        RulesRepository repo = getRepo();
+
+        PackageItem pkg = repo.createPackage( "testSimplePackageWithDeclaredTypes1",
+                                              "" );
+        AssetItem rule1 = pkg.addAsset( "rule_1",
+                                        "" );
+        rule1.updateFormat( AssetFormats.DRL_MODEL );
+        rule1.checkin( "" );
+
+        ContentPackageAssembler asm = new ContentPackageAssembler( pkg );
+        assertFalse(asm.getErrors().toString(),  asm.hasErrors() );
+        
+
+    }
+
     public void testSimplePackageWithDeclaredTypes() throws Exception {
         RulesRepository repo = getRepo();
 
-        PackageItem pkg = repo.createPackage( "testSimplePackageWithDeclaredTypes",
+        PackageItem pkg = repo.createPackage( "testSimplePackageWithDeclaredTypes2",
                                               "" );
 
         ServiceImplementation.updateDroolsHeader("import java.util.HashMap", pkg);
@@ -572,6 +588,15 @@ public class ContentPackageAssemblerTest extends TestCase {
         rule2.updateContent( "when \n foo \n then \n call a func" );
         rule2.checkin( "" );
 
+        AssetItem rule3 = pkg.addAsset( "model1",
+                                        "" );
+        rule3.updateFormat( AssetFormats.DRL_MODEL );
+        rule3.updateContent( "garbage" );
+        rule3.updateDisabled(true);
+        rule3.checkin( "" );
+
+
+
         ContentPackageAssembler asm = new ContentPackageAssembler( pkg,
                                                                    false,
                                                                    null );
@@ -591,6 +616,41 @@ public class ContentPackageAssemblerTest extends TestCase {
                         drl );
         assertContains( "rule 'foo' when Goo() then end",
                         drl );
+
+        assertEquals(-1, drl.indexOf("garbage"));
+
+    }
+
+
+    public void testSkipDisabledPackageStuff() throws Exception {
+        RulesRepository repo = getRepo();
+
+        //first, setup the package correctly:
+        PackageItem pkg = repo.createPackage( "testSkipDisabledPackageStuff",
+                                              "" );
+        repo.save();
+
+        AssetItem assertRule1 = pkg.addAsset( "model1",
+                                              "" );
+        assertRule1.updateFormat( AssetFormats.DRL_MODEL );
+        assertRule1.updateContent( "garbage" );
+        assertRule1.updateDisabled( true );
+        assertRule1.checkin( "" );
+
+
+        assertRule1 = pkg.addAsset( "function1",
+                                              "" );
+        assertRule1.updateFormat( AssetFormats.FUNCTION );
+        assertRule1.updateContent( "garbage" );
+        assertRule1.updateDisabled( true );
+        assertRule1.checkin( "" );
+
+        ContentPackageAssembler asm = new ContentPackageAssembler(pkg);
+        assertFalse(asm.hasErrors());
+
+
+
+
 
     }
 

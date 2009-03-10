@@ -1,6 +1,13 @@
 package org.drools.runtime.pipeline;
 
+/**
+ * 
+ * <p>This api is experimental and thus the classes and the interfaces returned are subject to change.</p>
+ *
+ */
 import java.util.Map;
+
+import org.drools.runtime.BatchExecutor;
 
 public interface PipelineContext {
 
@@ -13,5 +20,7 @@ public interface PipelineContext {
     Object getResult();
 
     ResultHandler getResultHandler();
+    
+    BatchExecutor getBatchExecutor();
 
 }

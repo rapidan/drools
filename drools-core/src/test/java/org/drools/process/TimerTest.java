@@ -3,20 +3,31 @@ package org.drools.process;
 import junit.framework.TestCase;
 
 import org.drools.RuleBaseFactory;
+import org.drools.StatefulSession;
 import org.drools.common.AbstractRuleBase;
 import org.drools.common.InternalWorkingMemory;
+import org.drools.concurrent.CommandExecutor;
+import org.drools.concurrent.DefaultExecutorService;
+import org.drools.concurrent.ExecutorService;
 import org.drools.process.instance.timer.TimerInstance;
 import org.drools.process.instance.timer.TimerManager;
-import org.drools.reteoo.ReteooWorkingMemory;
+import org.drools.reteoo.ReteooStatefulSession;
 import org.drools.ruleflow.instance.RuleFlowProcessInstance;
 
 public class TimerTest extends TestCase {
 
 	private int counter = 0;
+	
+	public void testEmpty() {
+		
+	}
 
-	public void testTimer() {
+	public void FIXMEtestTimer() {
         AbstractRuleBase ruleBase = (AbstractRuleBase) RuleBaseFactory.newRuleBase();
-        InternalWorkingMemory workingMemory = new ReteooWorkingMemory(1, ruleBase);
+        ExecutorService executorService = new DefaultExecutorService();
+        final StatefulSession workingMemory = new ReteooStatefulSession(1, ruleBase, executorService);
+        executorService.setCommandExecutor( new CommandExecutor( workingMemory ) );
+
         RuleFlowProcessInstance processInstance = new RuleFlowProcessInstance() {
 			private static final long serialVersionUID = 4L;
 			public void signalEvent(String type, Object event) {
@@ -27,8 +38,17 @@ public class TimerTest extends TestCase {
         		}
         	}
         };
+        processInstance.setWorkingMemory((InternalWorkingMemory) workingMemory);
         processInstance.setId(1234);
-        workingMemory.getProcessInstanceManager().internalAddProcessInstance(processInstance);
+        ((InternalWorkingMemory) workingMemory).getProcessInstanceManager()
+        	.internalAddProcessInstance(processInstance);
+
+        new Thread(new Runnable() {
+			public void run() {
+	        	workingMemory.fireUntilHalt();       	
+			}
+        }).start();
+
         TimerManager timerManager = workingMemory.getTimerManager();
         TimerInstance timer = new TimerInstance();
         timerManager.registerTimer(timer, processInstance);
