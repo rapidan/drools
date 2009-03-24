@@ -430,7 +430,10 @@ public class ServiceImplementation
     @WebRemote
     @Restrict("#{identity.loggedIn}")
     public RuleAsset loadRuleAsset(String uuid) throws SerializableException {
+        
         long time = System.currentTimeMillis();
+
+
         AssetItem item = repository.loadAssetByUUID( uuid );
         RuleAsset asset = new RuleAsset();
 
@@ -2186,7 +2189,7 @@ public class ServiceImplementation
         }
 
         PermissionManager pm = new PermissionManager( repository );
-        System.err.println( perms );
+
         log.info( "Updating user permissions for userName [" + userName + "] to [" + perms + "]" );
         pm.updateUserPermissions( userName,
                                   perms );

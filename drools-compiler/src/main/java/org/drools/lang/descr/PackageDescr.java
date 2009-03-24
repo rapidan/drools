@@ -95,7 +95,7 @@ public class PackageDescr extends BaseDescr
     }
 
     public String getName() {
-        return this.namespace;
+        return this.namespace == null ? "" : this.namespace;
     }
 
     public String getDocumentation() {

@@ -32,7 +32,7 @@ public interface WorkingMemory
      * Returns the session clock instance assigned to this session
      * @return
      */
-    public SessionClock getSessionClock();
+    public <T extends SessionClock> T getSessionClock();
 
     /**
      * Returns the fact handle associated with the given object. It is important to note that this 
@@ -62,7 +62,7 @@ public interface WorkingMemory
      * 
      * @return
      */
-    Collection< ? > getObjects();
+    Collection< ? extends Object > getObjects();
 
     /**
      * Returns all facts from the current session that are accepted by the given <code>ObjectFilter</code>.
@@ -71,7 +71,7 @@ public interface WorkingMemory
      *  
      * @return
      */
-    Collection< ? > getObjects(ObjectFilter filter);
+    Collection< ? extends Object > getObjects(ObjectFilter filter);
 
     /**
      * Returns all <code>FactHandle</code>s from the current session.
@@ -104,6 +104,14 @@ public interface WorkingMemory
      * @return
      */
     WorkingMemoryEntryPoint getWorkingMemoryEntryPoint(String name);
+    
+    /**
+     * Returns a collection of all available working memory entry points
+     * for this session.
+     * 
+     * @return the collection of all available entry points for this session
+     */
+    Collection<? extends WorkingMemoryEntryPoint> getWorkingMemoryEntryPoints();
     
     /**
      * Retrieve the QueryResults of the specified query.

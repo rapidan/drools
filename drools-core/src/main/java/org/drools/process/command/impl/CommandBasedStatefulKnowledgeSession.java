@@ -35,6 +35,7 @@ import org.drools.process.command.GetProcessInstanceCommand;
 import org.drools.process.command.GetProcessInstancesCommand;
 import org.drools.process.command.GetSessionClockCommand;
 import org.drools.process.command.GetWorkingMemoryEntryPointCommand;
+import org.drools.process.command.GetWorkingMemoryEntryPointsCommand;
 import org.drools.process.command.GetWorkingMemoryEventListenersCommand;
 import org.drools.process.command.HaltCommand;
 import org.drools.process.command.InsertObjectCommand;
@@ -204,36 +205,28 @@ public class CommandBasedStatefulKnowledgeSession
         return this.commandService.execute( new GetFactHandlesCommand( filter ) );
     }
 
-    public Collection< ? > getObjects() {
-        Collection<Object> result = new ArrayList<Object>();
-        Iterator< ? > iterator = commandService.execute( new GetObjectsCommand() );
-        if ( iterator != null ) {
-            while ( iterator.hasNext() ) {
-                result.add( iterator.next() );
-            }
-        }
+    public Collection< ? extends Object> getObjects() {
+        return getObjects( null );
+    }
+
+    public Collection< ? extends Object > getObjects(ObjectFilter filter) {
+        Collection result = commandService.execute( new GetObjectsCommand( filter ) );
         return result;
     }
 
-    public Collection< ? > getObjects(ObjectFilter filter) {
-        Collection<Object> result = new ArrayList<Object>();
-        Iterator< ? > iterator = commandService.execute( new GetObjectsCommand( filter ) );
-        if ( iterator != null ) {
-            while ( iterator.hasNext() ) {
-                result.add( iterator.next() );
-            }
-        }
-        return result;
-    }
-
-    public SessionClock getSessionClock() {
-        return this.commandService.execute( new GetSessionClockCommand() );
+    @SuppressWarnings("unchecked")
+    public <T extends SessionClock> T getSessionClock() {
+        return (T) this.commandService.execute( new GetSessionClockCommand() );
     }
 
     public WorkingMemoryEntryPoint getWorkingMemoryEntryPoint(String name) {
         return this.commandService.execute( new GetWorkingMemoryEntryPointCommand( name ) );
     }
 
+    public Collection< ? extends WorkingMemoryEntryPoint> getWorkingMemoryEntryPoints() {
+        return this.commandService.execute( new GetWorkingMemoryEntryPointsCommand() );
+    }
+    
     public void halt() {
         this.commandService.execute( new HaltCommand() );
     }

@@ -1789,4 +1789,70 @@ public interface Constants extends ConstantsWithLookup {
     String PleaseEnterANameThatIsNotTheSameAsTheFactType();
 
     String ThatNameIsInUsePleaseTryAnother();
+
+    String Browse();
+
+    String KnowledgeBases();
+
+    String DefaultValue();
+
+    String HideThisColumn();
+
+    String PleaseSelectOrEnterField();
+
+    String PleaseSelectAnOperator();
+    
+    String January();
+
+    String February();
+
+    String March();
+
+    String April();
+
+    String May();
+
+    String June();
+
+    String July();
+
+    String August();
+
+    String September();
+
+    String October();
+
+    String November();
+
+    String December();
+
+    String YouMightNeedToBeABitMoreImaginative();
+
+    String SorryAnItemOfThatNameAlreadyExistsInTheRepositoryPleaseChooseAnother();
+
+    String ALiteralValueMeansTheValueAsTypedInIeItsNotACalculation();
+
+    String WHEN();
+
+    String THEN();
+
+    String AddAnActionToThisRule();
+
+    String optionsRuleModeller();
+
+    String clickToAddPatterns();
+
+    String ChangeFieldValuesOf0();
+
+    String Retract0();
+
+    String Modify0();
+
+    String InsertFact0();
+
+    String LogicallyInsertFact0();
+
+    String Append0ToList1();
+
+    String CallMethodOn0();
 }

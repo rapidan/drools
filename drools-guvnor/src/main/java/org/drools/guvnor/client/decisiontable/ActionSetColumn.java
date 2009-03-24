@@ -48,6 +48,9 @@ public class ActionSetColumn extends FormStylePopup {
 		editingCol.type = col.type;
 		editingCol.valueList = col.valueList;
 		editingCol.update = col.update;
+        editingCol.defaultValue = col.defaultValue;
+        editingCol.hideColumn = col.hideColumn;
+
 
 		super.setModal(false);
 		setTitle(constants.ColumnConfigurationSetAFieldOnAFact());
@@ -100,6 +103,7 @@ public class ActionSetColumn extends FormStylePopup {
 
 		addAttribute(constants.UpdateEngineWithChanges(), doUpdate());
 
+        addAttribute(constants.DefaultValue(), GuidedDTColumnConfig.getDefaultEditor(editingCol));
 
 		Button apply = new Button(constants.ApplyChanges());
 		apply.addClickListener(new ClickListener() {
@@ -129,6 +133,8 @@ public class ActionSetColumn extends FormStylePopup {
 					col.type = editingCol.type;
 					col.valueList = editingCol.valueList;
 					col.update = editingCol.update;
+                    col.defaultValue = editingCol.defaultValue;
+                    col.hideColumn = editingCol.hideColumn;
 				}
 				refreshGrid.execute();
 				hide();
@@ -155,7 +161,12 @@ public class ActionSetColumn extends FormStylePopup {
 		cb.setText("");
 		cb.addClickListener(new ClickListener() {
 			public void onClick(Widget arg0) {
-				editingCol.update = cb.isChecked();
+                if (sce.isGlobalVariable(editingCol.boundName)) {
+                    cb.setChecked(false);
+                    editingCol.update = false;
+                }   else {
+				    editingCol.update = cb.isChecked();
+                }
 			}
 		});
 		hp.add(cb);
@@ -176,7 +187,8 @@ public class ActionSetColumn extends FormStylePopup {
 	private void showFieldChange() {
 		final FormStylePopup pop = new FormStylePopup();
 		pop.setModal(false);
-		final String factType = getFactType(this.editingCol.boundName);
+
+		final String factType = getFactType();
 		String[] fields = this.sce.getFieldCompletions(factType);
 		final ListBox box = new ListBox();
 		for (int i = 0; i < fields.length; i++) {
@@ -197,7 +209,14 @@ public class ActionSetColumn extends FormStylePopup {
 
 	}
 
-	private void doFieldLabel() {
+    private String getFactType() {
+        if (sce.globalTypes.containsKey(editingCol.boundName)) {
+            return sce.globalTypes.get(editingCol.boundName);
+        }
+        return getFactType(this.editingCol.boundName);
+    }
+
+    private void doFieldLabel() {
 		if (this.editingCol.factField != null) {
 			this.fieldLabel.setText(this.editingCol.factField);
 		} else {

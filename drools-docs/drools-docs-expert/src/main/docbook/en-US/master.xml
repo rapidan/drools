@@ -39,6 +39,8 @@
 	-->
 
 	<xi:include href="Acknowledgements.xml" />
+    
+	<xi:include href="Chapter-Quick_Start/Chapter-Quick_Start.xml" />    
 	
 	<xi:include href="Chapter-Rule_Engine/Chapter-Rule_Engine.xml" />
 

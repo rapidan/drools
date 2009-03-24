@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.drools.ProviderInitializationException;
+import org.drools.runtime.ObjectFilter;
 
 /**
  * <p>
@@ -55,6 +56,14 @@ public class CommandFactory {
     public static Command newInsertElements(Iterable objects) {
         return getCommandFactoryProvider().newInsertElements( objects );
     }
+    
+    public static Command newGetObjects() {
+    	return getCommandFactoryProvider().newGetObjects( );
+    }
+    
+    public static Command newGetObjects(ObjectFilter filter) {
+    	return getCommandFactoryProvider().newGetObjects( filter );
+    }    
 
     /**
      * Sets the global.
@@ -133,6 +142,14 @@ public class CommandFactory {
         return getCommandFactoryProvider().newGetGlobal( identifier,
                                                          outIdentifier );
     }
+    
+    public static Command newFireAllRules() {
+        return getCommandFactoryProvider().newFireAllRules();
+    }
+    
+    public static Command newFireAllRules(int max) {
+        return getCommandFactoryProvider().newFireAllRules(max);
+    }    
 
     /**
      * Start a process

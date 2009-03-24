@@ -6180,6 +6180,31 @@ public class MiscTest extends TestCase {
         assertEquals( Integer.valueOf( 10 ), results.get( 0 ) );
     }
 
+    public void FIXME_testDRLWithoutPackageDeclaration() throws Exception {
+        final KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newInputStreamResource( getClass().getResourceAsStream( "test_NoPackageDeclaration.drl" ) ), 
+                      ResourceType.DRL );
+
+        final KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        
+        // no package defined, so it is set to the default
+        final FactType factType = kbase.getFactType( "defaultpkg", "Person" );
+        assertNotNull( factType );
+        final Object bob = factType.newInstance();
+        factType.set( bob, "name", "Bob" );
+        factType.set( bob, "age", Integer.valueOf( 30 ) );
+        
+        final StatefulKnowledgeSession session = kbase.newStatefulKnowledgeSession();
+        final List results = new ArrayList(); 
+        session.setGlobal( "results", results );
+        
+        session.insert( bob );
+        session.fireAllRules();
+        
+        assertEquals( 1, results.size() );
+        assertEquals( bob, results.get( 0 ) );
+    }
     
     public void testKnowledgeContextJava() {
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();

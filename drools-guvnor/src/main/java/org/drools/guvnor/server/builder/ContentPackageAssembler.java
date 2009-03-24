@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.jar.JarInputStream;
 
+import org.drools.builder.conf.DefaultPackageNameOption;
 import org.drools.compiler.DroolsError;
 import org.drools.compiler.DroolsParserException;
 import org.drools.guvnor.client.common.AssetFormats;
@@ -130,14 +131,13 @@ public class ContentPackageAssembler {
 	}
 
 	public void createBuilder() {
-		List<JarInputStream> jars = BRMSPackageBuilder.getJars(pkg);
-        Properties ps = new Properties();
         try {
-            ps = loadConfProperties(pkg);
+            Properties ps = loadConfProperties(pkg);
+            ps.setProperty( DefaultPackageNameOption.PROPERTY_NAME, this.pkg.getName() );
+            builder = BRMSPackageBuilder.getInstance(BRMSPackageBuilder.getJars(pkg), ps);
         } catch (IOException e) {
             throw new RulesRepositoryException("Unable to load configuration properties for package.", e);            
         }
-        builder = BRMSPackageBuilder.getInstance(jars, ps);
 	}
 
 

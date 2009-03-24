@@ -10,21 +10,14 @@ import java.util.StringTokenizer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import javax.jcr.ImportUUIDBehavior;
-import javax.jcr.ItemExistsException;
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.PathNotFoundException;
-import javax.jcr.Property;
-import javax.jcr.PropertyIterator;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
+import javax.jcr.*;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryResult;
 import javax.jcr.version.Version;
 
 import org.apache.log4j.Logger;
 import org.drools.repository.migration.MigrateDroolsPackage;
+import org.drools.repository.events.StorageEventManager;
 
 /**
  * RulesRepository is the class that defines the bahavior for the JBoss Rules
@@ -478,7 +471,7 @@ public class RulesRepository {
             long start = System.currentTimeMillis();
             this.session.getWorkspace().copy( source,
                                               newName );
-            System.err.println("Time taken for snap: " + (System.currentTimeMillis() - start));
+            log.debug("Time taken for snap: " + (System.currentTimeMillis() - start));
 
         } catch ( RepositoryException e ) {
             log.error( "Unable to create snapshot",
@@ -637,7 +630,11 @@ public class RulesRepository {
             Node rulePackageNode = this.session.getNodeByUUID( uuid );
             return new AssetItem( this,
                                   rulePackageNode );
+        } catch (ItemNotFoundException e) {
+          log.warn(e);
+          throw new RulesRepositoryException("That item does not exist.");
         } catch ( RepositoryException e ) {
+
             log.error( "Unable to load a rule asset by UUID.",
                        e );
             throw new RulesRepositoryException( e );
@@ -684,6 +681,10 @@ public class RulesRepository {
             PackageItem item = new PackageItem( this,
                                                 rulePackageNode );
             item.checkin( "Initial" );
+
+            if (StorageEventManager.hasSaveEvent()) {
+                StorageEventManager.getSaveEvent().onPackageCreate(item);
+            }
 
             return item;
         } catch ( ItemExistsException e ) {
@@ -917,7 +918,7 @@ public class RulesRepository {
                                       false );
         } catch (Exception e) {
             log.error(e);
-            e.printStackTrace();
+            throw new RulesRepositoryException(e);
         }
 
     }
@@ -985,10 +986,12 @@ public class RulesRepository {
                 mig.migrate( this );
             }
         } catch ( RepositoryException e ) {
-            e.printStackTrace();
-            throw new RulesRepositoryException();
+            log.error(e);
+            throw new RulesRepositoryException("Repository error when importing from stream.", e);
         } catch ( IOException e ) {
-            e.printStackTrace();
+            log.error(e);
+            throw new RulesRepositoryException(e);
+
         }
     }
 
@@ -1014,10 +1017,11 @@ public class RulesRepository {
                 mig.migrate( this );
             }
         } catch ( RepositoryException e ) {
-            e.printStackTrace();
-            throw new RulesRepositoryException();
+            log.error(e);
+            throw new RulesRepositoryException(e);
         } catch ( IOException e ) {
-            e.printStackTrace();
+            log.error(e);
+            throw new RulesRepositoryException(e);
         }
     }
 
@@ -1247,7 +1251,6 @@ public class RulesRepository {
             return new AssetItemIterator( res.getNodes(),
                                           this );
         } catch ( RepositoryException e ) {
-            System.out.println( e.getMessage() );
             throw new RulesRepositoryException( e );
         }
     }
@@ -1275,7 +1278,6 @@ public class RulesRepository {
             return new AssetItemIterator( res.getNodes(),
                                           this );
         } catch ( RepositoryException e ) {
-            System.out.println( e.getMessage() );
             throw new RulesRepositoryException( e );
         }
     }
@@ -1299,7 +1301,6 @@ public class RulesRepository {
             return new AssetItemIterator( res.getNodes(),
                                           this );
         } catch ( RepositoryException e ) {
-            System.out.println( e.getMessage() );
             throw new RulesRepositoryException( e );
         }
     }
@@ -1355,7 +1356,6 @@ public class RulesRepository {
                 }
             }
 
-            System.out.println( sql );
 
             Query q = this.session.getWorkspace().getQueryManager().createQuery( sql,
                                                                                  Query.SQL );
@@ -1365,7 +1365,6 @@ public class RulesRepository {
             return new AssetItemIterator( res.getNodes(),
                                           this );
         } catch ( RepositoryException e ) {
-            System.out.println( e.getMessage() );
             throw new RulesRepositoryException( e );
         }
     }
@@ -1454,7 +1453,7 @@ public class RulesRepository {
         try {
             this.logout();
         } catch ( Exception e ) {
-            System.err.println( "Finalizer error: " + e.getMessage() );
+            log.error( "Finalizer error: " + e.getMessage() );
         }
     }
 }

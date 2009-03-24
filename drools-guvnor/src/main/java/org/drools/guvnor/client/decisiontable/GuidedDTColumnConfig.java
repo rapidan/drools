@@ -2,6 +2,7 @@ package org.drools.guvnor.client.decisiontable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 import org.drools.guvnor.client.common.FormStylePopup;
 import org.drools.guvnor.client.common.ImageButton;
@@ -12,20 +13,12 @@ import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
 import org.drools.guvnor.client.modeldriven.dt.ConditionCol;
 import org.drools.guvnor.client.modeldriven.dt.GuidedDecisionTable;
+import org.drools.guvnor.client.modeldriven.dt.DTColumnConfig;
 import org.drools.guvnor.client.messages.Constants;
 
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.ChangeListener;
-import com.google.gwt.user.client.ui.ClickListener;
-import com.google.gwt.user.client.ui.HTML;
-import com.google.gwt.user.client.ui.HorizontalPanel;
-import com.google.gwt.user.client.ui.Image;
-import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.RadioButton;
-import com.google.gwt.user.client.ui.TextBox;
-import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.user.client.ui.*;
 import com.google.gwt.core.client.GWT;
 
 /**
@@ -59,6 +52,8 @@ public class GuidedDTColumnConfig extends FormStylePopup {
 		editingCol.header = col.header;
 		editingCol.operator = col.operator;
 		editingCol.valueList = col.valueList;
+        editingCol.defaultValue = col.defaultValue;
+        editingCol.hideColumn = col.hideColumn;
 
 
 		setTitle(constants.ConditionColumnConfiguration());
@@ -165,12 +160,27 @@ public class GuidedDTColumnConfig extends FormStylePopup {
 		addAttribute(constants.ColumnHeaderDescription(), header);
 
 
+        addAttribute(constants.DefaultValue(), getDefaultEditor(editingCol));
+
+
 		Button apply = new Button(constants.ApplyChanges());
 		apply.addClickListener(new ClickListener() {
 			public void onClick(Widget w) {
                 if (null == editingCol.header || "".equals(editingCol.header)) {
                     Window.alert(constants.YouMustEnterAColumnHeaderValueDescription());
                     return;
+                }
+                if (editingCol.constraintValueType != ISingleFieldConstraint.TYPE_PREDICATE) {
+                    if (null == editingCol.factField || "".equals(editingCol.factField)) {
+                        Window.alert(constants.PleaseSelectOrEnterField());
+                        return;
+                    }
+                    if (null == editingCol.operator || "".equals(editingCol.operator)) {
+                        Window.alert(constants.PleaseSelectAnOperator());
+                        return;
+                    }
+
+
                 }
 				if (isNew) {
                     if (!unique(editingCol.header)) {
@@ -193,6 +203,8 @@ public class GuidedDTColumnConfig extends FormStylePopup {
 					col.header = editingCol.header;
 					col.operator = editingCol.operator;
 					col.valueList = editingCol.valueList;
+                    col.defaultValue = editingCol.defaultValue;
+                    col.hideColumn = editingCol.hideColumn;
 				}
 				refreshGrid.execute();
 				hide();
@@ -206,6 +218,30 @@ public class GuidedDTColumnConfig extends FormStylePopup {
 
 
 	}
+
+    /**
+     * An editor for setting the default value.
+     */
+    public static HorizontalPanel getDefaultEditor(final DTColumnConfig editingCol) {
+        final TextBox defaultValue = new TextBox();
+        defaultValue.setText(editingCol.defaultValue);
+        final CheckBox hide = new CheckBox(((Constants) GWT.create(Constants.class)).HideThisColumn());
+        hide.setChecked(editingCol.hideColumn);
+        hide.addClickListener(new ClickListener() {
+            public void onClick(Widget sender) {
+                editingCol.hideColumn = hide.isChecked();
+            }
+        });
+        defaultValue.addChangeListener(new ChangeListener() {
+            public void onChange(Widget sender) {
+                editingCol.defaultValue = defaultValue.getText();
+            }
+        });
+        HorizontalPanel hp = new HorizontalPanel();
+        hp.add(defaultValue);
+        hp.add(hide);
+        return hp;
+    }
 
     private boolean unique(String header) {
         for (ConditionCol o : dt.conditionCols) {
@@ -381,6 +417,9 @@ public class GuidedDTColumnConfig extends FormStylePopup {
                 } else if (fn.equals(ft)) {
                     Window.alert(constants.PleaseEnterANameThatIsNotTheSameAsTheFactType());
                     return;
+                } else if ( !checkUnique(fn, dt.conditionCols) ) {
+                    Window.alert("Please enter a name that is not already used by another pattern.");
+                    return;
                 }
 				editingCol.boundName = fn;
 				editingCol.factType = ft;
@@ -394,7 +433,14 @@ public class GuidedDTColumnConfig extends FormStylePopup {
 
 	}
 
-	private ListBox loadPatterns() {
+    private boolean checkUnique(String fn, List<ConditionCol> conditionCols) {
+        for (ConditionCol c : conditionCols) {
+            if (c.boundName.equals(fn)) return false;
+        }
+        return true;
+    }
+
+    private ListBox loadPatterns() {
 		Set vars = new HashSet();
 		ListBox patterns = new ListBox();
 		for (int i = 0; i < dt.conditionCols.size(); i++) {

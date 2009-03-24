@@ -3,6 +3,8 @@ package org.drools.command;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.runtime.ObjectFilter;
+
 public interface CommandFactoryProvider {
     Command newInsertObject(Object object);
 
@@ -10,7 +12,15 @@ public interface CommandFactoryProvider {
                             String outIdentifier);
 
     Command newInsertElements(Iterable iterable);
+    
+    Command newFireAllRules();
 
+    Command newFireAllRules(int max);    
+    
+	Command newGetObjects();
+
+    public Command newGetObjects(ObjectFilter filter);
+    
     Command newSetGlobal(String identifie,
                          Object object);
 
@@ -40,4 +50,5 @@ public interface CommandFactoryProvider {
                      Object[] arguments);
     
     Command newBatchExecution(List<? extends Command> commands);
+		
 }

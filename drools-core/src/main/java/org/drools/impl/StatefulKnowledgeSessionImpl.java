@@ -28,7 +28,6 @@ import org.drools.event.ObjectInsertedEvent;
 import org.drools.event.ObjectRetractedEvent;
 import org.drools.event.ObjectUpdatedEvent;
 import org.drools.event.RuleFlowCompletedEvent;
-import org.drools.event.RuleFlowEventListener;
 import org.drools.event.RuleFlowGroupActivatedEvent;
 import org.drools.event.RuleFlowGroupDeactivatedEvent;
 import org.drools.event.RuleFlowNodeTriggeredEvent;
@@ -38,7 +37,6 @@ import org.drools.event.process.impl.ProcessCompletedEventImpl;
 import org.drools.event.process.impl.ProcessNodeLeftEventImpl;
 import org.drools.event.process.impl.ProcessNodeTriggeredEventImpl;
 import org.drools.event.process.impl.ProcessStartedEventImpl;
-import org.drools.event.rule.ActivationCancelledCause;
 import org.drools.event.rule.AgendaEventListener;
 import org.drools.event.rule.WorkingMemoryEventListener;
 import org.drools.event.rule.impl.ActivationCancelledEventImpl;
@@ -117,6 +115,10 @@ public class StatefulKnowledgeSessionImpl
     public WorkingMemoryEntryPoint getWorkingMemoryEntryPoint(String name) {
         return session.getWorkingMemoryEntryPoint( name );
     }
+    
+    public Collection<? extends org.drools.runtime.rule.WorkingMemoryEntryPoint> getWorkingMemoryEntryPoints() {
+        return session.getWorkingMemoryEntryPoints();
+    }
 
     public void addEventListener(WorkingMemoryEventListener listener) {
         WorkingMemoryEventListenerWrapper wrapper = new WorkingMemoryEventListenerWrapper( listener );
@@ -193,8 +195,9 @@ public class StatefulKnowledgeSessionImpl
         this.session.fireUntilHalt( new AgendaFilterWrapper( agendaFilter ) );
     }
 
-    public SessionClock getSessionClock() {
-        return this.session.getSessionClock();
+    @SuppressWarnings("unchecked")
+    public <T extends SessionClock> T getSessionClock() {
+        return (T) this.session.getSessionClock();
     }
 
     public void halt() {
