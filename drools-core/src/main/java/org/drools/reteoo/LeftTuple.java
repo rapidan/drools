@@ -1,8 +1,5 @@
 package org.drools.reteoo;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.drools.common.InternalFactHandle;
 import org.drools.rule.Declaration;
 import org.drools.spi.Activation;
@@ -131,8 +128,8 @@ public class LeftTuple
     }
 
     public void unlinkFromLeftParent() {
-        LeftTuple previous = (LeftTuple) this.leftParentPrevious;
-        LeftTuple next = (LeftTuple) this.leftParentNext;
+        LeftTuple previous = this.leftParentPrevious;
+        LeftTuple next = this.leftParentNext;
 
         if ( previous != null && next != null ) {
             //remove  from middle
@@ -172,8 +169,8 @@ public class LeftTuple
             // no right parent;
             return;
         }
-        LeftTuple previous = (LeftTuple) this.rightParentPrevious;
-        LeftTuple next = (LeftTuple) this.rightParentNext;
+        LeftTuple previous = this.rightParentPrevious;
+        LeftTuple next = this.rightParentNext;
 
         if ( previous != null && next != null ) {
             //remove  from middle
@@ -186,7 +183,7 @@ public class LeftTuple
         } else if ( previous != null ) {
             //remove from end
             this.rightParentPrevious.rightParentNext = null;
-        } else if ( this.rightParent != null ) {
+        } else {
             this.rightParent.setBetaChildren( null );
         }
 
@@ -311,16 +308,26 @@ public class LeftTuple
      * Returns the fact handles in reverse order
      */
     public InternalFactHandle[] getFactHandles() {
-        final List list = new ArrayList();
+        InternalFactHandle[] handles = new InternalFactHandle[this.index + 1];
         LeftTuple entry = this;
+        int i = 0;
         while ( entry != null ) {
-            list.add( entry.handle );
+            handles[i++] = entry.handle;
             entry = entry.parent;
         }
-
-        return (InternalFactHandle[]) list.toArray( new InternalFactHandle[list.size()] );
+        return handles;
     }
+     public InternalFactHandle[] toFactHandles() {
+        InternalFactHandle[] handles = new InternalFactHandle[this.index + 1];
+        LeftTuple entry = this;
 
+        while ( entry != null ) {
+            handles[entry.index] = entry.handle;
+            entry = entry.parent;
+        }
+        return handles;
+    }
+    
     public long getRecency() {
         return this.recency;
     }
@@ -363,7 +370,7 @@ public class LeftTuple
         LeftTuple entry = this;
         while ( entry != null ) {
             //buffer.append( entry.handle );
-            buffer.append( entry.handle + "\n" );
+            buffer.append(entry.handle).append("\n");
             entry = entry.parent;
         }
         return buffer.toString();

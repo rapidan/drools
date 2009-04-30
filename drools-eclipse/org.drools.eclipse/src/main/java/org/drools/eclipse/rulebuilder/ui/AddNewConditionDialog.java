@@ -4,8 +4,13 @@ import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.CompositeFactPattern;
 import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
 import org.drools.guvnor.client.modeldriven.brl.FactPattern;
+import org.drools.guvnor.client.modeldriven.brl.FreeFormLine;
 import org.drools.guvnor.client.modeldriven.brl.IPattern;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -21,9 +26,9 @@ import org.eclipse.swt.widgets.Shell;
  */
 public class AddNewConditionDialog extends RuleDialog {
 
-    private IPattern          pattern;
+    private IPattern     pattern;
 
-    private RuleModeller      modeller;
+    private RuleModeller modeller;
 
     public AddNewConditionDialog(Shell parent,
                                  RuleModeller modeller) {
@@ -39,6 +44,9 @@ public class AddNewConditionDialog extends RuleDialog {
         Control dialog = super.createDialogArea( parent );
 
         Composite composite = (Composite) dialog;
+        GridLayout layout = new GridLayout( 2,
+                                            false );
+        composite.setLayout( layout );
 
         addFacts( composite );
 
@@ -46,7 +54,30 @@ public class AddNewConditionDialog extends RuleDialog {
 
         addDSLSentences( composite );
 
+        addFreeFormLine( composite );
+
         return composite;
+    }
+
+    private void addFreeFormLine(Composite composite) {
+        createLabel( composite,
+                     "Free form action" );
+
+        Button b = new Button( composite,
+                               SWT.NONE );
+        b.setText( "Add free form drl" );
+        b.addSelectionListener( new SelectionListener() {
+
+            public void widgetDefaultSelected(SelectionEvent e) {
+            }
+
+            public void widgetSelected(SelectionEvent e) {
+                modeller.getModel().addLhsItem( new FreeFormLine() );
+                modeller.setDirty( true );
+                modeller.reloadLhs();
+                close();
+            }
+        } );
     }
 
     private void addFacts(Composite composite) {
@@ -131,7 +162,8 @@ public class AddNewConditionDialog extends RuleDialog {
                                           }
 
                                           DSLSentence sentence = getCompletion().getDSLConditions()[dslCombo.getSelectionIndex() - 1];
-										//TODO Handle this kind of situations with care - add* can throw runtime exceptions
+                                          // TODO Handle this kind of situations with care - add* can
+                                          // throw runtime exceptions
                                           modeller.getModel().addLhsItem( sentence.copy() );
 
                                           modeller.reloadLhs();

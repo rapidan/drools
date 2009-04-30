@@ -35,7 +35,7 @@ import org.drools.impl.StatefulKnowledgeSessionImpl;
 import org.drools.io.Resource;
 import org.drools.io.ResourceFactory;
 import org.drools.rule.Package;
-import org.drools.runtime.BatchExecutionResults;
+import org.drools.runtime.ExecutionResults;
 import org.drools.runtime.StatefulKnowledgeSession;
 import org.drools.runtime.StatelessKnowledgeSession;
 import org.drools.runtime.StatelessKnowledgeSessionResults;
@@ -112,8 +112,8 @@ public class StatelessSessionTest extends TestCase {
         Cheese stilton = new Cheese( "stilton", 5 );
         
         StatelessKnowledgeSession ksession = getSession2( ResourceFactory.newByteArrayResource( str.getBytes() ) );
-        Command cmd = CommandFactory.newInsertObject( stilton, "outStilton" );
-        BatchExecutionResults result = ksession.execute( cmd );
+        Command cmd = CommandFactory.newInsert( stilton, "outStilton" );
+        ExecutionResults result = ksession.execute( cmd );
         stilton = ( Cheese ) result.getValue( "outStilton" );
         assertEquals( 30,
                       stilton.getPrice() );       
@@ -146,7 +146,7 @@ public class StatelessSessionTest extends TestCase {
         Command setGlobal1 = CommandFactory.newSetGlobal( "list1", list1 );
         Command setGlobal2 = CommandFactory.newSetGlobal( "list2", list2, true );
         Command setGlobal3 = CommandFactory.newSetGlobal( "list3", list3, "outList3" );
-        Command insert = CommandFactory.newInsertObject( stilton  );
+        Command insert = CommandFactory.newInsert( stilton  );
         
         List cmds = new ArrayList();
         cmds.add( setGlobal1 );
@@ -154,7 +154,7 @@ public class StatelessSessionTest extends TestCase {
         cmds.add( setGlobal3 );
         cmds.add(  insert );
         
-        BatchExecutionResults result = ksession.execute( CommandFactory.newBatchExecution( cmds ) );
+        ExecutionResults result = ksession.execute( CommandFactory.newBatchExecution( cmds ) );
         
         assertEquals( 30,
                       stilton.getPrice() ); 
@@ -218,16 +218,16 @@ public class StatelessSessionTest extends TestCase {
         set.add( list );
         
         List<Command> cmds = new ArrayList<Command>();        
-        cmds.add( CommandFactory.newInsertObject( stilton1 ) );
-        cmds.add( CommandFactory.newInsertObject( stilton2 ) );
-        cmds.add( CommandFactory.newInsertObject( stilton3 ) );
-        cmds.add( CommandFactory.newInsertObject( cheddar1 ) );
-        cmds.add( CommandFactory.newInsertObject( cheddar2 ) );
-        cmds.add( CommandFactory.newInsertObject( cheddar3 ) );
+        cmds.add( CommandFactory.newInsert( stilton1 ) );
+        cmds.add( CommandFactory.newInsert( stilton2 ) );
+        cmds.add( CommandFactory.newInsert( stilton3 ) );
+        cmds.add( CommandFactory.newInsert( cheddar1 ) );
+        cmds.add( CommandFactory.newInsert( cheddar2 ) );
+        cmds.add( CommandFactory.newInsert( cheddar3 ) );
         
         cmds.add(  CommandFactory.newQuery( "cheeses", "cheeses" ) );
         
-        BatchExecutionResults batchResult = ksession.execute( CommandFactory.newBatchExecution( cmds ) );
+        ExecutionResults batchResult = ksession.execute( CommandFactory.newBatchExecution( cmds ) );
         
         org.drools.runtime.rule.QueryResults results = ( org.drools.runtime.rule.QueryResults) batchResult.getValue( "cheeses" );
         assertEquals( 3, results.size() );        

@@ -6,7 +6,7 @@
   <parent>
     <artifactId>drools</artifactId>
     <groupId>org.drools</groupId>
-    <version>5.0.0.SNAPSHOT</version>
+    <version>5.0.1.SNAPSHOT</version>
   </parent>
 
   <artifactId>drools-docs</artifactId>
@@ -21,7 +21,7 @@
     <module>drools-docs-flow</module>
     <module>drools-docs-fusion</module>
     <module>drools-docs-guvnor</module>
-    <!--module>drools-docs-solver</module-->
+    <module>drools-docs-solver</module>
   </modules>
 
   <dependencyManagement>
@@ -186,15 +186,15 @@
             -->
           </imageResource>
           <formats>
-            <format>
+            <!--format>
               <formatName>pdf</formatName>
-              <stylesheetResource>classpath:/org/jboss/pdf.xsl</stylesheetResource>
+              <stylesheetResource>classpath:/org/jboss/pdf.xsl</stylesheetResource -->
               <!--
                 <stylesheetResource>classpath:/fo/docbook.xsl</stylesheetResource>
               -->
-              <finalName>${artifactId}.pdf</finalName>
+              <!-- finalName>${artifactId}.pdf</finalName -->
               <!-- profilingTypeName>two_pass</profilingTypeName -->
-            </format>
+            <!-- /format -->
             <format>
               <formatName>html_single</formatName>
               <stylesheetResource>classpath:/org/jboss/xhtml-single.xsl</stylesheetResource>

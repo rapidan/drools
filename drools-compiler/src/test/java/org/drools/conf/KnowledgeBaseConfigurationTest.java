@@ -339,6 +339,75 @@ public class KnowledgeBaseConfigurationTest extends TestCase {
                       config.getProperty( ConsequenceExceptionHandlerOption.PROPERTY_NAME ) );
     }
     
+    public void testEventProcessingConfiguration() {
+        // setting the option using the type safe method
+        config.setOption( EventProcessingOption.STREAM );
+
+        // checking the type safe getOption() method
+        assertEquals( EventProcessingOption.STREAM,
+                      config.getOption( EventProcessingOption.class ) );
+        // checking the string based getProperty() method
+        assertEquals( "stream",
+                      config.getProperty( EventProcessingOption.PROPERTY_NAME ) );
+
+        // setting the options using the string based setProperty() method
+        config.setProperty( EventProcessingOption.PROPERTY_NAME,
+                            "cloud" );
+        
+        // checking the type safe getOption() method
+        assertEquals( EventProcessingOption.CLOUD,
+                      config.getOption( EventProcessingOption.class ) );
+        // checking the string based getProperty() method
+        assertEquals( "cloud",
+                      config.getProperty( EventProcessingOption.PROPERTY_NAME ) );
+    }
+    
+    public void testMaxThreadsConfiguration() {
+        // setting the option using the type safe method
+        config.setOption( MaxThreadsOption.get(5) );
+
+        // checking the type safe getOption() method
+        assertEquals( MaxThreadsOption.get(5),
+                      config.getOption( MaxThreadsOption.class ) );
+        // checking the string based getProperty() method
+        assertEquals( "5",
+                      config.getProperty( MaxThreadsOption.PROPERTY_NAME ) );
+
+        // setting the options using the string based setProperty() method
+        config.setProperty( MaxThreadsOption.PROPERTY_NAME,
+                            "8" );
+        
+        // checking the type safe getOption() method
+        assertEquals( MaxThreadsOption.get(8),
+                      config.getOption( MaxThreadsOption.class ) );
+        // checking the string based getProperty() method
+        assertEquals( "8",
+                      config.getProperty( MaxThreadsOption.PROPERTY_NAME ) );
+    }
+    
+    public void testMultithreadEvaluationConfiguration() {
+        // setting the option using the type safe method
+        config.setOption( MultithreadEvaluationOption.YES );
+
+        // checking the type safe getOption() method
+        assertEquals( MultithreadEvaluationOption.YES,
+                      config.getOption( MultithreadEvaluationOption.class ) );
+        // checking the string based getProperty() method
+        assertEquals( "true",
+                      config.getProperty( MultithreadEvaluationOption.PROPERTY_NAME ) );
+
+        // setting the options using the string based setProperty() method
+        config.setProperty( MultithreadEvaluationOption.PROPERTY_NAME,
+                            "false" );
+        
+        // checking the type safe getOption() method
+        assertEquals( MultithreadEvaluationOption.NO,
+                      config.getOption( MultithreadEvaluationOption.class ) );
+        // checking the string based getProperty() method
+        assertEquals( "false",
+                      config.getProperty( MultithreadEvaluationOption.PROPERTY_NAME ) );
+    }
+    
     
     
 

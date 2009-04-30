@@ -84,7 +84,7 @@ import org.drools.rule.EntryPoint;
 import org.drools.rule.Rule;
 import org.drools.rule.TimeMachine;
 import org.drools.ruleflow.core.RuleFlowProcess;
-import org.drools.runtime.BatchExecutionResults;
+import org.drools.runtime.ExecutionResults;
 import org.drools.runtime.Environment;
 import org.drools.runtime.EnvironmentName;
 import org.drools.runtime.ExitPoint;
@@ -216,7 +216,7 @@ public abstract class AbstractWorkingMemory
 
     private Environment                                                       environment;
     
-    private BatchExecutionResults                                              batchExecutionResult;
+    private ExecutionResults                                              batchExecutionResult;
 
     // ------------------------------------------------------------
     // Constructors
@@ -676,14 +676,14 @@ public abstract class AbstractWorkingMemory
         executeQueuedActions();
 
         int fireCount = 0;
-        try {
-            if ( this.firing.compareAndSet( false,
-                                            true ) ) {
+        if ( this.firing.compareAndSet( false,
+                                        true ) ) {
+            try {
                 fireCount = this.agenda.fireAllRules( agendaFilter,
                                                       fireLimit );
+            } finally {
+                this.firing.set( false );
             }
-        } finally {
-            this.firing.set( false );
         }
         return fireCount;
     }
@@ -1147,11 +1147,17 @@ public abstract class AbstractWorkingMemory
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
 
-            final InternalFactHandle handle = (InternalFactHandle) factHandle;
+            InternalFactHandle handle = (InternalFactHandle) factHandle;
             if ( handle.getId() == -1 ) {
                 // can't retract an already retracted handle
                 return;
             }
+            
+            // the handle might have been disconnected, so reconnect if it has
+            if ( factHandle instanceof DisconnectedFactHandle ) {
+                handle = this.objectStore.reconnect( handle );
+            }
+            
             removePropertyChangeListener( handle );
 
             if ( activation != null ) {
@@ -1224,8 +1230,13 @@ public abstract class AbstractWorkingMemory
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
 
-            final InternalFactHandle handle = (InternalFactHandle) factHandle;
-
+            InternalFactHandle handle = (InternalFactHandle) factHandle;
+            
+            // the handle might have been disconnected, so reconnect if it has
+            if ( factHandle instanceof DisconnectedFactHandle ) {
+                handle = this.objectStore.reconnect( handle );
+            }
+            
             if ( handle.getId() == -1 ) {
                 // the handle is invalid, most likely already retracted, so
                 // return
@@ -1260,12 +1271,14 @@ public abstract class AbstractWorkingMemory
                 // the hashCode and equality has changed, so we must update the
                 // EqualityKey
                 EqualityKey key = handle.getEqualityKey();
+                if(key != null){
                 key.removeFactHandle( handle );
 
                 // If the equality key is now empty, then remove it
                 if ( key.isEmpty() ) {
                     this.tms.remove( key );
                 }
+            }
             }
         } finally {
             this.lock.unlock();
@@ -1288,10 +1301,17 @@ public abstract class AbstractWorkingMemory
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
 
-            final InternalFactHandle handle = (InternalFactHandle) factHandle;
+            InternalFactHandle handle = (InternalFactHandle) factHandle;
+            
+            // the handle might have been disconnected, so reconnect if it has
+            if ( factHandle instanceof DisconnectedFactHandle ) {
+                handle = this.objectStore.reconnect( handle );
+            }
+            
             final Object originalObject = handle.getObject();
 
             if ( this.maintainTms ) {
+                if(handle.getEqualityKey() != null ){
                 int status = handle.getEqualityKey().getStatus();
 
                 // now use an existing EqualityKey, if it exists, else create a
@@ -1306,6 +1326,7 @@ public abstract class AbstractWorkingMemory
                 }
 
                 handle.setEqualityKey( key );
+            }
             }
 
             this.handleFactory.increaseFactHandleRecency( handle );
@@ -1345,6 +1366,13 @@ public abstract class AbstractWorkingMemory
                 null,
                 null );
     }
+   public void update(final org.drools.runtime.rule.FactHandle factHandle,
+                       final Object object,
+                       final Rule rule,
+                       final Activation activation) throws FactException {
+
+       update((org.drools.FactHandle)factHandle, object, rule, activation);
+   }
 
     /**
      * modify is implemented as half way retract / assert due to the truth
@@ -1352,13 +1380,18 @@ public abstract class AbstractWorkingMemory
      * 
      * @see WorkingMemory
      */
-    public void update(final org.drools.FactHandle factHandle,
+    public void update(org.drools.FactHandle factHandle,
                        final Object object,
                        final Rule rule,
                        final Activation activation) throws FactException {
         try {
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
+            
+            // the handle might have been disconnected, so reconnect if it has
+            if ( factHandle instanceof DisconnectedFactHandle ) {
+                factHandle = this.objectStore.reconnect( factHandle );
+            }
 
             // only needed if we maintain tms, but either way we must get it
             // before we do the retract
@@ -1461,7 +1494,18 @@ public abstract class AbstractWorkingMemory
                 WorkingMemoryAction action = null;
 
                 while ( (action = actionQueue.poll()) != null ) {
-                    action.execute( this );
+                    try {
+                        action.execute( this );
+                    } catch ( Exception e ) {
+                        if( e instanceof RuntimeDroolsException ) {
+                            // rethrow the exception
+                            throw ((RuntimeDroolsException)e);
+                        } else {
+                            System.err.println("************************************************");
+                            System.err.println("Exception caught while executing action: "+action.toString());
+                            e.printStackTrace();
+                        }
+                    }
                 }
                 evaluatingActionQueue = false;
             }
@@ -1832,7 +1876,7 @@ public abstract class AbstractWorkingMemory
         this.batchExecutionResult = new BatchExecutionResultImpl();
     }
     
-    public BatchExecutionResultImpl getBatchExecutionResult() {
+    public BatchExecutionResultImpl getExecutionResult() {
         return ( BatchExecutionResultImpl ) this.batchExecutionResult;
     }
     

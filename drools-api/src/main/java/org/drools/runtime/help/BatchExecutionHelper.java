@@ -41,8 +41,8 @@ import com.thoughtworks.xstream.XStream;
  * The insert element supports an 'out-identifier' attribute, this means the insert object will also be returned as part of the <batch-execution-results> payload.
  * </p>
  * <pre>
- * &lt;batch-execution out-identifier='userVar' &gt;
- *     &lt;insert&gt;
+ * &lt;batch-execution &gt;
+ *     &lt;insert out-identifier='userVar' &gt;
  *     ....
  *     &lt;/insert&gt;
  * &lt;/batch-execution&gt;
@@ -113,7 +113,7 @@ import com.thoughtworks.xstream.XStream;
  * <p>
  * While the 'out' attribute is useful in returning specific instances as a result payload, we often wish to run actual querries. Both parameter
  * and parameterless querries are supported. The 'name' attribute is the name of the query to be called, and the 'out-identifier' is the identifier
- * to be used for the query results in the &lt;batch-execution-results&g; payload.
+ * to be used for the query results in the &lt;batch-execution-results&gt; payload.
  * </p>
  * <pre>
  * &lt;batch-execution&gt;
@@ -121,7 +121,7 @@ import com.thoughtworks.xstream.XStream;
  *     &lt;query out-identifier='cheeses2' name='cheesesWithParams'&gt;
  *         &lt;string>stilton&lt;/string&gt;
  *         &lt;string>cheddar&lt;/string&gt;
- *     &lt;/query>";
+ *     &lt;/query&gt;;
  * &lt;/batch-execution&gt;
  * </pre>
  * 
@@ -162,7 +162,7 @@ import com.thoughtworks.xstream.XStream;
  * <p>
  * The pipeline can be used to handle this end to end, notice the part where the configured XStream instance is passed "BatchExecutionHelper.newXStreamMarshaller()".
  * This will take a given xml, transform it and then execute it as a BatchExecution Command. Notice the Pipeline also handles the marshalling
- * of the BatchExecutionResults back out to XML.
+ * of the ExecutionResults back out to XML.
  * </p>
  * <pre>
  * Action executeResultHandler = PipelineFactory.newExecuteResultHandler();
@@ -188,7 +188,7 @@ import com.thoughtworks.xstream.XStream;
  * The results would look like following xml:
  * </p>
  * <pre>
- * &lt;batch-execution-results&gt;
+ * &lt;execution-results&gt;
  *   &lt;result identifier='outStilton'&gt;
  *     &lt;org.drools.Cheese&gt;
  *       &lt;type&gt;stilton&lt;/type&gt;
@@ -196,7 +196,7 @@ import com.thoughtworks.xstream.XStream;
  *       &lt;price&gt;30&lt;/price&gt;
  *     &lt;/org.drools.Cheese&gt;
  *   &lt;/result&gt;
- * &lt;/batch-execution-results&gt;
+ * &lt;/execution-results&gt;
  * </pre>
  * 
  * <p>This api is experimental and thus the classes and the interfaces returned are subject to change.</p>

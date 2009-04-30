@@ -19,6 +19,9 @@ package org.drools.guvnor.server.files;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Locale;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -45,6 +48,8 @@ public class PackageDeploymentServlet extends RepositoryServlet {
 
     private static final long serialVersionUID = 400L;
 
+    public static SimpleDateFormat RFC822DATEFORMAT  = new SimpleDateFormat("EEE', 'dd' 'MMM' 'yyyy' 'HH:mm:ss' 'Z", Locale.US);
+
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException,
@@ -54,6 +59,7 @@ public class PackageDeploymentServlet extends RepositoryServlet {
             FileManagerUtils fm = getFileManager();
             long mod = fm.getLastModified( helper.getPackageName(), helper.getVersion() );
             response.addHeader( "lastModified", "" + mod);
+            response.addHeader("Last-Modified", RFC822DATEFORMAT.format(new Date(mod)));
 
         } else {
             super.doHead(request, response);
@@ -135,9 +141,9 @@ public class PackageDeploymentServlet extends RepositoryServlet {
 		ServiceImplementation serv = RepositoryServiceServlet.getService();
 		PackageItem pkg;
 		if (helper.isLatest()) {
-			pkg = serv.repository.loadPackage(helper.getPackageName());
+			pkg = serv.getRulesRepository().loadPackage(helper.getPackageName());
 		} else {
-			pkg = serv.repository.loadPackageSnapshot(helper.getPackageName(), helper.getVersion());
+			pkg = serv.getRulesRepository().loadPackageSnapshot(helper.getPackageName(), helper.getVersion());
 		}
 		try {
 			BulkTestRunResult result = serv.runScenariosInPackage(pkg);

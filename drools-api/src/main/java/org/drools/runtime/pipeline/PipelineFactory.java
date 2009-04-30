@@ -209,8 +209,8 @@ public class PipelineFactory {
     }
     
     
-    public static KnowledgeRuntimeCommand newBatchExecutor() {
-        return getCorePipelineProvider().newBatchExecutor();
+    public static KnowledgeRuntimeCommand newCommandExecutor() {
+        return getCorePipelineProvider().newCommandExecutor();
     }    
 
     
@@ -509,15 +509,15 @@ public class PipelineFactory {
      * </p>
      * 
      * <pre>
-     * XStream xstream = new XStream();
-     * Transformer transformer = PipelineFactory.newXStreamFromXmlTransformer( xstream );
+     * Marshaller marshaller = jaxbCtx.createMarshaller();
+     * Transformer transformer = PipelineFactory.newJaxbToXmlTransformer( marshaller );
      * transformer.setReceiver( receiver );
      * </pre>
      * 
      * <p>
      * The BatchExecutionHelper factory provides a pre-configured XStream instance used for marshalling Commands, specifically
-     * the BatchExecutionCommand and the BatchExecutionResults. It also contains docs on the xml formant and on how to use the pipeline 
-     * for marshalling BatchExecutionCommand and BatchExecutionResults.
+     * the BatchExecutionCommand and the ExecutionResults. It also contains docs on the xml formant and on how to use the pipeline 
+     * for marshalling BatchExecutionCommand and ExecutionResults.
      * </p>
      * 
      * @param xstream
@@ -540,8 +540,8 @@ public class PipelineFactory {
      * 
      * <p>
      * The BatchExecutionHelper factory provides a pre-configured XStream instance used for marshalling Commands, specifically
-     * the BatchExecutionCommand and the BatchExecutionResults. It also contains docs on the xml formant and on how to use the pipeline 
-     * for marshalling BatchExecutionCommand and BatchExecutionResults.
+     * the BatchExecutionCommand and the ExecutionResults. It also contains docs on the xml formant and on how to use the pipeline 
+     * for marshalling BatchExecutionCommand and ExecutionResults.
      * </p>
      * @param xstream
      * @return

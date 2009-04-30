@@ -19,10 +19,10 @@ package org.drools.examples.broker;
 import org.drools.KnowledgeBase;
 import org.drools.KnowledgeBaseConfiguration;
 import org.drools.KnowledgeBaseFactory;
-import org.drools.RuleBaseConfiguration;
 import org.drools.builder.KnowledgeBuilder;
 import org.drools.builder.KnowledgeBuilderFactory;
 import org.drools.builder.ResourceType;
+import org.drools.conf.EventProcessingOption;
 import org.drools.examples.broker.events.Event;
 import org.drools.examples.broker.events.EventReceiver;
 import org.drools.examples.broker.model.Company;
@@ -59,13 +59,19 @@ public class Broker implements EventReceiver, BrokerServices {
 
     @SuppressWarnings("unchecked")
     public void receive(Event<?> event) {
-        StockTick tick = ((Event<StockTick>)event).getObject();
-        Company company = this.companies.getCompany( tick.getSymbol() );
-        this.tickStream.insert( tick );
-        this.session.getAgenda().getAgendaGroup( "evaluation" ).setFocus();
-        this.session.fireAllRules();
-        window.updateCompany( company.getSymbol() );
-        window.updateTick( tick );
+        try {
+            StockTick tick = ((Event<StockTick>) event).getObject();
+            Company company = this.companies.getCompany( tick.getSymbol() );
+            this.tickStream.insert( tick );
+            this.session.getAgenda().getAgendaGroup( "evaluation" ).setFocus();
+            this.session.fireAllRules();
+            window.updateCompany( company.getSymbol() );
+            window.updateTick( tick );
+        } catch ( Exception e ) {
+            System.err.println("=============================================================");
+            System.err.println("Unexpected exception caught: "+e.getMessage() );
+            e.printStackTrace();
+        }
     }
     
     private StatefulKnowledgeSession createSession() {
@@ -88,8 +94,12 @@ public class Broker implements EventReceiver, BrokerServices {
         } catch ( Exception e ) {
             e.printStackTrace();
         }
+        if( builder.hasErrors() ) {
+            System.err.println(builder.getErrors());
+            System.exit( 0 );
+        }
         KnowledgeBaseConfiguration conf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
-        conf.setProperty( "drools.eventProcessingMode", "stream" );
+        conf.setOption( EventProcessingOption.STREAM );
         //System.out.println(((RuleBaseConfiguration)conf).getEventProcessingMode());
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase( conf );
         kbase.addKnowledgePackages( builder.getKnowledgePackages() );

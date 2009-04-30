@@ -1,6 +1,7 @@
 package org.drools.eclipse.rulebuilder.ui;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
@@ -16,6 +17,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Device;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
@@ -79,27 +81,38 @@ public class FactPatternWidget extends Widget {
     }
 
     private void create() {
-        Label l = toolkit.createLabel( parent,
-                             getPatternLabel() );
-        
-        GridData labelGD = new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL);
+        Composite composite = new Composite( parent,
+                                             SWT.NO_FOCUS );
+        composite.setLayout( new GridLayout( 1,
+                                             true ) );
+        Label l = toolkit.createLabel( composite,
+                                       getPatternLabel() );
+        l.setBackground( Display.getDefault().getSystemColor( SWT.COLOR_GRAY ) );
+
+        GridData labelGD = new GridData( GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL );
         labelGD.horizontalSpan = 2;
-        //labelGD.verticalAlignment = SWT.CENTER;
+        labelGD.verticalAlignment = SWT.CENTER;
         //labelGD.horizontalAlignment = SWT.CENTER;
-        l.setLayoutData(labelGD);
-        l.setBackground(new Color(parent.getShell().getDisplay(),240,240,240));
-        
+        composite.setLayoutData( labelGD );
+        composite.setBackground( Display.getDefault().getSystemColor( SWT.COLOR_GRAY ) );
+
         addDeleteAction();
         addMoreOptionsAction();
-        
+
         Composite constraintComposite = toolkit.createComposite( parent );
         GridLayout constraintLayout = new GridLayout();
         constraintLayout.numColumns = 8;
+        constraintLayout.marginLeft = 5;
         constraintComposite.setLayout( constraintLayout );
 
         for ( int row = 0; row < pattern.getFieldConstraints().length; row++ ) {
+            FieldConstraint constraint = pattern.getFieldConstraints()[row];
+            boolean nested = false;
+            if ( constraint instanceof SingleFieldConstraint ) {
+                nested = ((SingleFieldConstraint) constraint).parent != null;
+            }
             renderFieldConstraints( constraintComposite,
-                                    pattern.getFieldConstraints()[row],
+                                    constraint,
                                     null,
                                     row,
                                     true,
@@ -226,8 +239,8 @@ public class FactPatternWidget extends Widget {
             }
         } );
 
-        link.setToolTipText("Add fields to this constriant.");
-        
+        link.setToolTipText( "Add fields to this constriant." );
+
         addNestedElements( constraintComposite,
                            constraint );
     }
@@ -298,12 +311,26 @@ public class FactPatternWidget extends Widget {
                                      final SingleFieldConstraint c,
                                      boolean showBinding,
                                      boolean nested) {
-        addBindingField( constraintComposite,
+
+        Composite pad = new Composite( constraintComposite,
+                                       SWT.NONE );
+        pad.setLayout( new GridLayout( 2,
+                                       false ) );
+        GridData gd = new GridData();
+        gd.horizontalAlignment = SWT.LEFT;
+        gd.horizontalSpan = 2;
+
+        pad.setLayoutData( gd );
+        GridData data = new GridData();
+
+        data.horizontalIndent = 15 * getNests( c );
+        addBindingField( pad,
                          c,
-                         showBinding );
-        toolkit.createLabel( constraintComposite,
+                         showBinding,
+                         data );
+        toolkit.createLabel( pad,
                              c.fieldName );
-        if ( c.connectives == null || c.connectives.length == 0 ) {
+        if (!hasChildren( row ) &&(c.connectives == null || c.connectives.length == 0 )) {
             addRemoveButton( constraintComposite,
                              parentConstraint,
                              row,
@@ -315,18 +342,31 @@ public class FactPatternWidget extends Widget {
         }
         operatorDropDown( constraintComposite,
                           c );
-        
-        constraintValueEditor(constraintComposite, c, c.fieldName);
-        
+
+        constraintValueEditor( constraintComposite,
+                               c,
+                               c.fieldName );
+
         createConnectives( constraintComposite,
                            c );
         addConnectiveAction( constraintComposite,
                              c );
     }
 
+    private int getNests(final SingleFieldConstraint c) {
+        SingleFieldConstraint s = (SingleFieldConstraint) c.parent;
+        int nests = 0;
+        while ( s != null ) {
+            nests++;
+            s = (SingleFieldConstraint) s.parent;
+        }
+        return nests;
+    }
+
     private void addBindingField(Composite constraintComposite,
                                  final SingleFieldConstraint c,
-                                 boolean showBinding) {
+                                 boolean showBinding,
+                                 Object data) {
         if ( !c.isBound() ) {
             if ( bindable && showBinding ) {
                 ImageHyperlink link = addImage( constraintComposite,
@@ -336,7 +376,8 @@ public class FactPatternWidget extends Widget {
                         RuleDialog popup = new AssignFieldVariableDialog( parent.getShell(),
                                                                           toolkit,
                                                                           getModeller(),
-                                                                          c );
+                                                                          c,
+                                                                          pattern );
                         popup.open();
                     }
 
@@ -347,7 +388,8 @@ public class FactPatternWidget extends Widget {
                     }
                 } );
 
-                link.setToolTipText("Bind the field called [" + c.fieldName + "] to a variable.");
+                link.setToolTipText( "Bind the field called [" + c.fieldName + "] to a variable." );
+                link.setLayoutData( data );
             } else {
                 toolkit.createLabel( constraintComposite,
                                      "" );
@@ -393,19 +435,27 @@ public class FactPatternWidget extends Widget {
                 connectiveOperatorDropDown( parent,
                                             con,
                                             c.fieldName );
-               constraintValueEditor( parent,
-                                       con, c.fieldName );
-                
+                constraintValueEditor( parent,
+                                       con,
+                                       c.fieldName );
+
             }
         }
     }
 
-    private void constraintValueEditor(Composite parent, ISingleFieldConstraint c, String name ){
-    	String type = this.modeller.getSuggestionCompletionEngine().getFieldType( pattern.factType, name );
-        new ConstraintValueEditor (parent, c, toolkit, modeller, type);
+    private void constraintValueEditor(Composite parent,
+                                       ISingleFieldConstraint c,
+                                       String name) {
+        String type = this.modeller.getSuggestionCompletionEngine().getFieldType( pattern.factType,
+                                                                                  name );
+        new ConstraintValueEditor( parent,
+                                   c,
+                                   toolkit,
+                                   modeller,
+                                   type,
+                                   pattern );
     }
-    
-    
+
     private void addConnectiveAction(Composite constraintComposite,
                                      final SingleFieldConstraint c) {
         ImageHyperlink link = addImage( constraintComposite,
@@ -487,7 +537,7 @@ public class FactPatternWidget extends Widget {
                 dialog.setMessage( "Remove this item?" );
                 dialog.setText( "Remove this item?" );
                 if ( dialog.open() == SWT.YES ) {
-                    pattern.removeConstraint( currentRow );
+                    pattern.removeConstraint(currentRow);
                     getModeller().reloadLhs();
                     getModeller().setDirty( true );
                 }
@@ -500,6 +550,18 @@ public class FactPatternWidget extends Widget {
             }
         } );
         delLink.setLayoutData( new GridData( GridData.FILL_HORIZONTAL | GridData.HORIZONTAL_ALIGN_BEGINNING ) );
+    }
+
+    private boolean hasChildren(int row) {
+        SingleFieldConstraint con = (SingleFieldConstraint) pattern.getFieldConstraints()[row];
+        FieldConstraint[] fc = pattern.getFieldConstraints();
+        for ( int i = row; i < fc.length; i++ ) {
+            SingleFieldConstraint f = (SingleFieldConstraint) fc[i];
+            if (con.equals( f.parent)){
+                return true;
+            }
+        }
+        return false;
     }
 
     private void addRemoveConstraintAction(Composite composite,
@@ -594,8 +656,7 @@ public class FactPatternWidget extends Widget {
             public void modifyText(ModifyEvent e) {
                 con.operator = HumanReadable.getOperatorName( box.getText() );
                 getModeller().setDirty( true );
-                
-                
+
             }
         } );
     }
@@ -610,7 +671,7 @@ public class FactPatternWidget extends Widget {
         if ( c.value != null ) {
             box.setText( c.value );
         }
-        
+
         gd.grabExcessHorizontalSpace = true;
         gd.minimumWidth = 100;
         box.setLayoutData( gd );
@@ -638,7 +699,4 @@ public class FactPatternWidget extends Widget {
         return getModeller().getSuggestionCompletionEngine();
     }
 
-    
-    
-    
 }

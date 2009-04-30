@@ -11,8 +11,11 @@ import org.drools.solver.core.localsearch.LocalSearchSolverScope;
 import org.drools.solver.core.localsearch.StepScope;
 import org.drools.solver.core.localsearch.decider.MoveScope;
 import org.drools.solver.core.localsearch.decider.accepter.AbstractAccepter;
+import org.drools.solver.core.localsearch.decider.accepter.Accepter;
 
 /**
+ * Abstract superclass for all TabuAccepters.
+ * @see Accepter
  * @author Geoffrey De Smet
  */
 public abstract class AbstractTabuAccepter extends AbstractAccepter {
@@ -75,7 +78,7 @@ public abstract class AbstractTabuAccepter extends AbstractAccepter {
             return 1.0;
         }
         if (aspirationEnabled
-                && moveScope.getScore() > moveScope.getStepScope().getLocalSearchSolverScope().getBestScore()) {
+                && moveScope.getScore().compareTo(moveScope.getStepScope().getLocalSearchSolverScope().getBestScore()) > 0) {
             logger.debug("    Proposed move ({}) is tabu, but aspiration undoes its tabu.", moveScope.getMove());
             return 1.0;
         }

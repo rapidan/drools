@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.drools.compiler.DrlParser;
 import org.drools.compiler.DroolsParserException;
 import org.drools.compiler.ParserError;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.guvnor.server.util.ClassMethodInspector;
 import org.drools.guvnor.server.util.DataEnumLoader;
 import org.drools.guvnor.server.util.SuggestionCompletionEngineBuilder;
 import org.drools.lang.descr.FactTemplateDescr;
@@ -276,6 +278,7 @@ public class SuggestionCompletionLoader {
      */
     private void populateModelInfo(final PackageDescr pkgDescr,
                                    final List jars) {
+    	//FIX nheron
         for (final Iterator it = pkgDescr.getImports().iterator(); it.hasNext();) {
             final ImportDescr imp = (ImportDescr) it.next();
             final String className = imp.getTarget();
@@ -411,7 +414,7 @@ public class SuggestionCompletionLoader {
         fields = removeIrrelevantFields(fields);
 
         this.builder.addFieldsForType(shortTypeName, fields);
-
+        
         Method[] methods = clazz.getMethods();
         List<String> modifierStrings = new ArrayList<String>();
         for (Method method : methods) {
@@ -431,7 +434,10 @@ public class SuggestionCompletionLoader {
             final String fieldType = getFieldType(type);
             this.builder.addFieldType(shortTypeName + "." + field, fieldType);
         }
-
+        
+        ClassMethodInspector methodInspector = new ClassMethodInspector(clazz);
+        
+        this.builder.getInstance().addMethodInfo( shortTypeName, methodInspector.getMethodInfos() );
     }
 
     String getShortNameOfClass(final String clazz) {
@@ -499,12 +505,11 @@ public class SuggestionCompletionLoader {
                 fieldType = SuggestionCompletionEngine.TYPE_COLLECTION;
             } else if (Boolean.class.isAssignableFrom(type) || boolean.class.isAssignableFrom(type)) {
                 fieldType = SuggestionCompletionEngine.TYPE_BOOLEAN;
+            } else if ( Date.class.isAssignableFrom( type )) {
+                fieldType = SuggestionCompletionEngine.TYPE_DATE; // MN: wait until we support it.
             } else if (Comparable.class.isAssignableFrom(type)) {
                 fieldType = SuggestionCompletionEngine.TYPE_COMPARABLE;
-            } /*else if ( Date.class.isAssignableFrom( type )) {
-                fieldType = SuggestionCompletionEngine.TYPE_DATE; MN: wait until we support it.
-
-            }*/
+            }
             else {
                 try {
                     Class clazz = resolver.resolveType(type.getName());

@@ -8,10 +8,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.FactException;
 import org.drools.KnowledgeBase;
 import org.drools.RuleBase;
 import org.drools.WorkingMemory;
 import org.drools.command.Command;
+import org.drools.common.AbstractWorkingMemory;
 import org.drools.common.InternalAgenda;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
@@ -49,8 +51,10 @@ import org.drools.event.rule.impl.ObjectInsertedEventImpl;
 import org.drools.event.rule.impl.ObjectRetractedEventImpl;
 import org.drools.event.rule.impl.ObjectUpdatedEventImpl;
 import org.drools.reteoo.ReteooWorkingMemory;
-import org.drools.runtime.BatchExecutionResults;
-import org.drools.runtime.BatchExecutor;
+import org.drools.rule.EntryPoint;
+import org.drools.rule.Rule;
+import org.drools.runtime.ExecutionResults;
+import org.drools.runtime.CommandExecutor;
 import org.drools.runtime.Environment;
 import org.drools.runtime.ExitPoint;
 import org.drools.runtime.Globals;
@@ -70,7 +74,7 @@ import org.drools.time.SessionClock;
 public class StatefulKnowledgeSessionImpl
     implements
     StatefulKnowledgeSession,
-    BatchExecutor,
+    CommandExecutor,
     InternalWorkingMemoryEntryPoint {
     public ReteooWorkingMemory                                                session;
     public KnowledgeBaseImpl                                                  kbase;
@@ -300,28 +304,56 @@ public class StatefulKnowledgeSessionImpl
     //        return new FutureAdapter( this.session.asyncFireAllRules() );
     //    }
 
-    public Collection< ? extends FactHandle> getFactHandles() {
+    public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles() {
         return new ObjectStoreWrapper( session.getObjectStore(),
                                        null,
                                        ObjectStoreWrapper.FACT_HANDLE );
     }
 
-    public Collection< ? extends FactHandle> getFactHandles(org.drools.runtime.ObjectFilter filter) {
+    public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles(org.drools.runtime.ObjectFilter filter) {
         return new ObjectStoreWrapper( session.getObjectStore(),
                                        filter,
                                        ObjectStoreWrapper.FACT_HANDLE );
     }
 
-    public Collection< ? > getObjects() {
+    public Collection< Object > getObjects() {
         return new ObjectStoreWrapper( session.getObjectStore(),
                                        null,
                                        ObjectStoreWrapper.OBJECT );
     }
 
-    public Collection< ? > getObjects(org.drools.runtime.ObjectFilter filter) {
+    public Collection< Object > getObjects(org.drools.runtime.ObjectFilter filter) {
         return new ObjectStoreWrapper( session.getObjectStore(),
                                        filter,
                                        ObjectStoreWrapper.OBJECT );
+    }
+
+    public void retract(org.drools.FactHandle factHandle, boolean removeLogical, boolean updateEqualsMap, Rule rule, Activation activation) throws FactException {
+        ((AbstractWorkingMemory)this.session).retract(factHandle, removeLogical, updateEqualsMap, rule, activation);
+    }
+
+    public void update(FactHandle factHandle, Object object, Rule rule, Activation activation) throws FactException {
+        ((AbstractWorkingMemory)this.session).update((org.drools.FactHandle)factHandle, object, rule, activation);
+    }
+
+    public void modifyRetract(org.drools.FactHandle factHandle, Rule rule, Activation activation) {
+        ((AbstractWorkingMemory)this.session).modifyRetract(factHandle, rule, activation);
+    }
+
+    public void modifyInsert(org.drools.FactHandle factHandle, Object object, Rule rule, Activation activation) {
+        ((AbstractWorkingMemory)this.session).modifyInsert(factHandle, object, rule, activation);
+    }
+
+    public EntryPoint getEntryPoint() {
+        return session.getEntryPoint();
+    }
+
+    public InternalWorkingMemory getInternalWorkingMemory() {
+        return session;
+    }
+
+    public org.drools.FactHandle getFactHandleByIdentity(Object object) {
+        return session.getFactHandleByIdentity(object);
     }
 
     public static abstract class AbstractImmutableCollection
@@ -647,11 +679,11 @@ public class StatefulKnowledgeSessionImpl
         return new NativeQueryResults( this.session.getQueryResults( query, arguments ) );
     }
     
-    public BatchExecutionResults execute(Command command) {        
+    public ExecutionResults execute(Command command) {        
         try {
             session.startBatchExecution();
             ((org.drools.process.command.Command)command).execute( session );
-            BatchExecutionResults result = session.getBatchExecutionResult();
+            ExecutionResults result = session.getExecutionResult();
             return result;
         } finally {
             session.endBatchExecution();

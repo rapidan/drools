@@ -37,12 +37,15 @@ import org.drools.conf.AlphaThresholdOption;
 import org.drools.conf.AssertBehaviorOption;
 import org.drools.conf.CompositeKeyDepthOption;
 import org.drools.conf.ConsequenceExceptionHandlerOption;
+import org.drools.conf.EventProcessingOption;
 import org.drools.conf.IndexLeftBetaMemoryOption;
 import org.drools.conf.IndexRightBetaMemoryOption;
 import org.drools.conf.KnowledgeBaseOption;
 import org.drools.conf.LogicalOverrideOption;
 import org.drools.conf.MaintainTMSOption;
+import org.drools.conf.MaxThreadsOption;
 import org.drools.conf.MultiValueKnowledgeBaseOption;
+import org.drools.conf.MultithreadEvaluationOption;
 import org.drools.conf.RemoveIdentitiesOption;
 import org.drools.conf.SequentialAgendaOption;
 import org.drools.conf.SequentialOption;
@@ -88,24 +91,28 @@ import org.mvel2.MVEL;
  */
 
 /**
- * drools.maintainTms = <true|false>
- * drools.sequential = <true|false>
- * drools.sequential.agenda = <sequential|dynamic>
- * drools.removeIdentities = <true|false>
- * drools.shareAlphaNodes  = <true|false>
- * drools.shareBetaNodes = <true|false>
- * drools.alphaNodeHashingThreshold = <1...n>
- * drools.compositeKeyDepth  =<1..3>
- * drools.indexLeftBetaMemory = <true/false>
- * drools.indexRightBetaMemory = <true/false>
- * drools.assertBehaviour = <identity|equality>
- * drools.logicalOverride = <discard|preserve>
- * drools.executorService = <qualified class name>
- * drools.conflictResolver = <qualified class name>
- * drools.consequenceExceptionHandler = <qualified class name>
- * drools.ruleBaseUpdateHandler = <qualified class name>
- * drools.sessionClock = <qualified class name>
- * 
+ * Available configuration options:
+ * <pre>
+ * drools.maintainTms = &lt;true|false&gt;
+ * drools.sequential = &lt;true|false&gt;
+ * drools.sequential.agenda = &lt;sequential|dynamic&gt;
+ * drools.removeIdentities = &lt;true|false&gt;
+ * drools.shareAlphaNodes  = &lt;true|false&gt;
+ * drools.shareBetaNodes = &lt;true|false&gt;
+ * drools.alphaNodeHashingThreshold = &lt;1...n&gt;
+ * drools.compositeKeyDepth  =&lt;1..3&gt;
+ * drools.indexLeftBetaMemory = &lt;true/false&gt;
+ * drools.indexRightBetaMemory = &lt;true/false&gt;
+ * drools.assertBehaviour = &lt;identity|equality&gt;
+ * drools.logicalOverride = &lt;discard|preserve&gt;
+ * drools.executorService = &lt;qualified class name&gt;
+ * drools.conflictResolver = &lt;qualified class name&gt;
+ * drools.consequenceExceptionHandler = &lt;qualified class name&gt;
+ * drools.ruleBaseUpdateHandler = &lt;qualified class name&gt;
+ * drools.sessionClock = &lt;qualified class name&gt;
+ * drools.maxThreads = &lt;-1|1..n&gt;
+ * drools.multithreadEvaluation = &lt;true|false&gt;
+ * </pre>
  */
 public class RuleBaseConfiguration
     implements
@@ -134,7 +141,7 @@ public class RuleBaseConfiguration
     private String                         consequenceExceptionHandler;
     private String                         ruleBaseUpdateHandler;
 
-    private EventProcessingMode            eventProcessingMode;
+    private EventProcessingOption          eventProcessingMode;
 
     // if "true", rulebase builder will try to split 
     // the rulebase into multiple partitions that can be evaluated
@@ -203,7 +210,7 @@ public class RuleBaseConfiguration
         advancedProcessRuleIntegration = in.readBoolean();
         multithread = in.readBoolean();
         maxThreads = in.readInt();
-        eventProcessingMode = (EventProcessingMode) in.readObject();
+        eventProcessingMode = (EventProcessingOption) in.readObject();
     }
 
     /**
@@ -228,7 +235,6 @@ public class RuleBaseConfiguration
      * it will be used as the parent class loader for this rulebase class loaders, otherwise,
      * the RuleBaseConfiguration.class.getClassLoader() class loader will be used.
      *
-     * @param properties
      */
     public RuleBaseConfiguration() {
         init( null,
@@ -287,12 +293,12 @@ public class RuleBaseConfiguration
             setConflictResolver( RuleBaseConfiguration.determineConflictResolver( StringUtils.isEmpty( value ) ? DepthConflictResolver.class.getName() : value ) );
         } else if ( name.equals( "drools.advancedProcessRuleIntegration" ) ) {
             setAdvancedProcessRuleIntegration( StringUtils.isEmpty( value ) ? false : Boolean.valueOf( value ) );
-        } else if ( name.equals( "drools.multithreadEvaluation" ) ) {
+        } else if ( name.equals( MultithreadEvaluationOption.PROPERTY_NAME ) ) {
             setMultithreadEvaluation( StringUtils.isEmpty( value ) ? false : Boolean.valueOf( value ) );
-        } else if ( name.equals( "drools.maxThreads" ) ) {
-            setMaxThreads( StringUtils.isEmpty( value ) ? -1 : Integer.parseInt( value ) );
-        } else if ( name.equals( "drools.eventProcessingMode" ) ) {
-            setEventProcessingMode( EventProcessingMode.determineAssertBehaviour( StringUtils.isEmpty( value ) ? "cloud" : value ) );
+        } else if ( name.equals( MaxThreadsOption.PROPERTY_NAME ) ) {
+            setMaxThreads( StringUtils.isEmpty( value ) ? 3 : Integer.parseInt( value ) );
+        } else if ( name.equals( EventProcessingOption.PROPERTY_NAME ) ) {
+            setEventProcessingMode( EventProcessingOption.determineEventProcessingMode( StringUtils.isEmpty( value ) ? "cloud" : value ) );
         }
     }
 
@@ -336,12 +342,12 @@ public class RuleBaseConfiguration
             return getConflictResolver().getClass().getName();
         } else if ( name.equals( "drools.advancedProcessRuleIntegration" ) ) {
             return Boolean.toString( isAdvancedProcessRuleIntegration() );
-        } else if ( name.equals( "drools.multithreadEvaluation" ) ) {
-            Boolean.toString( isMultithreadEvaluation() );
-        } else if ( name.equals( "drools.maxThreads" ) ) {
+        } else if ( name.equals( MultithreadEvaluationOption.PROPERTY_NAME ) ) {
+            return Boolean.toString( isMultithreadEvaluation() );
+        } else if ( name.equals( MaxThreadsOption.PROPERTY_NAME ) ) {
             return Integer.toString( getMaxThreads() );
-        } else if ( name.equals( "drools.eventProcessingMode" ) ) {
-            return getEventProcessingMode().toExternalForm();
+        } else if ( name.equals( EventProcessingOption.PROPERTY_NAME ) ) {
+            return getEventProcessingMode().getMode();
         }
 
         return null;
@@ -428,12 +434,12 @@ public class RuleBaseConfiguration
         setAdvancedProcessRuleIntegration( Boolean.valueOf( this.chainedProperties.getProperty( "drools.advancedProcessRuleIntegration",
                                                                                                 "false" ) ).booleanValue() );
 
-        setMultithreadEvaluation( Boolean.valueOf( this.chainedProperties.getProperty( "drools.multithreadEvaluation",
+        setMultithreadEvaluation( Boolean.valueOf( this.chainedProperties.getProperty( MultithreadEvaluationOption.PROPERTY_NAME,
                                                                                        "false" ) ).booleanValue() );
 
-        setMaxThreads( Integer.parseInt( this.chainedProperties.getProperty( "drools.maxThreads",
-                                                                             "-1" ) ) );
-        setEventProcessingMode( EventProcessingMode.determineAssertBehaviour( this.chainedProperties.getProperty( "drools.eventProcessingMode",
+        setMaxThreads( Integer.parseInt( this.chainedProperties.getProperty( MaxThreadsOption.PROPERTY_NAME,
+                                                                             "3" ) ) );
+        setEventProcessingMode( EventProcessingOption.determineEventProcessingMode( this.chainedProperties.getProperty( EventProcessingOption.PROPERTY_NAME,
                                                                                                                   "cloud" ) ) );
     }
 
@@ -522,11 +528,11 @@ public class RuleBaseConfiguration
         this.assertBehaviour = assertBehaviour;
     }
 
-    public EventProcessingMode getEventProcessingMode() {
+    public EventProcessingOption getEventProcessingMode() {
         return this.eventProcessingMode;
     }
 
-    public void setEventProcessingMode(final EventProcessingMode mode) {
+    public void setEventProcessingMode(final EventProcessingOption mode) {
         checkCanChange(); // throws an exception if a change isn't possible;
         this.eventProcessingMode = mode;
     }
@@ -1144,58 +1150,6 @@ public class RuleBaseConfiguration
         }
     }
 
-    /**
-     * An enum for the valid event processing modes.
-     * 
-     * When the rulebase is compiled in the CLOUD (default) event processing mode,
-     * it behaves just like a regular rulebase.
-     * 
-     * When the rulebase is compiled in the STREAM event processing mode, additional
-     * assumptions are made. These assumptions allow the engine to perform a few optimisations
-     * like:
-     * 
-     * <li> reasoning over absence of events (NOT CE), automatically adds an appropriate duration attribute
-     * to the rule in order to avoid early rule firing. </li>
-     * <li> memory management techniques may be employed when an event no longer can match other events
-     * due to session clock continuous increment. </li>
-     * 
-     * @author etirelli
-     *
-     */
-    public static enum EventProcessingMode {
-
-        CLOUD(
-                "cloud"), STREAM(
-                "stream");
-
-        private String string;
-
-        EventProcessingMode(String mode) {
-            this.string = mode;
-        }
-
-        public String getId() {
-            return string;
-        }
-
-        public String toString() {
-            return string;
-        }
-
-        public String toExternalForm() {
-            return this.string;
-        }
-
-        public static EventProcessingMode determineAssertBehaviour(String mode) {
-            if ( STREAM.getId().equalsIgnoreCase( mode ) ) {
-                return STREAM;
-            } else if ( CLOUD.getId().equalsIgnoreCase( mode ) ) {
-                return CLOUD;
-            }
-            throw new IllegalArgumentException( "Illegal enum value '" + mode + "' for EventProcessingMode" );
-        }
-    }
-
     @SuppressWarnings("unchecked")
     public <T extends SingleValueKnowledgeBaseOption> T getOption(Class<T> option) {
         if ( MaintainTMSOption.class.equals( option ) ) {
@@ -1230,6 +1184,12 @@ public class RuleBaseConfiguration
                 throw new RuntimeDroolsException("Unable to resolve ConsequenceExceptionHandler class: "+consequenceExceptionHandler, e);
             }
             return (T) ConsequenceExceptionHandlerOption.get( handler );
+        } else if ( EventProcessingOption.class.equals( option ) ) {
+            return (T) getEventProcessingMode();
+        } else if ( MaxThreadsOption.class.equals( option ) ) {
+            return (T) MaxThreadsOption.get( getMaxThreads() );
+        } else if ( MultithreadEvaluationOption.class.equals( option ) ) {
+            return (T) (this.multithread ? MultithreadEvaluationOption.YES : MultithreadEvaluationOption.NO);
         }
         return null;
         
@@ -1262,6 +1222,12 @@ public class RuleBaseConfiguration
             setCompositeKeyDepth( ((CompositeKeyDepthOption) option).getDepth() );
         } else if ( option instanceof ConsequenceExceptionHandlerOption) {
             setConsequenceExceptionHandler( ((ConsequenceExceptionHandlerOption) option).getHandler().getName() );
+        } else if ( option instanceof EventProcessingOption ) {
+            setEventProcessingMode( (EventProcessingOption) option );
+        } else if ( option instanceof MaxThreadsOption ) {
+            setMaxThreads( ((MaxThreadsOption) option).getMaxThreads() );
+        } else if ( option instanceof MultithreadEvaluationOption ) {
+            setMultithreadEvaluation( ((MultithreadEvaluationOption) option).isMultithreadEvaluation() );
         } 
 
     }

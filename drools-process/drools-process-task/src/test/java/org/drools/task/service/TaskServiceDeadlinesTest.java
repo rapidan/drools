@@ -28,6 +28,7 @@ import org.drools.task.MockUserInfo;
 import org.drools.task.OrganizationalEntity;
 import org.drools.task.Status;
 import org.drools.task.Task;
+import org.drools.SystemEventListenerFactory;
 import org.subethamail.wiser.Wiser;
 import org.subethamail.wiser.WiserMessage;
 
@@ -55,7 +56,7 @@ public class TaskServiceDeadlinesTest extends BaseTest {
         Thread.sleep( 500 );
 
         client = new MinaTaskClient( "client 1",
-                                     new TaskClientHandler() );
+                                     new TaskClientHandler(SystemEventListenerFactory.getSystemEventListener()) );
         NioSocketConnector connector = new NioSocketConnector();
         SocketAddress address = new InetSocketAddress( "127.0.0.1",
                                                        9123 );
@@ -115,7 +116,7 @@ public class TaskServiceDeadlinesTest extends BaseTest {
         
         // emails should not be set yet
         assertEquals(0, wiser.getMessages().size() );             
-        Thread.sleep( 1000 );
+        Thread.sleep( 100 );
         
         // nor yet
         assertEquals(0, wiser.getMessages().size() );     

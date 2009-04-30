@@ -5,6 +5,7 @@ package org.drools.common;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.drools.FactException;
@@ -12,6 +13,7 @@ import org.drools.RuleBase;
 import org.drools.RuntimeDroolsException;
 import org.drools.WorkingMemoryEntryPoint;
 import org.drools.RuleBaseConfiguration.AssertBehaviour;
+import org.drools.impl.StatefulKnowledgeSessionImpl.ObjectStoreWrapper;
 import org.drools.reteoo.EntryPointNode;
 import org.drools.reteoo.LeftTuple;
 import org.drools.reteoo.ObjectTypeConf;
@@ -169,7 +171,7 @@ public class NamedEntryPoint
                 null );
     }
 
-    protected void update(final org.drools.runtime.rule.FactHandle factHandle,
+    public void update(final org.drools.runtime.rule.FactHandle factHandle,
                           final Object object,
                           final Rule rule,
                           final Activation activation) throws FactException {
@@ -398,9 +400,13 @@ public class NamedEntryPoint
                                                                                       -1,
                                                                                       -1,
                                                                                       entryPoint );
+            
+            ObjectTypeConf typeConf = this.typeConfReg.getObjectTypeConf( this.entryPoint,
+                                                                          handle.getObject() );            
 
             this.entryPointNode.assertObject( handle,
                                               propagationContext,
+                                              typeConf,
                                               this.wm );
 
             this.wm.getWorkingMemoryEventSupport().fireObjectUpdated( propagationContext,
@@ -482,5 +488,47 @@ public class NamedEntryPoint
     public RuleBase getRuleBase() {
         return this.ruleBase;
     }
+        
+    public FactHandle getFactHandle(Object object) {
+        return this.objectStore.getHandleForObject( object );
+    }
+
+    public EntryPoint getEntryPoint() {
+        return this.entryPoint;
+    }
+    
+    public InternalWorkingMemory getInternalWorkingMemory() {
+        return this.wm;
+    }
+    public FactHandle getFactHandleByIdentity(final Object object) {
+        return this.objectStore.getHandleForObjectIdentity( object );
+    }
+    public Object getObject(org.drools.runtime.rule.FactHandle factHandle) {
+        return this.objectStore.getObjectForHandle( (InternalFactHandle) factHandle );
+    }    
+    
+    public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles() {
+        return new ObjectStoreWrapper( this.objectStore,
+                                       null,
+                                       ObjectStoreWrapper.FACT_HANDLE );
+    }
+
+    public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles(org.drools.runtime.ObjectFilter filter) {
+        return new ObjectStoreWrapper( this.objectStore,
+                                       filter,
+                                       ObjectStoreWrapper.FACT_HANDLE );
+    }
+
+    public Collection< Object > getObjects() {
+        return new ObjectStoreWrapper( this.objectStore,
+                                       null,
+                                       ObjectStoreWrapper.OBJECT );
+    }
+
+    public Collection< Object > getObjects(org.drools.runtime.ObjectFilter filter) {
+        return new ObjectStoreWrapper( this.objectStore,
+                                       filter,
+                                       ObjectStoreWrapper.OBJECT );
+    }    
 
 }

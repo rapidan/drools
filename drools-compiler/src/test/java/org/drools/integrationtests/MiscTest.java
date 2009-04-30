@@ -61,6 +61,7 @@ import org.drools.KnowledgeBaseConfiguration;
 import org.drools.KnowledgeBaseFactory;
 import org.drools.Message;
 import org.drools.MockPersistentSet;
+import org.drools.Move;
 import org.drools.ObjectWithSet;
 import org.drools.Order;
 import org.drools.OrderItem;
@@ -84,6 +85,7 @@ import org.drools.State;
 import org.drools.StatefulSession;
 import org.drools.StatelessSession;
 import org.drools.TestParam;
+import org.drools.Win;
 import org.drools.WorkingMemory;
 import org.drools.Cheesery.Maturity;
 import org.drools.audit.WorkingMemoryFileLogger;
@@ -95,6 +97,8 @@ import org.drools.builder.KnowledgeBuilderFactory;
 import org.drools.builder.ResourceType;
 import org.drools.common.AbstractWorkingMemory;
 import org.drools.common.DefaultAgenda;
+import org.drools.common.DefaultFactHandle;
+import org.drools.common.DisconnectedFactHandle;
 import org.drools.common.InternalFactHandle;
 import org.drools.compiler.DescrBuildError;
 import org.drools.compiler.DrlParser;
@@ -488,6 +492,80 @@ public class MiscTest extends TestCase {
         assertEquals( "rule 2 executed boo",
                       list.get( 1 ) );
     }
+    
+    public void testMissingImport() throws Exception {
+        String str = "";
+        str += "package org.drools \n";
+        str += "import org.drools.Person\n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "when \n";
+        str += "    $i : Cheese() \n";
+        str += "         MissingClass( fieldName == $i ) \n";
+        str += "then \n";
+        str += "    list.add( $i ); \n";
+        str += "end \n";
+
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
+                      ResourceType.DRL );
+
+        if ( kbuilder.hasErrors() ) {
+            System.err.println( kbuilder.getErrors() );
+        }
+        assertTrue( kbuilder.hasErrors() );
+    }    
+    
+    public void testInvalidModify1() throws Exception {
+        String str = "";
+        str += "package org.drools \n";
+        str += "import org.drools.Person\n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "    no-loop \n";
+        str += "when \n";
+        str += "    $i : Cheese() \n";
+        str += "then \n";
+        str += "    modify( $i ); ";
+        str += "    list.add( $i ); \n";
+        str += "end \n";
+
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
+                      ResourceType.DRL );
+
+        if ( kbuilder.hasErrors() ) {
+            System.err.println( kbuilder.getErrors() );
+        }
+        assertTrue( kbuilder.hasErrors() );
+    }     
+    
+    public void testInvalidModify2() throws Exception {
+        String str = "";
+        str += "package org.drools \n";
+        str += "import org.drools.Person\n";
+        str += "global java.util.List list \n";
+        str += "rule rule1 \n";
+        str += "    no-loop \n";
+        str += "when \n";
+        str += "    $i : Cheese() \n";
+        str += "then \n";
+        str += "    modify( $i ) { setType( \"stilton\" ); setType( \"stilton\" );}; ";
+        str += "    list.add( $i ); \n";
+        str += "end \n";
+
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
+                      ResourceType.DRL );
+
+        if ( kbuilder.hasErrors() ) {
+            System.err.println( kbuilder.getErrors() );
+        }
+        assertTrue( kbuilder.hasErrors() );
+    }     
 
     public void testIncrementOperator() throws Exception {
         String str = "";
@@ -1592,6 +1670,20 @@ public class MiscTest extends TestCase {
         
         session.dispose();
 
+    }
+    
+    public void testDisconnectedFactHandle() {
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        DefaultFactHandle helloHandle = ( DefaultFactHandle ) ksession.insert( "hello" );
+        DefaultFactHandle goodbyeHandle = ( DefaultFactHandle ) ksession.insert( "goodbye" );
+        
+        org.drools.runtime.rule.FactHandle key = new DisconnectedFactHandle( helloHandle.toExternalForm() );
+        assertEquals( "hello", ksession.getObject( key ) );
+        
+        key = new DisconnectedFactHandle( goodbyeHandle.toExternalForm() );
+        assertEquals( "goodbye", ksession.getObject( key ) );
+        
     }
 
     public void testBigDecimal() throws Exception {
@@ -6287,4 +6379,83 @@ public class MiscTest extends TestCase {
         assertEquals( "Hello World",
                       list.get( 0 ) );
     }
+    
+    public void testJBRules2055() {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_JBRules2055.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( errors.size() > 0 ) {
+            for ( KnowledgeBuilderError error : errors ) {
+                System.err.println( error );
+            }
+            throw new IllegalArgumentException( "Could not parse knowledge." );
+        }
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List<String> results = new ArrayList<String>();
+        ksession.setGlobal( "results",
+                            results );
+        ksession.insert( new Cheese("stilton") );
+        ksession.insert( new Cheese("brie") );
+        ksession.insert( new Cheese("muzzarella") );
+        ksession.insert( new Person( "bob", "stilton" ) );
+        ksession.fireAllRules();
+        assertEquals( 2,
+                      results.size() );
+        assertEquals( "stilton",
+                      results.get( 0 ) );
+        assertEquals( "brie",
+                      results.get( 1 ) );
+        
+    }
+    
+    public void testInsertionOrder() {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_InsertionOrder.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( errors.size() > 0 ) {
+            for ( KnowledgeBuilderError error : errors ) {
+                System.err.println( error );
+            }
+            throw new IllegalArgumentException( "Could not parse knowledge." );
+        }
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        List<String> results = new ArrayList<String>();
+        ksession.setGlobal( "results",
+                            results );
+        ksession.insert( new Move(1, 2) );
+        ksession.insert( new Move(2, 3) );
+        
+        Win win2 = new Win( 2 );
+        Win win3 = new Win( 3 );
+        
+        ksession.fireAllRules();
+        assertEquals( 2,
+                      results.size() );
+        assertTrue( results.contains( win2 ) );
+        assertTrue( results.contains( win3 ) );
+        
+        ksession = kbase.newStatefulKnowledgeSession();
+        results = new ArrayList<String>();
+        ksession.setGlobal( "results",
+                            results );
+        // reverse the order of the inserts
+        ksession.insert( new Move(2, 3) );
+        ksession.insert( new Move(1, 2) );
+        
+        ksession.fireAllRules();
+        assertEquals( 2,
+                      results.size() );
+        assertTrue( results.contains( win2 ) );
+        assertTrue( results.contains( win3 ) );
+        
+    }
+    
 }

@@ -19,6 +19,7 @@ package org.drools.reteoo;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +44,8 @@ import org.drools.rule.Package;
 import org.drools.rule.Query;
 import org.drools.rule.Rule;
 import org.drools.runtime.Environment;
+import org.drools.runtime.ObjectFilter;
+import org.drools.runtime.rule.FactHandle;
 import org.drools.spi.FactHandleFactory;
 import org.drools.spi.PropagationContext;
 
@@ -192,6 +195,8 @@ public class ReteooWorkingMemory extends AbstractWorkingMemory {
         this.queryResults.put( query,
                                node );
     }
+    
+    
 
     public static class WorkingMemoryReteAssertAction
         implements
@@ -327,22 +332,47 @@ public class ReteooWorkingMemory extends AbstractWorkingMemory {
         }
 
         public void execute(InternalWorkingMemory workingMemory) {
-            final PropagationContext context = new PropagationContextImpl( workingMemory.getNextPropagationIdCounter(),
-                                                                           PropagationContext.EXPIRATION,
-                                                                           null,
-                                                                           null,
-                                                                           this.factHandle );
-            ((EventFactHandle)factHandle).setExpired( true );
-            this.node.retractObject( factHandle,
-                                     context,
-                                     workingMemory );
-            
-            // if no activations for this expired event
-            if( ((EventFactHandle)factHandle).getActivationsCount() == 0 ) {
-                // remove it from the object store and clean up resources
-                ((EventFactHandle)factHandle).getEntryPoint().retract( factHandle );
+            if( this.factHandle.isValid() ) {
+                // if the fact is still in the working memory (since it may have been previously retracted already
+                final PropagationContext context = new PropagationContextImpl( workingMemory.getNextPropagationIdCounter(),
+                                                                               PropagationContext.EXPIRATION,
+                                                                               null,
+                                                                               null,
+                                                                               this.factHandle );
+                ((EventFactHandle)factHandle).setExpired( true );
+                this.node.retractObject( factHandle,
+                                         context,
+                                         workingMemory );
+                
+                // if no activations for this expired event
+                if( ((EventFactHandle)factHandle).getActivationsCount() == 0 ) {
+                    // remove it from the object store and clean up resources
+                    ((EventFactHandle)factHandle).getEntryPoint().retract( factHandle );
+                }
             }
         }
+    }
+  public EntryPoint getEntryPoint() {
+        return this.entryPoint;
+  }
+   public InternalWorkingMemory getInternalWorkingMemory() {
+        return this;
+    }
+
+    public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles() {
+        throw new UnsupportedOperationException("this is implementedby StatefulKnowledgeImpl");
+    }
+
+    public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles(ObjectFilter filter) {
+        throw new UnsupportedOperationException("this is implementedby StatefulKnowledgeImpl");
+    }
+
+    public Collection< Object > getObjects() {
+        throw new UnsupportedOperationException("this is implementedby StatefulKnowledgeImpl");
+    }
+
+    public Collection< Object > getObjects(ObjectFilter filter) {
+        throw new UnsupportedOperationException("this is implementedby StatefulKnowledgeImpl");
     }
 
 }

@@ -11,9 +11,9 @@
   <info>
     <title>Drools Flow User Guide</title>
 
-    <releaseinfo>5.0.0.SNAPSHOT</releaseinfo>
+    <releaseinfo>5.0.1.SNAPSHOT</releaseinfo>
 
-    <author>
+    <!--author>
       <firstname>Kris</firstname>
       <surname>Verlaenen</surname>
     </author>
@@ -31,7 +31,7 @@
     <author>
       <firstname>Edson</firstname>
       <surname>Tirelli</surname>
-    </author>
+    </author-->
     
   </info>
 
@@ -60,6 +60,7 @@
   <xi:include href="Chapter-HumanTasks/Chapter-HumanTasks.xml" />
   <xi:include href="Chapter-Debugging/Chapter-Debugging.xml" />
   <xi:include href="Chapter-Eclipse/Chapter-Eclipse.xml" />
+  <xi:include href="Chapter-BAM/Chapter-BAM.xml" />
     
   <index/>
 </book>

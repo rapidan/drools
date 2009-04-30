@@ -11,9 +11,9 @@
   <info>
     <title>Drools Guvnor</title>
 
-    <releaseinfo>5.0.0.SNAPSHOT</releaseinfo>
+    <releaseinfo>5.0.1.SNAPSHOT</releaseinfo>
 
-    <author>
+    <!--author>
       <firstname>Michael</firstname>
       <surname>Neale</surname>
     </author>
@@ -21,7 +21,7 @@
     <author>
       <firstname>Fernando</firstname>
       <surname>Meyer</surname>
-    </author>
+    </author-->
   </info>
 
 <!--

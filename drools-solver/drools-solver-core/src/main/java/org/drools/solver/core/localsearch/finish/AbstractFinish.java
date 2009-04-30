@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Abstract superclass for {@link Finish}.
  * @author Geoffrey De Smet
  */
 public abstract class AbstractFinish implements Finish {

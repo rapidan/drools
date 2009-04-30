@@ -1118,7 +1118,13 @@ public interface Constants extends ConstantsWithLookup {
     String SwitchToTextModeEditing();
 
     String SwitchToAdvancedTextModeForPackageEditing();
-
+    
+    String BasicView();
+    
+    String SwitchToGuidedModeEditing();
+    
+    String SwitchToGuidedModeForPackageEditing();
+        
     String ChooseAFactType();
 
     String loadingList();
@@ -1826,7 +1832,6 @@ public interface Constants extends ConstantsWithLookup {
 
     String December();
 
-    String YouMightNeedToBeABitMoreImaginative();
 
     String SorryAnItemOfThatNameAlreadyExistsInTheRepositoryPleaseChooseAnother();
 
@@ -1855,4 +1860,12 @@ public interface Constants extends ConstantsWithLookup {
     String Append0ToList1();
 
     String CallMethodOn0();
+
+    String hide();
+
+    String RemoveThisBlockOfData();
+
+    String AreYouSureYouWantToRemoveThisBlockOfData();
+
+    String PleaseEnterANameThatIsNotAlreadyUsedByAnotherPattern();
 }

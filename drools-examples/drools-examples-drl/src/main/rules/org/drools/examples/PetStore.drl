@@ -64,12 +64,12 @@ end
 
 rule "Show Items"
     agenda-group "show items"
-    dialect "mvel"
+    dialect "java"
 	when
 	    $order : Order( )
 	    $p : Purchase( order == $order )
 	then	
-		textArea.append( $p.product + "\n");
+        textArea.append( $p.getProduct() + "\n");
 end
 
 rule "do checkout"
@@ -87,7 +87,7 @@ rule "Gross Total"
 		Number( total : doubleValue ) from accumulate( Purchase( $price : product.price ),
    			        			   				 	   sum( $price ) )
 	then	
-	    modify( $order ) { grossTotal = total };
+	    modify( $order ) { grossTotal = total }
 	    textArea.append( "\ngross total=" + total + "\n" );
 end
 

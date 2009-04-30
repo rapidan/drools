@@ -2,18 +2,16 @@ package org.drools.solver.core.localsearch.finish;
 
 import org.drools.solver.core.localsearch.LocalSearchSolverScope;
 import org.drools.solver.core.localsearch.StepScope;
+import org.drools.solver.core.score.Score;
 
 /**
  * @author Geoffrey De Smet
  */
 public class FeasableScoreFinish extends AbstractFinish {
 
-    private double feasableScore;
-
-    private double startingScore;
-    private double feasableDelta;
+    private Score feasableScore;
     
-    public void setFeasableScore(double feasableScore) {
+    public void setFeasableScore(Score feasableScore) {
         this.feasableScore = feasableScore;
     }
 
@@ -21,22 +19,17 @@ public class FeasableScoreFinish extends AbstractFinish {
     // Worker methods
     // ************************************************************************
 
-    @Override
-    public void solvingStarted(LocalSearchSolverScope localSearchSolverScope) {
-        startingScore = localSearchSolverScope.getStartingScore();
-        feasableDelta = startingScore - feasableScore;
-    }
-
     public boolean isFinished(StepScope stepScope) {
-        double bestScore = stepScope.getLocalSearchSolverScope().getBestScore();
-        return bestScore >= feasableScore;
+        Score bestScore = stepScope.getLocalSearchSolverScope().getBestScore();
+        return bestScore.compareTo(feasableScore) >= 0;
     }
 
     public double calculateTimeGradient(StepScope stepScope) {
-        double stepScore = stepScope.getLocalSearchSolverScope().getLastCompletedStepScope().getScore();
-        double stepDelta = startingScore - stepScore;
-        double timeGradient = stepDelta / feasableDelta;
-        return Math.min(timeGradient, 1.0);
+        LocalSearchSolverScope localSearchSolverScope = stepScope.getLocalSearchSolverScope();
+        Score startingScore = localSearchSolverScope.getStartingScore();
+        Score stepScore = localSearchSolverScope.getLastCompletedStepScope().getScore();
+        return localSearchSolverScope.getScoreDefinition()
+                .calculateTimeGradient(startingScore, feasableScore, stepScore);
     }
     
 }

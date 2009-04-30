@@ -122,6 +122,36 @@ public class RuleFlowHandler extends ContentHandler
         }
     }
 
+    /**
+     * The rule flow can not be built if the package name is not the same as the package that it exists in.
+     * This changes the package name.
+     * 
+     * @param item
+     */
+    public void ruleFlowAttached(AssetItem item) {
+        String content = item.getContent();
+
+        if ( content != null && !content.equals( "" ) ) {
+            RuleFlowProcess process = readProcess( new ByteArrayInputStream( content.getBytes() ) );
+
+            if ( process != null ) {
+                String packageName = item.getPackageName();
+                String originalPackageName = process.getPackageName();
+
+                if ( !packageName.equals( originalPackageName ) ) {
+                    process.setPackageName( packageName );
+
+                    XmlRuleFlowProcessDumper dumper = XmlRuleFlowProcessDumper.INSTANCE;
+                    String out = dumper.dump( process );
+
+                    item.updateContent( out );
+
+                    item.checkin( "Changed rule flow package from " + originalPackageName + " to " + packageName );
+                }
+            }
+        }
+    }
+
     public void assembleDRL(BRMSPackageBuilder builder,
                             AssetItem asset,
                             StringBuffer buf) {
@@ -132,6 +162,9 @@ public class RuleFlowHandler extends ContentHandler
                         AssetItem asset,
                         ErrorLogger logger) throws DroolsParserException,
                                            IOException {
-        builder.addRuleFlow( new InputStreamReader( asset.getBinaryContentAttachment() ) );
+        InputStream ins = asset.getBinaryContentAttachment();
+        if ( ins != null ) {
+            builder.addRuleFlow( new InputStreamReader( asset.getBinaryContentAttachment() ) );
+        }
     }
 }

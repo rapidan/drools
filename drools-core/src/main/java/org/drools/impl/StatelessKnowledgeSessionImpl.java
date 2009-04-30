@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 
 import org.drools.RuleBaseConfiguration;
 import org.drools.SessionConfiguration;
+import org.drools.agent.KnowledgeAgent;
 import org.drools.base.MapGlobalResolver;
 import org.drools.command.Command;
 import org.drools.common.InternalRuleBase;
@@ -29,7 +30,7 @@ import org.drools.reteoo.InitialFactHandleDummyObject;
 import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.reteoo.ReteooWorkingMemory.WorkingMemoryReteAssertAction;
 import org.drools.rule.EntryPoint;
-import org.drools.runtime.BatchExecutionResults;
+import org.drools.runtime.ExecutionResults;
 import org.drools.runtime.Environment;
 import org.drools.runtime.Globals;
 import org.drools.runtime.KnowledgeSessionConfiguration;
@@ -43,6 +44,7 @@ public class StatelessKnowledgeSessionImpl
     StatelessKnowledgeSession {
 
     private InternalRuleBase                                                  ruleBase;
+    private KnowledgeAgent                                                     kagent;
     private AgendaFilter                                                      agendaFilter;
     private MapGlobalResolver                                                 sessionGlobals            = new MapGlobalResolver();
 
@@ -63,16 +65,20 @@ public class StatelessKnowledgeSessionImpl
     }
 
     public StatelessKnowledgeSessionImpl(final InternalRuleBase ruleBase,
+                                         final KnowledgeAgent kagent,
                                          final KnowledgeSessionConfiguration conf) {
         this.ruleBase = ruleBase;
+        this.kagent = kagent;
         this.conf = (conf != null) ? conf : new SessionConfiguration();
         this.environment = EnvironmentFactory.newEnvironment();
         
-        synchronized ( this.ruleBase.getPackagesMap() ) {
-            if ( ruleBase.getConfiguration().isSequential() ) {
-                this.ruleBase.getReteooBuilder().order();
-            }
-        }        
+        if ( this.ruleBase != null ) {
+            synchronized ( this.ruleBase.getPackagesMap() ) {
+                if ( ruleBase.getConfiguration().isSequential() ) {
+                    this.ruleBase.getReteooBuilder().order();
+                }
+            }    
+        }
     }
 
     public InternalRuleBase getRuleBase() {
@@ -80,6 +86,10 @@ public class StatelessKnowledgeSessionImpl
     }
 
     public InternalWorkingMemory newWorkingMemory() {
+        if ( this.kagent != null ) {
+            // if we have an agent always get the rulebase from there
+            this.ruleBase = ( InternalRuleBase ) ((KnowledgeBaseImpl)this.kagent.getKnowledgeBase()).ruleBase;
+        }
         synchronized ( this.ruleBase.getPackagesMap() ) {
             ReteooWorkingMemory wm = new ReteooWorkingMemory( this.ruleBase.nextWorkingMemoryCounter(),
                                                                 this.ruleBase,
@@ -204,7 +214,7 @@ public class StatelessKnowledgeSessionImpl
         return this.sessionGlobals;
     }
 
-    public BatchExecutionResults execute(Command command) {        
+    public ExecutionResults execute(Command command) {        
         ReteooWorkingMemory session = ( ReteooWorkingMemory ) newWorkingMemory();
         try {
             session.startBatchExecution();
@@ -224,7 +234,7 @@ public class StatelessKnowledgeSessionImpl
             if ( autoFireAllRules ) {
             	session.fireAllRules( this.agendaFilter );
             }
-            BatchExecutionResults result = session.getBatchExecutionResult();
+            ExecutionResults result = session.getExecutionResult();
             return result;
         } finally {
             session.endBatchExecution();

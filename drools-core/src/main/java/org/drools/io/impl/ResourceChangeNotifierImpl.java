@@ -36,7 +36,7 @@ public class ResourceChangeNotifierImpl
         this.queue = new LinkedBlockingQueue<ChangeSet>();
         this.listener.info( "ResourceChangeNotification created" );
     }
-    
+
     public void setSystemEventListener(SystemEventListener listener) {
         this.listener = listener;
     }
@@ -198,22 +198,23 @@ public class ResourceChangeNotifierImpl
     }
 
     public void start() {
-        if ( this.processChangeSet == null ) {
-            this.processChangeSet = new ProcessChangeSet( this.queue,
-                                                          this,
-                                                          this.listener );
-        }
+        this.processChangeSet = new ProcessChangeSet( this.queue,
+                                                      this,
+                                                      this.listener );
 
-        if ( !this.processChangeSet.isRunning() ) {
-            this.processChangeSet.setNotify( true );
-            this.thread = new Thread( this.processChangeSet );
-            this.thread.start();
-        }
+        this.thread = new Thread( this.processChangeSet );
+        this.thread.start();
     }
 
     public void stop() {
-        this.processChangeSet.setNotify( false );
+        this.processChangeSet.stop();
         this.thread.interrupt();
+        this.processChangeSet = null;
+    }
+    
+    public void reset() {
+        this.subscriptions.clear();
+        this.monitors.clear();        
     }
 
     private Thread           thread;
@@ -233,10 +234,11 @@ public class ResourceChangeNotifierImpl
             this.queue = queue;
             this.notifier = notifier;
             this.listener = listener;
+            this.notify = true;
         }
 
-        public void setNotify(boolean notify) {
-            this.notify = notify;
+        public void stop() {
+            this.notify = false;
         }
 
         public boolean isRunning() {
@@ -256,7 +258,7 @@ public class ResourceChangeNotifierImpl
                     exception = e;
                 }
                 Thread.yield();
-                if ( this.notify && exception != null) {
+                if ( this.notify && exception != null ) {
                     this.listener.exception( new RuntimeException( "ResourceChangeNotification ChangeSet publication thread was interrupted, but shutdown was not scheduled",
                                                                    exception ) );
                 }

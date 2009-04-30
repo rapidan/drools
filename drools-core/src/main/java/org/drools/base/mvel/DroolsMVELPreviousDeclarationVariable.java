@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
+import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.rule.Declaration;
+import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 import org.mvel2.integration.VariableResolver;
 
 public class DroolsMVELPreviousDeclarationVariable
@@ -46,10 +48,24 @@ public class DroolsMVELPreviousDeclarationVariable
 
     public Object getValue() {
         Declaration decl = this.declaration;
+       
         if( this.factory.getKnowledgeHelper() != null ) {
             decl = this.factory.getKnowledgeHelper().getDeclaration( this.declaration.getIdentifier() );
+            
+            InternalFactHandle factHandle = (InternalFactHandle)this.factory.getFactHandle(decl);
+            WorkingMemoryEntryPoint entryPoint = factHandle.getEntryPoint();
+            if(entryPoint !=  null){
+
+                this.factory.getKnowledgeHelper()
+                        .getIdentityMap()
+                        .put(entryPoint.getObject(factHandle), factHandle);
+            }
         }
+        
+
+        
         return decl.getValue( (InternalWorkingMemory) this.factory.getWorkingMemory(), this.factory.getValue( decl ) );
+
     }    
 
     public void setValue(final Object value) {
