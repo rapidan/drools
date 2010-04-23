@@ -1,4 +1,4 @@
-// $ANTLR 3.1.1 src/main/resources/org/drools/semantics/java/parser/Java.g 2009-04-09 16:58:58
+// $ANTLR 3.1.1 src/main/resources/org/drools/semantics/java/parser/Java.g 2009-12-07 17:31:07
 
 	package org.drools.rule.builder.dialect.java.parser;
 	import java.util.Iterator;
@@ -278,7 +278,7 @@ public class JavaParser extends Parser {
          	/** This will take a RecognitionException, and create a sensible error message out of it */
          	public String createErrorMessage(RecognitionException e)
             {
-    		StringBuffer message = new StringBuffer();		
+    		StringBuilder message = new StringBuilder();		
                     message.append( source + ":"+e.line+":"+e.charPositionInLine+" ");
                     if ( e instanceof MismatchedTokenException ) {
                             MismatchedTokenException mte = (MismatchedTokenException)e;
@@ -5898,7 +5898,7 @@ public class JavaParser extends Parser {
                     int LA108_0 = input.LA(1);
 
                     if ( (LA108_0==76) ) {
-                        int LA108_1 = input.LA(2);
+                        int LA108_2 = input.LA(2);
 
                         if ( (synpred150_Java()) ) {
                             alt108=1;

@@ -27,16 +27,8 @@ public class BuilderResult
     implements
     IsSerializable {
 
-
-    public String assetFormat;
-    public String assetName;
-    public String uuid;
-    public String message;
-
-    public String toString() {
-        return "Asset: " + assetName + "." + assetFormat + "\n" + //NON-NLS
-               "Message: " + message + "\n" +   //NON-NLS
-               "UUID: " + uuid; //NON-NLS
-    }
+    public BuilderResultLine[] lines = new BuilderResultLine[0];
+    
+    public AnalysisReport verifierReport;
 
 }

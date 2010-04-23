@@ -1,6 +1,7 @@
 package org.drools.eclipse.preferences;
 
 import java.io.File;
+import java.util.List;
 
 import org.drools.eclipse.util.DroolsRuntime;
 import org.drools.eclipse.util.DroolsRuntimeManager;
@@ -27,6 +28,8 @@ public class DroolsRuntimeDialog extends Dialog {
 	private DroolsRuntime runtime;
 	private Text nameText;
 	private Text pathText;
+	private List<DroolsRuntime> runtimes;
+	
 	private Listener textModifyListener = new Listener() {
         public void handleEvent(Event e) {
             boolean valid = validate();
@@ -34,9 +37,10 @@ public class DroolsRuntimeDialog extends Dialog {
         }
     };
     
-	public DroolsRuntimeDialog(Shell parent) {
+	public DroolsRuntimeDialog(Shell parent, List<DroolsRuntime> runtimes) {
 		super(parent);
         setBlockOnOpen(true);
+        this.runtimes = runtimes;
     }
     
     protected Control createDialogArea(Composite parent) {
@@ -124,6 +128,13 @@ public class DroolsRuntimeDialog extends Dialog {
 		if (name == null || "".equals(name.trim())) {
 			return false;
 		}
+		if (runtime == null || !name.equals(runtime.getName())) {
+			for (DroolsRuntime runtime: runtimes) {
+				if (name.equals(runtime.getName())) {
+					return false;
+				}
+			}
+		}
 		String location = pathText.getText();
 		if (location != null) {
 			File file = new File(location);
@@ -155,7 +166,7 @@ public class DroolsRuntimeDialog extends Dialog {
 		
 		if (selectedDirectory != null) {
 			DroolsRuntimeManager.createDefaultRuntime(selectedDirectory);
-			nameText.setText("Drools 5.0.0 runtime");
+			nameText.setText("Drools 5.1.0 runtime");
 			pathText.setText(selectedDirectory);
 		}
 	}

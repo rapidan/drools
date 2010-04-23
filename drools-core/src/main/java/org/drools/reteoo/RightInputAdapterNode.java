@@ -26,11 +26,11 @@ import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.NodeMemory;
 import org.drools.common.PropagationContextImpl;
+import org.drools.core.util.Iterator;
+import org.drools.core.util.ObjectHashMap;
+import org.drools.core.util.ObjectHashMap.ObjectEntry;
 import org.drools.reteoo.builder.BuildContext;
 import org.drools.spi.PropagationContext;
-import org.drools.util.Iterator;
-import org.drools.util.ObjectHashMap;
-import org.drools.util.ObjectHashMap.ObjectEntry;
 
 /**
  * When joining a subnetwork into the main network again, RightInputAdapterNode adapts the
@@ -47,7 +47,7 @@ public class RightInputAdapterNode extends ObjectSource
     LeftTupleSinkNode,
     NodeMemory {
 
-    private static final long serialVersionUID = 400L; 
+    private static final long serialVersionUID = 400L;
 
     private LeftTupleSource   tupleSource;
 
@@ -121,7 +121,7 @@ public class RightInputAdapterNode extends ObjectSource
         // creating a dummy fact handle to wrap the tuple
         final InternalFactHandle handle = workingMemory.getFactHandleFactory().newFactHandle( tuple,
                                                                                               workingMemory.getObjectTypeConfigurationRegistry().getObjectTypeConf( context.getEntryPoint(),
-                                                                                                                                                           tuple ),
+                                                                                                                                                                    tuple ),
                                                                                               workingMemory );
 
         if ( this.tupleMemoryEnabled ) {
@@ -150,22 +150,44 @@ public class RightInputAdapterNode extends ObjectSource
         // retrieve handle from memory
         final InternalFactHandle factHandle = (InternalFactHandle) memory.remove( tuple );
 
-        for ( RightTuple rightTuple = factHandle.getRightTuple(); rightTuple != null; rightTuple = (RightTuple) rightTuple.getHandleNext() ) {
+        for ( RightTuple rightTuple = factHandle.getFirstRightTuple(); rightTuple != null; rightTuple = (RightTuple) rightTuple.getHandleNext() ) {
             rightTuple.getRightTupleSink().retractRightTuple( rightTuple,
                                                               context,
                                                               workingMemory );
         }
-        factHandle.setRightTuple( null );
+        factHandle.setFirstRightTuple( null );
 
-        for ( LeftTuple leftTuple = factHandle.getLeftTuple(); leftTuple != null; leftTuple = (LeftTuple) leftTuple.getLeftParentNext() ) {
+        for ( LeftTuple leftTuple = factHandle.getLastLeftTuple(); leftTuple != null; leftTuple = (LeftTuple) leftTuple.getLeftParentNext() ) {
             leftTuple.getLeftTupleSink().retractLeftTuple( leftTuple,
-                                                  context,
-                                                  workingMemory );
+                                                           context,
+                                                           workingMemory );
         }
-        factHandle.setLeftTuple( null );
+        factHandle.setFirstLeftTuple( null );
 
         // destroy dummy handle
         workingMemory.getFactHandleFactory().destroyFactHandle( factHandle );
+    }
+
+    public void modifyLeftTuple(InternalFactHandle factHandle,
+                                ModifyPreviousTuples modifyPreviousTuples,
+                                PropagationContext context,
+                                InternalWorkingMemory workingMemory) {
+        throw new UnsupportedOperationException( "This method should never be called" );
+    }
+
+    public void modifyLeftTuple(LeftTuple leftTuple,
+                                PropagationContext context,
+                                InternalWorkingMemory workingMemory) {
+        final ObjectHashMap memory = (ObjectHashMap) workingMemory.getNodeMemory( this );
+        // add it to a memory mapping
+        InternalFactHandle handle = (InternalFactHandle) memory.get( leftTuple );
+
+        // propagate it
+        for ( RightTuple rightTuple = handle.getFirstRightTuple(); rightTuple != null; rightTuple = (RightTuple) rightTuple.getHandleNext() ) {
+            rightTuple.getRightTupleSink().modifyRightTuple( rightTuple,
+                                                             context,
+                                                             workingMemory );
+        }
     }
 
     public void attach() {
@@ -215,29 +237,27 @@ public class RightInputAdapterNode extends ObjectSource
         if ( !node.isInUse() ) {
             removeObjectSink( (ObjectSink) node );
         }
-        
+
         if ( !this.isInUse() ) {
-            for ( int i = 0, length = workingMemories.length; i < length; i++ ) {
-                ObjectHashMap memory = ( ObjectHashMap ) workingMemories[i].getNodeMemory( this );
-                
+            for ( InternalWorkingMemory workingMemory : workingMemories ) {
+                ObjectHashMap memory = (ObjectHashMap) workingMemory.getNodeMemory( this );
+
                 Iterator it = memory.iterator();
                 for ( ObjectEntry entry = (ObjectEntry) it.next(); entry != null; entry = (ObjectEntry) it.next() ) {
-                    LeftTuple leftTuple = ( LeftTuple ) entry.getKey();
+                    LeftTuple leftTuple = (LeftTuple) entry.getKey();
                     leftTuple.unlinkFromLeftParent();
-                    leftTuple.unlinkFromRightParent();                    
-                    
-                    InternalFactHandle handle = ( InternalFactHandle ) entry.getValue();
-                    workingMemories[i].getFactHandleFactory().destroyFactHandle( handle);                    
-                }                                   
+                    leftTuple.unlinkFromRightParent();
+
+                    InternalFactHandle handle = (InternalFactHandle) entry.getValue();
+                    workingMemory.getFactHandleFactory().destroyFactHandle( handle );
+                }
+                workingMemory.clearNodeMemory( this );
             }
         }
-        
-        if ( !context.alreadyVisited( this.tupleSource ) ) {
-            this.tupleSource.remove( context,
-                                     builder,
-                                     this,
-                                     workingMemories );
-        }
+        this.tupleSource.remove( context,
+                                 builder,
+                                 this,
+                                 workingMemories );
     }
 
     public boolean isLeftTupleMemoryEnabled() {
@@ -283,10 +303,10 @@ public class RightInputAdapterNode extends ObjectSource
     public void setPreviousLeftTupleSinkNode(final LeftTupleSinkNode previous) {
         this.previousTupleSinkNode = previous;
     }
-    
+
     public short getType() {
         return NodeTypeEnums.RightInputAdaterNode;
-    }     
+    }
 
     public int hashCode() {
         return this.tupleSource.hashCode() * 17 + ((this.tupleMemoryEnabled) ? 1234 : 4321);
@@ -310,4 +330,5 @@ public class RightInputAdapterNode extends ObjectSource
 
         return this.tupleMemoryEnabled == other.tupleMemoryEnabled && this.tupleSource.equals( other.tupleSource );
     }
+
 }

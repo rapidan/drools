@@ -8,6 +8,7 @@ import org.drools.process.core.context.variable.Variable;
 import org.drools.process.core.context.variable.VariableScope;
 import org.drools.process.core.datatype.DataType;
 import org.drools.workflow.core.impl.ConnectionImpl;
+import org.drools.workflow.core.impl.ExtendedNodeImpl;
 
 /*
  * Copyright 2005 JBoss Inc
@@ -79,6 +80,18 @@ public class ForEachNode extends CompositeNode {
     
     public String getVariableName() {
         return variableName;
+    }
+    
+    public DataType getVariableType() {
+    	if (variableName == null) {
+    		return null;
+    	}
+    	for (Variable variable: ((VariableScope) getCompositeNode().getDefaultContext(VariableScope.VARIABLE_SCOPE)).getVariables()) {
+    		if (variableName.equals(variable.getName())) {
+    			return variable.getType();
+    		}
+    	}
+    	return null;
     }
     
     public CompositeContextNode getCompositeNode() {
@@ -163,11 +176,11 @@ public class ForEachNode extends CompositeNode {
         this.waitForCompletion = waitForCompletion;
     }
 
-   public class ForEachSplitNode extends SequenceNode {
+   public class ForEachSplitNode extends ExtendedNodeImpl {
         private static final long serialVersionUID = 4L;
     }
 
-    public class ForEachJoinNode extends SequenceNode {
+    public class ForEachJoinNode extends ExtendedNodeImpl {
         private static final long serialVersionUID = 4L;
     }
 

@@ -15,9 +15,10 @@ import java.io.Serializable;
 
 import junit.framework.TestCase;
 
+import org.drools.core.util.DroolsStreamUtils;
 import org.drools.rule.GroupElement;
 import org.drools.rule.Package;
-import org.drools.util.DroolsStreamUtils;
+import org.junit.Ignore;
 
 /**
  * Created by IntelliJ IDEA. User: SG0521861 Date: Mar 3, 2008 Time: 11:19:44 AM To change this template use File |
@@ -28,9 +29,19 @@ public class DroolsObjectIOTest  extends TestCase {
     private static final String TEST_FILE   = "test.dat";
     private static final GroupElement   testGroupElement    = new GroupElement();
 
+    @Ignore
     static class Test implements Serializable {
+        public Test() {
+            
+        }
         String  str = TEST_FILE;
     }
+    
+    public DroolsObjectIOTest() {
+        
+    }
+    
+    @org.junit.Test
     public void testFileIO() throws Exception {
         File    file    = new File(getClass().getResource("DroolsObjectIOTest.class").getFile());
         ByteArrayOutputStream   bytes   = new ByteArrayOutputStream();
@@ -85,6 +96,7 @@ public class DroolsObjectIOTest  extends TestCase {
         }
     }
 
+    @org.junit.Test
     public void testObject() throws Exception {
         SerializableObject    obj = new ExternalizableObject();
 
@@ -126,6 +138,7 @@ public class DroolsObjectIOTest  extends TestCase {
         return bytes.toByteArray();
     }
 
+    @org.junit.Test
     public void testStreaming() throws Exception {
         Package pkg = new Package("test");
 

@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.Serializable;
 import java.io.StringReader;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ import org.drools.builder.ResourceConfiguration;
 import org.drools.builder.ResourceType;
 import org.drools.common.InternalRuleBase;
 import org.drools.commons.jci.problems.CompilationProblem;
+import org.drools.compiler.xml.XmlPackageReader;
+import org.drools.core.util.DroolsStreamUtils;
 import org.drools.definition.process.Process;
 import org.drools.factmodel.ClassBuilder;
 import org.drools.factmodel.ClassDefinition;
@@ -56,10 +59,10 @@ import org.drools.facttemplates.FieldTemplateImpl;
 import org.drools.guvnor.client.modeldriven.brl.RuleModel;
 import org.drools.guvnor.server.util.BRDRLPersistence;
 import org.drools.guvnor.server.util.BRXMLPersistence;
-import org.drools.io.InternalResource;
 import org.drools.io.Resource;
 import org.drools.io.impl.ClassPathResource;
 import org.drools.io.impl.ReaderResource;
+import org.drools.io.internal.InternalResource;
 import org.drools.lang.descr.AttributeDescr;
 import org.drools.lang.descr.BaseDescr;
 import org.drools.lang.descr.FactTemplateDescr;
@@ -76,7 +79,7 @@ import org.drools.lang.dsl.DSLMappingFile;
 import org.drools.lang.dsl.DSLTokenizedMappingFile;
 import org.drools.lang.dsl.DefaultExpander;
 import org.drools.reteoo.ReteooRuleBase;
-import org.drools.rule.CompositeClassLoader;
+import org.drools.rule.DroolsCompositeClassLoader;
 import org.drools.rule.Function;
 import org.drools.rule.ImportDeclaration;
 import org.drools.rule.JavaDialectRuntimeData;
@@ -86,9 +89,9 @@ import org.drools.rule.TypeDeclaration;
 import org.drools.rule.builder.RuleBuildContext;
 import org.drools.rule.builder.RuleBuilder;
 import org.drools.spi.InternalReadAccessor;
-import org.drools.util.DroolsStreamUtils;
+import org.drools.type.DateFormats;
+import org.drools.type.DateFormatsImpl;
 import org.drools.xml.XmlChangeSetReader;
-import org.drools.xml.XmlPackageReader;
 import org.xml.sax.SAXException;
 
 /**
@@ -105,35 +108,35 @@ import org.xml.sax.SAXException;
  */
 public class PackageBuilder {
 
-    //private DialectRegistry              dialectRegistry;
+    private Map<String, PackageRegistry>      pkgRegistryMap;
 
-    private Map<String, PackageRegistry>  pkgRegistryMap;
+    private List<DroolsError>                 results;
 
-    private List<DroolsError>             results;
+    private final PackageBuilderConfiguration configuration;
 
-    private PackageBuilderConfiguration   configuration;
-
-    public static final RuleBuilder       ruleBuilder = new RuleBuilder();
+    public static final RuleBuilder           ruleBuilder = new RuleBuilder();
 
     /**
      * Optional RuleBase for incremental live building
      */
-    private ReteooRuleBase                ruleBase;
+    private ReteooRuleBase                    ruleBase;
 
     /**
      * default dialect
      */
-    private final String                  defaultDialect;
+    private final String                      defaultDialect;
 
-    private CompositeClassLoader          rootClassLoader;
+    private DroolsCompositeClassLoader        rootClassLoader;
 
-    private Map<String, Class<?>>            globals;
+    private Map<String, Class< ? >>           globals;
 
-    private Resource                      resource;
+    private Resource                          resource;
 
-    private List<DSLTokenizedMappingFile> dslFiles;
+    private List<DSLTokenizedMappingFile>     dslFiles;
 
-    private TimeIntervalParser            timeParser;
+    private TimeIntervalParser                timeParser;
+
+    protected DateFormats                     dateFormats;
 
     /**
      * Use this when package is starting from scratch.
@@ -172,60 +175,27 @@ public class PackageBuilder {
               configuration );
     }
 
-    //    /**
-    //     * This allows you to pass in a pre existing package, and a configuration
-    //     * (for instance to set the classloader).
-    //     * 
-    //     * @param pkg
-    //     *            A pre existing package (can be null if none exists)
-    //     * @param configuration
-    //     *            Optional configuration for this builder.
-    //     */
-    //    public PackageBuilder(final Package pkg,
-    //                          PackageBuilderConfiguration configuration) {
-    //        if ( configuration == null ) {
-    //            configuration = new PackageBuilderConfiguration();
-    //        }
-    //
-    //        this.configuration = configuration;
-    //        this.results = new ArrayList();
-    //        this.pkg = pkg;
-    //        this.classFieldExtractorCache = ClassFieldAccessorCache.getInstance();
-    //
-    //        if ( this.pkg != null ) {
-    //            ClassLoader cl = this.pkg.getDialectRuntimeRegistry().getClassLoader();
-    //            this.typeResolver = new ClassTypeResolver( new HashSet<String>( this.pkg.getImports().keySet() ),
-    //                                                       cl );
-    //            // make an automatic import for the current package
-    //            this.typeResolver.addImport( this.pkg.getName() + ".*" );
-    //        } else {
-    //            // this.typeResolver = new ClassTypeResolver( new HashSet<String>(),
-    //            // this.configuration.getClassLoader() );
-    //        }
-    //
-    //        this.dialectRegistry = this.configuration.buildDialectRegistry();
-    //
-    //        this.dialect = this.dialectRegistry.getDialect( this.configuration.getDefaultDialect() );
-    //
-    //        if ( this.pkg != null ) {
-    //            this.dialectRegistry.initAll( this );
-    //        }
-    //
-    //    }
-
     public PackageBuilder(Package pkg,
                           PackageBuilderConfiguration configuration) {
         if ( configuration == null ) {
-            configuration = new PackageBuilderConfiguration();
+            this.configuration = new PackageBuilderConfiguration();
+        } else {
+            this.configuration = configuration;
         }
-        this.configuration = configuration;
 
-        this.rootClassLoader = new CompositeClassLoader( this.configuration.getClassLoader() );
+        this.dateFormats = null;//(DateFormats) this.environment.get( EnvironmentName.DATE_FORMATS );
+        if ( this.dateFormats == null ) {
+            this.dateFormats = new DateFormatsImpl();
+            //this.environment.set( EnvironmentName.DATE_FORMATS , this.dateFormats );
+        }
+
+        this.rootClassLoader = new DroolsCompositeClassLoader( this.configuration.getClassLoader(),
+                                                               this.configuration.isClassLoaderCacheEnabled() );
 
         this.defaultDialect = this.configuration.getDefaultDialect();
 
         this.pkgRegistryMap = new HashMap<String, PackageRegistry>();
-        this.results = new ArrayList();
+        this.results = new ArrayList<DroolsError>();
 
         PackageRegistry pkgRegistry = new PackageRegistry( this,
                                                            pkg );
@@ -233,20 +203,28 @@ public class PackageBuilder {
         this.pkgRegistryMap.put( pkg.getName(),
                                  pkgRegistry );
 
-        globals = new HashMap<String, Class<?>>();
+        globals = new HashMap<String, Class< ? >>();
     }
 
     public PackageBuilder(RuleBase ruleBase,
                           PackageBuilderConfiguration configuration) {
         if ( configuration == null ) {
-            configuration = new PackageBuilderConfiguration();
+            this.configuration = new PackageBuilderConfiguration();
+        } else {
+            this.configuration = configuration;
         }
-        this.configuration = configuration;
 
         if ( ruleBase != null ) {
             this.rootClassLoader = ((InternalRuleBase) ruleBase).getRootClassLoader();
         } else {
-            this.rootClassLoader = new CompositeClassLoader( this.configuration.getClassLoader() );
+            this.rootClassLoader = new DroolsCompositeClassLoader( this.configuration.getClassLoader(),
+                                                                   this.configuration.isClassLoaderCacheEnabled() );
+        }
+
+        this.dateFormats = null;//(DateFormats) this.environment.get( EnvironmentName.DATE_FORMATS );
+        if ( this.dateFormats == null ) {
+            this.dateFormats = new DateFormatsImpl();
+            //this.environment.set( EnvironmentName.DATE_FORMATS , this.dateFormats );
         }
 
         // FIXME, we need to get drools to support "default" namespace.
@@ -254,11 +232,11 @@ public class PackageBuilder {
         this.defaultDialect = this.configuration.getDefaultDialect();
 
         this.pkgRegistryMap = new HashMap<String, PackageRegistry>();
-        this.results = new ArrayList();
+        this.results = new ArrayList<DroolsError>();
 
         this.ruleBase = (ReteooRuleBase) ruleBase;
 
-        globals = new HashMap<String, Class<?>>();
+        globals = new HashMap<String, Class< ? >>();
     }
 
     /**
@@ -365,6 +343,9 @@ public class PackageBuilder {
         DefaultExpander expander = getDslExpander();
 
         try {
+            if ( expander == null ) {
+                expander = new DefaultExpander();
+            }
             String str = expander.expand( resource.getReader() );
             if ( expander.hasErrors() ) {
                 this.results.addAll( expander.getErrors() );
@@ -381,20 +362,25 @@ public class PackageBuilder {
         this.resource = null;
     }
 
-    public void addPackageFromBrl(final Resource resource)
-			throws DroolsParserException, IOException {
-		this.resource = resource;
+    public void addPackageFromBrl(final Resource resource) throws DroolsParserException,
+                                                          IOException {
+        this.resource = resource;
 
-        String brl = loadBrlFile(resource.getReader());
-		RuleModel model = BRXMLPersistence.getInstance().unmarshal(brl);
-		String drl = BRDRLPersistence.getInstance().marshal(model);
+        String brl = loadBrlFile( resource.getReader() );
+        RuleModel model = BRXMLPersistence.getInstance().unmarshal( brl );
+        String drl = BRDRLPersistence.getInstance().marshal( model );
         final DrlParser parser = new DrlParser();
         DefaultExpander expander = getDslExpander();
 
         try {
-            String str = expander.expand( new StringReader(drl) );
-            if ( expander.hasErrors() ) {
-                this.results.addAll( expander.getErrors() );
+            String str;
+            if ( expander != null ) {
+                str = expander.expand( new StringReader( drl ) );
+                if ( expander.hasErrors() ) {
+                    this.results.addAll( expander.getErrors() );
+                }
+            } else {
+                str = drl;
             }
 
             final PackageDescr pkg = parser.parse( str );
@@ -406,10 +392,10 @@ public class PackageBuilder {
             throw new RuntimeException( e );
         }
         this.resource = null;
-	}
+    }
 
     private String loadBrlFile(final Reader drl) throws IOException {
-        final StringBuffer buf = new StringBuffer();
+        final StringBuilder buf = new StringBuilder();
         final BufferedReader input = new BufferedReader( drl );
         String line = null;
         while ( (line = input.readLine()) != null ) {
@@ -418,7 +404,7 @@ public class PackageBuilder {
         }
         return buf.toString();
     }
-    
+
     public void addDsl(Resource resource) throws IOException {
         this.resource = resource;
 
@@ -483,49 +469,56 @@ public class PackageBuilder {
                                      ResourceType type,
                                      ResourceConfiguration configuration) {
         try {
-            if ( ResourceType.DRL.equals( type )) {
-               ((InternalResource) resource).setResourceType( type );
+            if ( ResourceType.DRL.equals( type ) ) {
+                ((InternalResource) resource).setResourceType( type );
                 addPackageFromDrl( resource );
-            } else if ( ResourceType.DSLR.equals( type )) {
+            } else if ( ResourceType.DSLR.equals( type ) ) {
                 ((InternalResource) resource).setResourceType( type );
                 addPackageFromDslr( resource );
-            } else if ( ResourceType.DSL.equals( type )) {
+            } else if ( ResourceType.DSL.equals( type ) ) {
                 ((InternalResource) resource).setResourceType( type );
                 addDsl( resource );
-            } else if ( ResourceType.XDRL.equals( type )) {
+            } else if ( ResourceType.XDRL.equals( type ) ) {
                 ((InternalResource) resource).setResourceType( type );
                 addPackageFromXml( resource );
-            } else if ( ResourceType.BRL.equals( type )) {
-                ((InternalResource) resource).setResourceType( type ); 
+            } else if ( ResourceType.BRL.equals( type ) ) {
+                ((InternalResource) resource).setResourceType( type );
                 addPackageFromBrl( resource );
-            } else if ( ResourceType.DRF.equals( type )) {
+            } else if ( ResourceType.DRF.equals( type ) ) {
                 ((InternalResource) resource).setResourceType( type );
                 addProcessFromXml( resource );
-            } else if ( ResourceType.DTABLE.equals( type )) {
+            } else if ( ResourceType.BPMN2.equals( type ) ) {
+                ((InternalResource) resource).setResourceType( type );
+                BPMN2ProcessFactory.configurePackageBuilder( this );
+                addProcessFromXml( resource );
+            } else if ( ResourceType.DTABLE.equals( type ) ) {
                 ((InternalResource) resource).setResourceType( type );
                 DecisionTableConfiguration dtableConfiguration = (DecisionTableConfiguration) configuration;
 
                 String string = DecisionTableFactory.loadFromInputStream( resource.getInputStream(),
                                                                           dtableConfiguration );
                 addPackageFromDrl( new StringReader( string ) );
-            } else if ( ResourceType.PKG.equals( type )) {
+            } else if ( ResourceType.PKG.equals( type ) ) {
                 InputStream is = resource.getInputStream();
-                Package pkg = (Package) DroolsStreamUtils.streamIn( is );
+                Package pkg = (Package) DroolsStreamUtils.streamIn( is,
+                                                                    this.configuration.getClassLoader() );
                 is.close();
                 addPackage( pkg );
-            } else if ( ResourceType.CHANGE_SET.equals( type )) {
+            } else if ( ResourceType.CHANGE_SET.equals( type ) ) {
                 ((InternalResource) resource).setResourceType( type );
                 XmlChangeSetReader reader = new XmlChangeSetReader( this.configuration.getSemanticModules() );
                 if ( resource instanceof ClassPathResource ) {
-                    reader.setClassLoader( ((ClassPathResource) resource).getClassLoader() );
+                    reader.setClassLoader( ((ClassPathResource) resource).getClassLoader(),
+                                           ((ClassPathResource) resource).getClazz() );
                 } else {
-                    reader.setClassLoader( this.configuration.getClassLoader() );
+                    reader.setClassLoader( this.configuration.getClassLoader(),
+                                           null );
                 }
-                ChangeSet chageSet = reader.read( resource.getReader() );
-                if ( chageSet == null ) {
+                ChangeSet changeSet = reader.read( resource.getReader() );
+                if ( changeSet == null ) {
                     // @TODO should log an error
                 }
-                for ( Resource nestedResource : chageSet.getResourcesAdded() ) {
+                for ( Resource nestedResource : changeSet.getResourcesAdded() ) {
                     InternalResource iNestedResourceResource = (InternalResource) nestedResource;
                     if ( iNestedResourceResource.isDirectory() ) {
                         this.resourceDirectories.add( iNestedResourceResource );
@@ -545,13 +538,15 @@ public class PackageBuilder {
                     }
                 }
             } else {
-            	ResourceTypeBuilder builder = ResourceTypeBuilderRegistry.getInstance().getResourceTypeBuilder(type);
-            	if (builder != null) {
-	            	builder.setPackageBuilder(this);
-	            	builder.addKnowledgeResource(resource, type, configuration);
-            	} else {
-            		throw new RuntimeException("Unknown resource type: " + type);
-            	}
+                ResourceTypeBuilder builder = ResourceTypeBuilderRegistry.getInstance().getResourceTypeBuilder( type );
+                if ( builder != null ) {
+                    builder.setPackageBuilder( this );
+                    builder.addKnowledgeResource( resource,
+                                                  type,
+                                                  configuration );
+                } else {
+                    throw new RuntimeException( "Unknown resource type: " + type );
+                }
             }
         } catch ( RuntimeException e ) {
             throw e;
@@ -582,7 +577,7 @@ public class PackageBuilder {
         if ( isEmpty( packageDescr.getNamespace() ) ) {
             packageDescr.setNamespace( this.configuration.getDefaultPackageName() );
         }
-        if( ! checkNamespace( packageDescr.getNamespace() ) ) {
+        if ( !checkNamespace( packageDescr.getNamespace() ) ) {
             return;
         }
 
@@ -601,7 +596,8 @@ public class PackageBuilder {
         // only try to compile if there are no parse errors
         if ( !hasErrors() ) {
             for ( final FactTemplateDescr factTempl : packageDescr.getFactTemplates() ) {
-                addFactTemplate( packageDescr, factTempl );
+                addFactTemplate( packageDescr,
+                                 factTempl );
             }
 
             if ( !packageDescr.getFunctions().isEmpty() ) {
@@ -644,7 +640,8 @@ public class PackageBuilder {
                     ruleDescr.setNamespace( packageDescr.getNamespace() );
                 }
                 if ( isEmpty( ruleDescr.getDialect() ) ) {
-                    ruleDescr.addAttribute( new AttributeDescr( "dialect", pkgRegistry.getDialect() ) );
+                    ruleDescr.addAttribute( new AttributeDescr( "dialect",
+                                                                pkgRegistry.getDialect() ) );
                 }
                 addRule( ruleDescr );
             }
@@ -670,7 +667,7 @@ public class PackageBuilder {
      */
     private boolean checkNamespace(String newName) {
         if ( this.configuration == null ) return true;
-        if( (! this.pkgRegistryMap.isEmpty()) && (! this.pkgRegistryMap.containsKey( newName )) ) {
+        if ( (!this.pkgRegistryMap.isEmpty()) && (!this.pkgRegistryMap.containsKey( newName )) ) {
             return this.configuration.isAllowMultipleNamespaces();
         }
         return true;
@@ -747,7 +744,7 @@ public class PackageBuilder {
                 // add type declarations
                 for ( TypeDeclaration type : newPkg.getTypeDeclarations().values() ) {
                     lastType = type;
-                    type.setTypeClass( this.rootClassLoader.loadClass( pkg.getName() + "." + type.getTypeName() ) );
+                    type.setTypeClass( this.rootClassLoader.loadClass( type.getTypeClassName() ) );
                 }
             }
         } catch ( ClassNotFoundException e ) {
@@ -904,7 +901,7 @@ public class PackageBuilder {
             final String identifier = global.getIdentifier();
             final String className = global.getType();
 
-            Class<?> clazz;
+            Class< ? > clazz;
             try {
                 clazz = pkgRegistry.getTypeResolver().resolveType( className );
                 pkgRegistry.getPackage().addGlobal( identifier,
@@ -1016,10 +1013,10 @@ public class PackageBuilder {
                 }
                 type.setExpirationOffset( timeParser.parse( expiration )[0].longValue() );
             }
-            
+
             boolean dynamic = typeDescr.getMetaAttributes().containsKey( TypeDeclaration.ATTR_PROP_CHANGE_SUPPORT );
             type.setDynamic( dynamic );
-            
+
             pkgRegistry.getPackage().addTypeDeclaration( type );
         }
     }
@@ -1069,7 +1066,10 @@ public class PackageBuilder {
         // need to fix classloader?
         ClassBuilder cb = new ClassBuilder();
         String fullName = typeDescr.getNamespace() + "." + typeDescr.getTypeName();
-        ClassDefinition def = new ClassDefinition( fullName );
+        // generated beans should be serializable
+        ClassDefinition def = new ClassDefinition( fullName,
+                                                   Object.class.getName(),
+                                                   new String[]{Serializable.class.getName()} );
         Map<String, TypeFieldDescr> flds = typeDescr.getFields();
         try {
             for ( TypeFieldDescr field : flds.values() ) {
@@ -1120,7 +1120,8 @@ public class PackageBuilder {
                                         pkgRegistry.getTypeResolver() );
     }
 
-    private void addFactTemplate(final PackageDescr pkgDescr, final FactTemplateDescr factTemplateDescr) {
+    private void addFactTemplate(final PackageDescr pkgDescr,
+                                 final FactTemplateDescr factTemplateDescr) {
         final List fields = new ArrayList();
         int index = 0;
         PackageRegistry pkgRegistry = this.pkgRegistryMap.get( pkgDescr.getNamespace() );
@@ -1186,8 +1187,8 @@ public class PackageBuilder {
      */
     public Package getPackage() {
         PackageRegistry pkgRegistry = null;
-        if( ! this.pkgRegistryMap.isEmpty() ) {
-            pkgRegistry = (PackageRegistry) this.pkgRegistryMap.values().toArray()[0]; 
+        if ( !this.pkgRegistryMap.isEmpty() ) {
+            pkgRegistry = (PackageRegistry) this.pkgRegistryMap.values().toArray()[0];
         }
         Package pkg = null;
         if ( pkgRegistry != null ) {
@@ -1235,13 +1236,17 @@ public class PackageBuilder {
         return this.pkgRegistryMap;
     }
 
+    public DateFormats getDateFormats() {
+        return this.dateFormats;
+    }
+
     /**
      * Returns an expander for DSLs (only if there is a DSL configured for this package).
      */
     public DefaultExpander getDslExpander() {
         DefaultExpander expander = new DefaultExpander();
         if ( this.dslFiles == null || this.dslFiles.isEmpty() ) {
-            return expander;
+            return null;
         }
         for ( DSLMappingFile file : this.dslFiles ) {
             expander.addDSLMapping( file.getMapping() );
@@ -1249,7 +1254,7 @@ public class PackageBuilder {
         return expander;
     }
 
-    public Map<String, Class<?>> getGlobals() {
+    public Map<String, Class< ? >> getGlobals() {
         return this.globals;
     }
 
@@ -1258,7 +1263,7 @@ public class PackageBuilder {
      * compiling phase
      */
     public boolean hasErrors() {
-        return this.results.size() > 0;
+        return !this.results.isEmpty();
     }
 
     /**
@@ -1266,7 +1271,7 @@ public class PackageBuilder {
      *         the package.
      */
     public PackageBuilderErrors getErrors() {
-        return new PackageBuilderErrors( (DroolsError[]) this.results.toArray( new DroolsError[this.results.size()] ) );
+        return new PackageBuilderErrors( this.results.toArray( new DroolsError[this.results.size()] ) );
     }
 
     /**
@@ -1478,7 +1483,7 @@ public class PackageBuilder {
         }
 
         public String toString() {
-            final StringBuffer buf = new StringBuffer();
+            final StringBuilder buf = new StringBuilder();
             buf.append( this.message );
             buf.append( " : " );
             buf.append( "\n" );
@@ -1500,7 +1505,7 @@ public class PackageBuilder {
         return name.toUpperCase().charAt( 0 ) + name.substring( 1 );
     }
 
-    public CompositeClassLoader getRootClassLoader() {
+    public DroolsCompositeClassLoader getRootClassLoader() {
         return this.rootClassLoader;
     }
 }

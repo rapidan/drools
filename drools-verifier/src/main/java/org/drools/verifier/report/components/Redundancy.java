@@ -1,39 +1,56 @@
 package org.drools.verifier.report.components;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import org.drools.verifier.data.VerifierComponent;
+
 /**
- * Presents a redundancy between two Causes. The link between them can be WEAK
- * or STRONG.
+ * Object type that indicates a redundancy between two objects.
  * 
- * WEAK redundancy is for example two VerifierRules, but not theyr's rule
- * possibilities. STRONG redundancy includes possibilities.
+ * Redundancy happens when all the possible values satisfy both objects.
+ * 
+ * Example:
+ * A: x == 10
+ * B: x == 10
  * 
  * @author Toni Rikkola
  */
-public class Redundancy extends Subsumption implements Cause {
-	// By default the redundancy is weak.
-	private final RedundancyType type;
+public class Redundancy
+    implements
+    Cause {
 
-	public Redundancy(Cause left, Cause right) {
-		super(left, right);
-		type = RedundancyType.WEAK;
-	}
+    private final List<VerifierComponent> items = new ArrayList<VerifierComponent>( 2 );
 
-	public Redundancy(RedundancyType type, Cause left, Cause right) {
-		super(left, right);
-		this.type = type;
-	}
+    private final Collection<Cause>       causes;
 
-	public CauseType getCauseType() {
-		return CauseType.REDUNDANCY;
-	}
+    public Redundancy(VerifierComponent first,
+                      VerifierComponent second) {
+        items.add( first );
+        items.add( second );
+        this.causes = Collections.emptyList();
+    }
 
-	public RedundancyType getType() {
-		return type;
-	}
+    public Redundancy(VerifierComponent first,
+                      VerifierComponent second,
+                      Collection<Cause> causes) {
+        items.add( first );
+        items.add( second );
+        this.causes = causes;
+    }
 
-	@Override
-	public String toString() {
-		return "Redundancy between: (" + getLeft() + ") and (" + getRight()
-				+ ").";
-	}
+    public List<VerifierComponent> getItems() {
+        return items;
+    }
+
+    @Override
+    public String toString() {
+        return "Redundancy between: (" + items.get( 0 ) + ") and (" + items.get( 1 ) + ").";
+    }
+
+    public Collection<Cause> getCauses() {
+        return causes;
+    }
 }

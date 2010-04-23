@@ -13,28 +13,27 @@ import org.drools.base.DroolsQuery;
 import org.drools.command.Command;
 import org.drools.command.CommandFactory;
 import org.drools.command.Setter;
+import org.drools.command.runtime.BatchExecutionCommand;
+import org.drools.command.runtime.GetGlobalCommand;
+import org.drools.command.runtime.SetGlobalCommand;
+import org.drools.command.runtime.process.AbortWorkItemCommand;
+import org.drools.command.runtime.process.CompleteWorkItemCommand;
+import org.drools.command.runtime.process.SignalEventCommand;
+import org.drools.command.runtime.process.StartProcessCommand;
+import org.drools.command.runtime.rule.FireAllRulesCommand;
+import org.drools.command.runtime.rule.GetObjectCommand;
+import org.drools.command.runtime.rule.GetObjectsCommand;
+import org.drools.command.runtime.rule.InsertElementsCommand;
+import org.drools.command.runtime.rule.InsertObjectCommand;
+import org.drools.command.runtime.rule.ModifyCommand;
+import org.drools.command.runtime.rule.QueryCommand;
+import org.drools.command.runtime.rule.RetractCommand;
+import org.drools.common.DefaultFactHandle;
 import org.drools.common.DisconnectedFactHandle;
-import org.drools.common.InternalFactHandle;
-import org.drools.process.command.AbortWorkItemCommand;
-import org.drools.process.command.CompleteWorkItemCommand;
-import org.drools.process.command.FireAllRulesCommand;
-import org.drools.process.command.GetGlobalCommand;
-import org.drools.process.command.GetObjectCommand;
-import org.drools.process.command.GetObjectsCommand;
-import org.drools.process.command.InsertElementsCommand;
-import org.drools.process.command.InsertObjectCommand;
-import org.drools.process.command.ModifyCommand;
-import org.drools.process.command.QueryCommand;
-import org.drools.process.command.RetractCommand;
-import org.drools.process.command.SetGlobalCommand;
-import org.drools.process.command.SignalEventCommand;
-import org.drools.process.command.StartProcessCommand;
-import org.drools.process.command.ModifyCommand.SetterImpl;
 import org.drools.rule.Declaration;
 import org.drools.runtime.ExecutionResults;
 import org.drools.runtime.help.BatchExecutionHelperProvider;
-import org.drools.runtime.impl.BatchExecutionImpl;
-import org.drools.runtime.impl.BatchExecutionResultImpl;
+import org.drools.runtime.impl.ExecutionResultImpl;
 import org.drools.runtime.rule.FactHandle;
 import org.drools.runtime.rule.QueryResults;
 import org.drools.runtime.rule.QueryResultsRow;
@@ -54,20 +53,21 @@ import com.thoughtworks.xstream.mapper.Mapper;
 public class BatchExecutionHelperProviderImpl
     implements
     BatchExecutionHelperProvider {
-
+    
     public XStream newXStreamMarshaller() {
+        return newXStreamMarshaller( new XStream());
+    }
+
+    public XStream newXStreamMarshaller(XStream xstream) {
         ElementNames names = new XmlElementNames();
-        // ElementNames names = new JsonElementNames();
-
-        // XStream xstream = new XStream( new JettisonMappedXmlDriver() );
-        XStream xstream = new XStream();
+        
         // xstream.setMode( XStream.NO_REFERENCES );
-        xstream.processAnnotations( BatchExecutionImpl.class );
-        xstream.addImplicitCollection( BatchExecutionImpl.class,
+        xstream.processAnnotations( BatchExecutionCommand.class );
+        xstream.addImplicitCollection( BatchExecutionCommand.class,
                                        "commands" );
-
+        
         xstream.alias( "batch-execution",
-                       BatchExecutionImpl.class );
+        		BatchExecutionCommand.class );
         xstream.alias( "insert",
                        InsertObjectCommand.class );
         xstream.alias( "modify",
@@ -93,7 +93,7 @@ public class BatchExecutionHelperProviderImpl
         xstream.alias( "get-objects",
                        GetObjectsCommand.class );
         xstream.alias( "execution-results",
-                       BatchExecutionResultImpl.class );
+                       ExecutionResultImpl.class );
         xstream.alias( "fire-all-rules",
                        FireAllRulesCommand.class );
         xstream.alias( "query",
@@ -102,6 +102,7 @@ public class BatchExecutionHelperProviderImpl
                        FlatQueryResults.class );
         xstream.alias( "query-results",
                        NativeQueryResults.class );
+        xstream.alias("fact-handle", DefaultFactHandle.class);
 
         xstream.registerConverter( new InsertConverter( xstream.getMapper() ) );
         xstream.registerConverter( new RetractConverter( xstream.getMapper() ) );
@@ -119,6 +120,7 @@ public class BatchExecutionHelperProviderImpl
         xstream.registerConverter( new GetObjectsConverter( xstream.getMapper() ) );
         xstream.registerConverter( new BatchExecutionResultConverter( xstream.getMapper() ) );
         xstream.registerConverter( new QueryResultsConverter( xstream.getMapper() ) );
+        xstream.registerConverter( new FactHandleConverter(xstream.getMapper()));
 
         return xstream;
     }
@@ -220,6 +222,29 @@ public class BatchExecutionHelperProviderImpl
             return clazz.equals( InsertObjectCommand.class );
         }
 
+    }
+
+    public static class FactHandleConverter extends AbstractCollectionConverter
+        implements
+        Converter {
+        public FactHandleConverter(Mapper mapper) {
+            super(mapper);
+        }
+
+        public boolean canConvert(Class aClass) {
+            return FactHandle.class.isAssignableFrom(aClass);
+        }
+
+        public void marshal(Object object, HierarchicalStreamWriter writer, MarshallingContext marshallingContext) {
+            FactHandle fh = (FactHandle) object;
+            //writer.startNode("fact-handle");
+            writer.addAttribute("externalForm", fh.toExternalForm());
+            //writer.endNode();
+        }
+
+        public Object unmarshal(HierarchicalStreamReader hierarchicalStreamReader, UnmarshallingContext unmarshallingContext) {
+            throw new UnsupportedOperationException("Unable to unmarshal fact handles.");
+        }
     }
 
     public static class ModifyConverter extends AbstractCollectionConverter
@@ -652,7 +677,7 @@ public class BatchExecutionHelperProviderImpl
                                 UnmarshallingContext context) {
             String processId = reader.getAttribute( "processId" );
 
-            Map<String, Object> params = new HashMap<String, Object>();
+            HashMap<String, Object> params = new HashMap<String, Object>();
             while ( reader.hasMoreChildren() ) {
                 reader.moveDown();
                 String identifier = reader.getAttribute( "identifier" );
@@ -843,7 +868,7 @@ public class BatchExecutionHelperProviderImpl
                 writer.endNode();
             }
 
-            for ( String identifier : ((BatchExecutionResultImpl) result).getFactHandles().keySet() ) {
+            for ( String identifier : ((ExecutionResultImpl) result).getFactHandles().keySet() ) {
 
                 Object handle = result.getFactHandle( identifier );
                 if ( handle instanceof FactHandle ) {
@@ -873,7 +898,7 @@ public class BatchExecutionHelperProviderImpl
 
         public Object unmarshal(HierarchicalStreamReader reader,
                                 UnmarshallingContext context) {
-            BatchExecutionResultImpl result = new BatchExecutionResultImpl();
+            ExecutionResultImpl result = new ExecutionResultImpl();
             Map results = result.getResults();
             Map facts = result.getFactHandles();
 
@@ -984,18 +1009,18 @@ public class BatchExecutionHelperProviderImpl
             }
             reader.moveUp();
 
-            Map<String, Integer> identifiers = new HashMap<String, Integer>();
+            HashMap<String, Integer> identifiers = new HashMap<String, Integer>();
             for ( int i = 0; i < list.size(); i++ ) {
                 identifiers.put( list.get( i ),
                                  i );
             }
 
-            List results = new ArrayList();      
-            List<List<FactHandle>> resultHandles = new ArrayList();
+            ArrayList<ArrayList<Object>> results = new ArrayList();      
+            ArrayList<ArrayList<FactHandle>> resultHandles = new ArrayList();
             while ( reader.hasMoreChildren() ) {
                 reader.moveDown();
-                List objects = new ArrayList();
-                List<FactHandle> handles = new ArrayList();
+                ArrayList objects = new ArrayList();
+                ArrayList<FactHandle> handles = new ArrayList();
                 while ( reader.hasMoreChildren() ) {
                     reader.moveDown();
                     Object object = readItem( reader,

@@ -11,22 +11,24 @@ import org.drools.concurrent.ExecutorService;
 import org.drools.event.AgendaEventSupport;
 import org.drools.event.RuleFlowEventSupport;
 import org.drools.event.WorkingMemoryEventSupport;
-import org.drools.impl.StatelessKnowledgeSessionImpl;
 import org.drools.process.instance.ProcessInstance;
 import org.drools.process.instance.ProcessInstanceManager;
 import org.drools.reteoo.LIANodePropagation;
+import org.drools.reteoo.ObjectTypeConf;
 import org.drools.reteoo.PartitionTaskManager;
+import org.drools.rule.EntryPoint;
 import org.drools.rule.Rule;
 import org.drools.rule.TimeMachine;
-import org.drools.runtime.ExecutionResults;
+import org.drools.runtime.Calendars;
 import org.drools.runtime.ExitPoint;
 import org.drools.runtime.KnowledgeRuntime;
-import org.drools.runtime.impl.BatchExecutionResultImpl;
+import org.drools.runtime.impl.ExecutionResultImpl;
 import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 import org.drools.spi.Activation;
 import org.drools.spi.FactHandleFactory;
 import org.drools.spi.PropagationContext;
 import org.drools.time.TimerService;
+import org.drools.type.DateFormats;
 
 public interface InternalWorkingMemory
     extends
@@ -62,6 +64,14 @@ public interface InternalWorkingMemory
     public void queueWorkingMemoryAction(final WorkingMemoryAction action);
 
     public FactHandleFactory getFactHandleFactory();
+    
+    public EntryPoint getEntryPoint();
+    
+    public void insert(final InternalFactHandle handle,
+                       final Object object,
+                       final Rule rule,
+                       final Activation activation,
+                       ObjectTypeConf typeConf);    
     
     /**
      * Looks for the fact handle associated to the given object
@@ -105,6 +115,8 @@ public interface InternalWorkingMemory
     
     public InternalFactHandle getInitialFactHandle();       
     
+    public Calendars getCalendars();
+    
     /**
      * Returns the TimerService instance (session clock) for this
      * session.
@@ -121,7 +133,7 @@ public interface InternalWorkingMemory
      *
      * @return the PartitionTaskManager
      */
-    public PartitionTaskManager getPartitionManager( RuleBasePartitionId partitionId );
+    public PartitionTaskManager getPartitionTaskManager( RuleBasePartitionId partitionId );
     
     public void setKnowledgeRuntime(KnowledgeRuntime kruntime);
     
@@ -134,9 +146,75 @@ public interface InternalWorkingMemory
     public SessionConfiguration getSessionConfiguration();
     
     
-    public void startBatchExecution();
+    public void startBatchExecution(ExecutionResultImpl results);
     
-    public BatchExecutionResultImpl getExecutionResult();
+    public ExecutionResultImpl getExecutionResult();
     
     public void endBatchExecution();
+    
+    /**
+     * This method must be called before starting any new work in the engine,
+     * like inserting a new fact or firing a new rule. It will reset the engine
+     * idle time counter.
+     * 
+     * This method must be extremely light to avoid contentions when called by 
+     * multiple threads/entry-points
+     */
+    public void startOperation();
+
+    /**
+     * This method must be called after finishing any work in the engine,
+     * like inserting a new fact or firing a new rule. It will reset the engine
+     * idle time counter.
+     * 
+     * This method must be extremely light to avoid contentions when called by 
+     * multiple threads/entry-points
+     */
+    public void endOperation();
+    
+    /**
+     * Returns the number of time units (usually ms) that the engine is idle
+     * according to the session clock or -1 if it is not idle.
+     * 
+     * This method is not synchronised and might return an approximate value.
+     *  
+     * @return
+     */
+    public long getIdleTime();
+    
+    /**
+     * Returns the number of time units (usually ms) to
+     * the next scheduled job
+     * 
+     * @return the number of time units until the next scheduled job or -1 if
+     *         there is no job scheduled
+     */
+    public long getTimeToNextJob();
+    
+    public void updateEntryPointsCache();     
+    
+    /**
+     * This method is called by the agenda before firing a new activation
+     * to ensure the working memory is in a safe state to fire the activation.
+     */
+    public void prepareToFireActivation();
+    
+    /**
+     * This method is called by the agenda right after an activation was fired
+     * to allow the working memory to resume any activities blocked during 
+     * activation firing. 
+     */
+    public void activationFired();
+    
+    /**
+     * Returns the total number of facts in the working memory, i.e., counting
+     * all facts from all entry points. This is an approximate value and may not
+     * be accurate due to the concurrent nature of the entry points.
+     * 
+     * @return
+     */
+    public long getTotalFactCount();
+    
+    public DateFormats getDateFormats();  
+
 }

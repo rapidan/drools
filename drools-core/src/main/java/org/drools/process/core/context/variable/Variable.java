@@ -17,6 +17,8 @@ package org.drools.process.core.context.variable;
  */
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.drools.process.core.TypeObject;
 import org.drools.process.core.ValueObject;
@@ -35,6 +37,7 @@ public class Variable implements TypeObject, ValueObject, Serializable {
     private String name;
     private DataType type;
     private Object value;
+    private Map<String, Object> metaData = new HashMap<String, Object>();
 
     public Variable() {
         this.type = UndefinedDataType.getInstance();
@@ -67,7 +70,7 @@ public class Variable implements TypeObject, ValueObject, Serializable {
         if ( this.type.verifyDataType( value ) ) {
             this.value = value;
         } else {
-            final StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             sb.append( "Value <" );
             sb.append( value );
             sb.append( "> is not valid for datatype: " );
@@ -76,6 +79,14 @@ public class Variable implements TypeObject, ValueObject, Serializable {
         }
     }
 
+    public void setMetaData(String name, Object value) {
+        this.metaData.put(name, value);
+    }
+    
+    public Object getMetaData(String name) {
+        return this.metaData.get(name);
+    }
+    
     public String toString() {
         return this.name;
     }

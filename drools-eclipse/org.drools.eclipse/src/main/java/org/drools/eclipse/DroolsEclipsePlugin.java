@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
+import org.drools.bpmn2.xml.BPMNSemanticModule;
 import org.drools.compiler.DrlParser;
 import org.drools.compiler.DroolsError;
 import org.drools.compiler.DroolsParserException;
@@ -33,6 +34,8 @@ import org.drools.compiler.PackageBuilder;
 import org.drools.compiler.PackageBuilderConfiguration;
 import org.drools.compiler.PackageRegistry;
 import org.drools.compiler.ProcessBuilder;
+import org.drools.compiler.xml.XmlProcessReader;
+import org.drools.core.util.StringUtils;
 import org.drools.eclipse.DRLInfo.FunctionInfo;
 import org.drools.eclipse.DRLInfo.RuleInfo;
 import org.drools.eclipse.builder.DroolsBuilder;
@@ -46,8 +49,7 @@ import org.drools.lang.descr.PackageDescr;
 import org.drools.process.core.Process;
 import org.drools.rule.Package;
 import org.drools.rule.builder.dialect.java.JavaDialectConfiguration;
-import org.drools.util.StringUtils;
-import org.drools.xml.XmlProcessReader;
+import org.drools.xml.SemanticModules;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceVisitor;
@@ -249,7 +251,7 @@ public class DroolsEclipsePlugin extends AbstractUIPlugin {
         store.setDefault( IDroolsConstants.DSL_RULE_EDITOR_COMPLETION_FULL_SENTENCES,
                           true );
         store.setDefault( IDroolsConstants.SKIN,
-                          "default" );
+                          "BPMN2" );
         store.setDefault( IDroolsConstants.ALLOW_NODE_CUSTOMIZATION,
         				  false );
         store.setDefault( IDroolsConstants.INTERNAL_API,
@@ -416,7 +418,7 @@ public class DroolsEclipsePlugin extends AbstractUIPlugin {
                 PackageBuilder builder = new PackageBuilder( builder_configuration );
                 DRLInfo result = null;
                 // compile parsed rules if necessary
-                if ( compile && !parser.hasErrors()) {
+                if ( packageDescr != null && compile && !parser.hasErrors()) {
                     // check whether a .package file exists and add it
                     if ( resource != null && resource.getParent() != null ) {
                         MyResourceVisitor visitor = new MyResourceVisitor();
@@ -513,7 +515,10 @@ public class DroolsEclipsePlugin extends AbstractUIPlugin {
                 }
                 configuration.setClassLoader( newLoader );
                 
-                XmlProcessReader xmlReader = new XmlProcessReader( configuration.getSemanticModules() );
+                SemanticModules modules = configuration.getSemanticModules();
+                modules.addSemanticModule( new BPMNSemanticModule() );
+                
+                XmlProcessReader xmlReader = new XmlProcessReader( modules );
                 Process process = (Process) xmlReader.read( new StringReader( input ) );
                 if ( process != null ) {
                     return parseProcess( process,

@@ -29,6 +29,7 @@ import org.drools.reteoo.ObjectSource;
 import org.drools.reteoo.ReteooBuilder;
 import org.drools.rule.Behavior;
 import org.drools.rule.EntryPoint;
+import org.drools.rule.Query;
 import org.drools.rule.Rule;
 import org.drools.rule.RuleConditionElement;
 import org.drools.time.TemporalDependencyMatrix;
@@ -87,6 +88,8 @@ public class BuildContext {
 
     /** This one is slightly different as alphaMemory can be adaptive, only turning on for new rule attachments */
     private boolean                          alphaNodeMemoryAllowed;
+    
+    private boolean                          query;
 
     /** Stores the list of nodes being added that require partitionIds */
     private List<BaseNode>                   nodes;
@@ -100,7 +103,6 @@ public class BuildContext {
     public BuildContext(final InternalRuleBase rulebase,
                         final ReteooBuilder.IdGenerator idGenerator) {
         this.rulebase = rulebase;
-        this.rule = rule;
 
         this.idGenerator = idGenerator;
 
@@ -222,7 +224,7 @@ public class BuildContext {
      */
     public InternalWorkingMemory[] getWorkingMemories() {
         if ( this.workingMemories == null ) {
-            this.workingMemories = (InternalWorkingMemory[]) this.rulebase.getWorkingMemories();
+            this.workingMemories = this.rulebase.getWorkingMemories();
         }
         return this.workingMemories;
     }
@@ -356,8 +358,14 @@ public class BuildContext {
     public boolean isAlphaMemoryAllowed() {
         return this.alphaNodeMemoryAllowed;
     }
+    
+    
 
-    /**
+    public boolean isQuery() {
+		return query;
+	}
+
+	/**
      * @return the currentEntryPoint
      */
     public EntryPoint getCurrentEntryPoint() {
@@ -431,6 +439,9 @@ public class BuildContext {
 
     public void setRule(Rule rule) {
         this.rule = rule;
+        if ( rule instanceof Query) {
+        	this.query = true;
+        }
     }
 
 }

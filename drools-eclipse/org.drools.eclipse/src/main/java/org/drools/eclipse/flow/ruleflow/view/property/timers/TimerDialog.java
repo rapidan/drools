@@ -18,6 +18,7 @@ package org.drools.eclipse.flow.ruleflow.view.property.timers;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.core.util.ArrayUtils;
 import org.drools.eclipse.editors.DRLSourceViewerConfig;
 import org.drools.eclipse.editors.scanners.DRLPartionScanner;
 import org.drools.eclipse.flow.common.view.property.EditBeanDialog;
@@ -27,7 +28,6 @@ import org.drools.eclipse.flow.ruleflow.view.property.constraint.RuleFlowGlobals
 import org.drools.eclipse.flow.ruleflow.view.property.constraint.RuleFlowImportsDialog;
 import org.drools.process.core.Process;
 import org.drools.process.core.timer.Timer;
-import org.drools.util.ArrayUtils;
 import org.drools.workflow.core.DroolsAction;
 import org.drools.workflow.core.WorkflowProcess;
 import org.drools.workflow.core.impl.DroolsConsequenceAction;
@@ -69,7 +69,7 @@ public class TimerDialog extends EditBeanDialog<DroolsAction> implements MapItem
     
     private static final String[] DIALECTS = new String[] { "mvel", "java" };
     
-    private Timer key;
+    private Timer timer;
     private Text delayText;
     private Text periodText;
 	private WorkflowProcess process;
@@ -100,8 +100,8 @@ public class TimerDialog extends EditBeanDialog<DroolsAction> implements MapItem
         gridData.grabExcessHorizontalSpace = true;
         gridData.horizontalAlignment = GridData.FILL;
         delayText.setLayoutData(gridData);
-        if (key != null) {
-        	delayText.setText(key.getDelay() + "");
+        if (timer != null && timer.getDelay() != null) {
+        	delayText.setText(timer.getDelay());
         }
         label = new Label(composite, SWT.NONE);
         label.setText("Timer period: ");
@@ -110,11 +110,11 @@ public class TimerDialog extends EditBeanDialog<DroolsAction> implements MapItem
         gridData.grabExcessHorizontalSpace = true;
         gridData.horizontalAlignment = GridData.FILL;
         periodText.setLayoutData(gridData);
-        if (key != null) {
-        	periodText.setText(key.getPeriod() + "");
+        if (timer != null && timer.getPeriod() != null) {
+        	periodText.setText(timer.getPeriod());
         }
         
-        		Composite top = new Composite(composite, SWT.NONE);
+        Composite top = new Composite(composite, SWT.NONE);
 		GridData gd = new GridData();
 		gd.horizontalSpan = 2;
 		gd.grabExcessHorizontalSpace = true;
@@ -273,28 +273,20 @@ public class TimerDialog extends EditBeanDialog<DroolsAction> implements MapItem
 	}
 
 	protected DroolsAction updateValue(DroolsAction value) {
-		if (key == null) {
-			key = new Timer();
+		if (timer == null) {
+			timer = new Timer();
 		}
-		try {
-			String delayString = delayText.getText().trim();
-			long delay = 0;
-			if (delayString.length() > 0) {
-				delay = new Long(delayString);
-			}
-			key.setDelay(delay);
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("Delay should be a long value");
+		String delay = delayText.getText().trim();
+		if (delay.length() == 0) {
+			timer.setDelay(null);
+		} else {
+			timer.setDelay(delay);
 		}
-		try {
-			String periodString = periodText.getText().trim();
-			long period = 0;
-			if (periodString.length() > 0) {
-				period = new Long(periodString);
-			}
-			key.setPeriod(period);
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("Period should be a long value");
+		String period = periodText.getText().trim();
+		if (period.length() == 0) {
+			timer.setPeriod(null);
+		} else {
+			timer.setPeriod(period);
 		}
         if (tabFolder.getSelectionIndex() == 0) {
             return getAction();
@@ -303,11 +295,11 @@ public class TimerDialog extends EditBeanDialog<DroolsAction> implements MapItem
     }
     
     public void setKey(Timer key) {
-    	this.key = key;
+    	this.timer = key;
     }
 
 	public Timer getKey() {
-		return key;
+		return timer;
 	}
     
 }

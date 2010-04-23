@@ -82,28 +82,30 @@ public class JavaAccumulateBuilder extends AbstractJavaRuleBuilder
             final JavaAnalysisResult analysis = (JavaAnalysisResult) context.getDialect().analyzeBlock( context,
                                                                                                         accumDescr,
                                                                                                         accumDescr.getExpression(),
-                                                                                                        new Map[]{context.getDeclarationResolver().getDeclarationClasses(context.getRule()), context.getPackageBuilder().getGlobals()} );
+                                                                                                        new Map[]{context.getDeclarationResolver().getDeclarationClasses( context.getRule() ), context.getPackageBuilder().getGlobals()} );
 
             final List[] usedIdentifiers = analysis.getBoundIdentifiers();
 
-            final List tupleDeclarations = new ArrayList();
+            final List<Declaration> tupleDeclarations = new ArrayList<Declaration>();
             for ( int i = 0, size = usedIdentifiers[0].size(); i < size; i++ ) {
-                tupleDeclarations.add( context.getDeclarationResolver().getDeclaration(context.getRule(), (String) usedIdentifiers[0].get( i ) ) );
+                tupleDeclarations.add( context.getDeclarationResolver().getDeclaration( context.getRule(),
+                                                                                        (String) usedIdentifiers[0].get( i ) ) );
             }
 
-            final Declaration[] previousDeclarations = (Declaration[]) tupleDeclarations.toArray( new Declaration[tupleDeclarations.size()] );
+            final Declaration[] previousDeclarations = tupleDeclarations.toArray( new Declaration[tupleDeclarations.size()] );
             final String[] requiredGlobals = (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] );
             final Declaration[] sourceDeclArr = (Declaration[]) source.getOuterDeclarations().values().toArray( new Declaration[0] );
 
             final String className = "accumulateExpression" + context.getNextId();
 
-            final Map map = createVariableContext( className,
-                                                   (String) accumDescr.getExpression(),
-                                                   context,
-                                                   previousDeclarations,
-                                                   sourceDeclArr,
-                                                   requiredGlobals );
-            map.put( "readLocalsFromTuple", accumDescr.isMultiPattern() ? Boolean.TRUE : Boolean.FALSE );
+            final Map<String, Object> map = createVariableContext( className,
+                                                                   (String) accumDescr.getExpression(),
+                                                                   context,
+                                                                   previousDeclarations,
+                                                                   sourceDeclArr,
+                                                                   requiredGlobals );
+            map.put( "readLocalsFromTuple",
+                     accumDescr.isMultiPattern() ? Boolean.TRUE : Boolean.FALSE );
 
             AccumulateFunction function = context.getConfiguration().getAccumulateFunction( accumDescr.getFunctionIdentifier() );
 
@@ -126,7 +128,7 @@ public class JavaAccumulateBuilder extends AbstractJavaRuleBuilder
             final String className = "Accumulate" + context.getNextId();
             accumDescr.setClassName( className );
 
-            Map<String,Class<?>>[] available = new Map[]{context.getDeclarationResolver().getDeclarationClasses(context.getRule()), context.getPackageBuilder().getGlobals()};
+            Map<String, Class< ? >>[] available = new Map[]{context.getDeclarationResolver().getDeclarationClasses( context.getRule() ), context.getPackageBuilder().getGlobals()};
             final JavaAnalysisResult initCodeAnalysis = (JavaAnalysisResult) context.getDialect().analyzeBlock( context,
                                                                                                                 accumDescr,
                                                                                                                 accumDescr.getInitCode(),
@@ -159,19 +161,20 @@ public class JavaAccumulateBuilder extends AbstractJavaRuleBuilder
 
             final Declaration[] declarations = new Declaration[requiredDeclarations.size()];
             int i = 0;
-            for( Iterator it = requiredDeclarations.iterator(); it.hasNext(); i++ ) {
-                declarations[i] = context.getDeclarationResolver().getDeclaration(context.getRule(), (String) it.next() );
+            for ( Iterator<String> it = requiredDeclarations.iterator(); it.hasNext(); i++ ) {
+                declarations[i] = context.getDeclarationResolver().getDeclaration( context.getRule(),
+                                                                                   it.next() );
             }
             final Declaration[] sourceDeclArr = (Declaration[]) source.getOuterDeclarations().values().toArray( new Declaration[0] );
 
-            final String[] globals = (String[]) requiredGlobals.toArray( new String[requiredGlobals.size()] );
+            final String[] globals = requiredGlobals.toArray( new String[requiredGlobals.size()] );
 
-            final Map map = createVariableContext( className,
-                                                   null,
-                                                   context,
-                                                   declarations,
-                                                   null,
-                                                   globals );
+            final Map<String, Object> map = createVariableContext( className,
+                                                                   null,
+                                                                   context,
+                                                                   declarations,
+                                                                   null,
+                                                                   globals );
 
             map.put( "className",
                      accumDescr.getClassName() );
@@ -188,10 +191,10 @@ public class JavaAccumulateBuilder extends AbstractJavaRuleBuilder
             String[] attributesTypes = new String[initCodeAnalysis.getLocalVariablesMap().size()];
             String[] attributes = new String[initCodeAnalysis.getLocalVariablesMap().size()];
             int index = 0;
-            for ( Iterator it = initCodeAnalysis.getLocalVariablesMap().entrySet().iterator(); it.hasNext(); ) {
-                Map.Entry entry = (Map.Entry) it.next();
-                attributes[index] = (String) entry.getKey();
-                attributesTypes[index] = ((JavaLocalDeclarationDescr) entry.getValue()).getType();
+            for ( Map.Entry<String, JavaLocalDeclarationDescr> entry : initCodeAnalysis.getLocalVariablesMap().entrySet() ) {
+                attributes[index] = entry.getKey();
+                attributesTypes[index] = entry.getValue().getType();
+                index++;
             }
 
             map.put( "attributes",
@@ -251,7 +254,7 @@ public class JavaAccumulateBuilder extends AbstractJavaRuleBuilder
             locals.add( it.next() );
         }
 
-        StringBuffer initCode = new StringBuffer();
+        StringBuilder initCode = new StringBuilder();
         int lastAdded = 0;
         for ( Iterator it = locals.iterator(); it.hasNext(); ) {
             JavaLocalDeclarationDescr d = (JavaLocalDeclarationDescr) it.next();

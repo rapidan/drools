@@ -8,20 +8,26 @@ import java.util.ArrayList;
 import org.drools.base.evaluators.Operator;
 import org.drools.base.evaluators.MatchesEvaluatorsDefinition;
 
+import org.drools.verifier.components.SubPattern;
 import org.drools.verifier.components.Restriction;
+import org.drools.verifier.components.Constraint;
 import org.drools.verifier.components.Pattern;
 import org.drools.verifier.components.VerifierRule;
-import org.drools.verifier.components.OperatorDescr;
-import org.drools.verifier.components.VerifierPredicateDescr;
-import org.drools.verifier.components.VerifierComponent;
+import org.drools.verifier.components.PatternOperatorDescr;
+import org.drools.verifier.components.Eval;
+import org.drools.verifier.data.VerifierComponent;
 import org.drools.verifier.components.VerifierComponentType;
+import org.drools.verifier.components.RuleComponent;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
+
+import java.util.Map;
+import java.util.HashMap;
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 
 # Informs that rule would be more effective if the less expensive
@@ -33,93 +39,59 @@ global VerifierResult result;
 #
 rule "Optimise restrictions inside operator"
 	when
-		$operator :OperatorDescr()
 
+		$sp : SubPattern()
+	
 		(
 				$r1 :Restriction(
-					parent.parent == $operator,
+					this memberOf $sp.items, 
 					( operator == Operator.EQUAL || == MatchesEvaluatorsDefinition.MATCHES )
-				)
-			and
-				# There is no reason to check if there is a less expensive constraint
-				# if this one has a restriction that is more expensive.
-				not Restriction(
-					parent == $r1.parent,
-					( operator == Operator.GREATER || == Operator.LESS || == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
-				)
+				) 
 			and
 				$r2 :Restriction(
-					parent.parent == $operator,
-					parent.orderNumber < $r1.parent.orderNumber,
+					this memberOf $sp.items,
+					path != $r1.path,
+					orderNumber < $r1.orderNumber,
 					( operator == Operator.GREATER || == Operator.LESS || == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
-				)
-			and
-				# The other restriction should not have any less expensive restrictions.
-				not Restriction(
-					parent == $r2.parent,
-					( operator == Operator.EQUAL || == MatchesEvaluatorsDefinition.MATCHES )
 				)
 		) or (
 				$r1 :Restriction(
-					parent.parent == $operator,
+					this memberOf $sp.items,
 					( operator == Operator.GREATER || == Operator.LESS )
 				)
 			and
-				# There is no reason to check if there is a less expensive constraint
-				# if this one has a restriction that is more expensive.
-				not Restriction(
-					parent == $r1.parent,
-					( operator == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
-				)
-			and
 				$r2 :Restriction(
-					parent.parent == $operator,
-					parent.orderNumber < $r1.parent.orderNumber,
+					this memberOf $sp.items,
+					path != $r1.path,
+					orderNumber < $r1.orderNumber,
 					( operator == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
-				)
-			and
-				# The other restriction should not have any less expensive restrictions.
-				not Restriction(
-					parent == $r2.parent,
-					( operator == Operator.EQUAL || == MatchesEvaluatorsDefinition.MATCHES || == Operator.GREATER || == Operator.LESS )
 				)
 		) or (
 				$r1 :Restriction(
-					parent.parent == $operator,
+					this memberOf $sp.items,
 					( operator == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL )
 				)
 			and
-				# There is no reason to check if there is a less expensive constraint
-				# if this one has a restriction that is more expensive.
-				not Restriction(
-					parent == $r1.parent,
-					( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
-				)
-			and
 				$r2 :Restriction(
-					parent.parent == $operator,
-					parent.orderNumber < $r1.parent.orderNumber,
+					this memberOf $sp.items,
+					path != $r1.path,
+					orderNumber < $r1.orderNumber,
 					( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
-				)
-			and
-				# The other restriction should not have any less expensive restrictions.
-				not Restriction(
-					parent == $r2.parent,
-					( operator == Operator.EQUAL || == MatchesEvaluatorsDefinition.MATCHES || == Operator.GREATER || == Operator.LESS || == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL )
 				)
 		)
 
-		$pattern :Pattern(
-			id == $r1.patternId
-		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $sp.getRulePath(), $sp.getRuleName());
+	
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.NOTE,
 								MessageType.OPTIMISATION,
-								$pattern,
+								$sp.getPattern(),
 								"Rule \"" + $r1.getRuleName() +
 								"\" would be more effective if the more restrictive component (" +
 								$r2 +
@@ -127,6 +99,7 @@ rule "Optimise restrictions inside operator"
 								$r1 + ").",
 								list ) );
 end
+
 
 # Informs that rule would be more effective if the less expensive
 # component was on the left side.
@@ -143,7 +116,8 @@ rule "Optimise restrictions inside constraint"
 				)
 			and
 				$r2 :Restriction(
-					parent == $r1.parent,
+					parentPath == $r1.parentPath,
+					parentType == $r1.parentType,
 					orderNumber < $r1.orderNumber,
 					( operator 	== Operator.GREATER || 
 								== Operator.LESS || 
@@ -159,7 +133,8 @@ rule "Optimise restrictions inside constraint"
 				)
 			and
 				$r2 :Restriction(
-					parent == $r1.parent,
+					parentPath == $r1.parentPath,
+					parentType == $r1.parentType,
 					orderNumber < $r1.orderNumber,
 					( operator 	== Operator.GREATER_OR_EQUAL || 
 								== Operator.LESS_OR_EQUAL || 
@@ -173,20 +148,25 @@ rule "Optimise restrictions inside constraint"
 				)
 			and
 				$r2 :Restriction(
-					parent == $r1.parent,
+					parentPath == $r1.parentPath,
+					parentType == $r1.parentType,
 					orderNumber < $r1.orderNumber,
 					( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
 				)
 		)
 
 		$pattern :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $pattern.getPath(), $pattern.getRuleName());
+	
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.NOTE,
 								MessageType.OPTIMISATION,
 								$pattern,
@@ -198,7 +178,7 @@ rule "Optimise restrictions inside constraint"
 								list ) );
 end
 
-# VerifierPredicateDescr should be last.
+# Eval should be last.
 #
 # Type: Note
 # Dependencies: None
@@ -206,34 +186,36 @@ end
 #
 rule "Optimise predicates inside operator"
 	when
-		$operator :OperatorDescr()
-
-		$predicate :VerifierPredicateDescr(
-			parent == $operator
+	
+		$subPattern : SubPattern(
+			$pattern :pattern
+		)
+	
+		$eval :Eval(
+			this memberOf $subPattern.items
 		)
 
-		# Any other VerifierComponent that is not predicate or operator
-		$other :VerifierComponent(
-			parent == $operator,
-			orderNumber > $predicate.orderNumber,
-			( componentType != VerifierComponentType.OPERATOR && != VerifierComponentType.PREDICATE )
-		)
-
-		$rule :VerifierRule(
-			id == $predicate.ruleId
+		$restriction :Restriction(
+			this memberOf $subPattern.items,
+			orderNumber > $eval.orderNumber
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $subPattern.getRulePath(), $subPattern.getRuleName());
+	
 		Collection list = new ArrayList();
-		list.add( $predicate );
-		list.add( $other );
+		list.add( $eval );
+		list.add( $restriction );
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.NOTE,
 								MessageType.OPTIMISATION,
-								$rule,
-								"Rule \"" + $predicate.getRuleName() +
+								$pattern,
+								"Rule \"" + $subPattern.getRuleName() +
 								"\" would be more effective if the less expensive component, (" +
-								$other +
+								$restriction +
 								"), could be before (" +
-								$predicate + ").",
+								$eval + ").",
 								list ) );
 end
+

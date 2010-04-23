@@ -8,7 +8,6 @@ import java.util.Map;
 import org.drools.reteoo.AccumulateNodeVertex;
 import org.drools.reteoo.AlphaNodeVertex;
 import org.drools.reteoo.BaseVertex;
-import org.drools.reteoo.CollectNodeVertex;
 import org.drools.reteoo.EntryPointNodeVertex;
 import org.drools.reteoo.EvalConditionNodeVertex;
 import org.drools.reteoo.ExistsNodeVertex;
@@ -99,6 +98,8 @@ public class VertexPropertySource
     // ObjectType specific
     private final IPropertyDescriptor PROP_OBJ_TYPE              = new PropertyDescriptor( "objectType",
                                                                                            "Object Type" );
+    private final IPropertyDescriptor PROP_EXP_OFFSET            = new PropertyDescriptor( "expirationOffset",
+                                                                                           "Expiration Offset" );
     
     // EntryPoint specific
     private final IPropertyDescriptor PROP_ENTRY_POINT_NAME      = new PropertyDescriptor( "entryPointName",
@@ -139,11 +140,7 @@ public class VertexPropertySource
             initAccumulateNodeProperties( (AccumulateNodeVertex) vertex,
                                           descriptorList,
                                           values );
-        } else if ( vertex instanceof CollectNodeVertex ) {
-            initCollectNodeProperties( (CollectNodeVertex) vertex,
-                                       descriptorList,
-                                       values );
-        } else if ( vertex instanceof RuleTerminalNodeVertex ) {
+        }else if ( vertex instanceof RuleTerminalNodeVertex ) {
             initTerminalNodeProperties( (RuleTerminalNodeVertex) vertex,
                     descriptorList,
                     values );
@@ -209,20 +206,6 @@ public class VertexPropertySource
 
     }
 
-    private void initCollectNodeProperties(CollectNodeVertex vertex,
-                                           List descriptorList,
-                                           Map valueMap) {
-        addProperty( PROP_NAME,
-                     VERTEX_COLLECT,
-                     descriptorList,
-                     valueMap );
-        addProperty( PROP_ID,
-                     Integer.toString( vertex.getId() ),
-                     descriptorList,
-                     valueMap );
-
-    }
-
     private void initAccumulateNodeProperties(AccumulateNodeVertex vertex,
                                               List descriptorList,
                                               Map valueMap) {
@@ -273,7 +256,10 @@ public class VertexPropertySource
                      vertex.getObjectType(),
                      descriptorList,
                      valueMap );
-
+        addProperty( PROP_EXP_OFFSET,
+                     vertex.getExpirationOffset(),
+                     descriptorList,
+                     valueMap );
     }
 
     private void initAlphaNodeProperties(AlphaNodeVertex vertex,

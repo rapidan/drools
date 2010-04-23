@@ -20,10 +20,10 @@ import java.io.Serializable;
 
 import org.drools.common.ActivationGroupNode;
 import org.drools.common.LogicalDependency;
-import org.drools.common.RuleFlowGroupNode;
+import org.drools.common.ActivationNode;
+import org.drools.core.util.LinkedList;
 import org.drools.rule.GroupElement;
 import org.drools.rule.Rule;
-import org.drools.util.LinkedList;
 
 /**
  * When a <code>Tuple</code> fully matches a rule it is added to the <code>Agenda</code>
@@ -101,8 +101,8 @@ public interface Activation
 
     public void setActivationGroupNode(ActivationGroupNode activationGroupNode);
 
-    public RuleFlowGroupNode getRuleFlowGroupNode();
+    public ActivationNode getActivationNode();
 
-    public void setRuleFlowGroupNode(RuleFlowGroupNode ruleFlowGroupNode);
+    public void setActivationNode(ActivationNode ruleFlowGroupNode);
     
 }

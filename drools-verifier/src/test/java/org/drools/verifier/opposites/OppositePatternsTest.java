@@ -9,91 +9,111 @@ import org.drools.StatelessSession;
 import org.drools.StatelessSessionResult;
 import org.drools.base.RuleNameMatchesAgendaFilter;
 import org.drools.verifier.TestBase;
+import org.drools.verifier.VerifierComponentMockFactory;
 import org.drools.verifier.components.LiteralRestriction;
-import org.drools.verifier.components.PatternPossibility;
+import org.drools.verifier.components.Pattern;
 import org.drools.verifier.components.Restriction;
+import org.drools.verifier.components.SubPattern;
+import org.drools.verifier.components.VerifierComponentType;
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 import org.drools.verifier.report.components.Opposites;
 
 public class OppositePatternsTest extends OppositesBase {
 
-	public void testPatternsPossibilitiesOpposite() throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Patterns.drl"));
+    public void testPatternsPossibilitiesOpposite() throws Exception {
+        StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Patterns.drl" ) );
 
-		session.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-				"Opposite Patterns"));
+        session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Opposite Patterns" ) );
 
-		Collection<Object> data = new ArrayList<Object>();
+        Collection<Object> data = new ArrayList<Object>();
 
-		/*
-		 * Working pair
-		 */
-		PatternPossibility pp1 = new PatternPossibility();
-		PatternPossibility pp2 = new PatternPossibility();
+        Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-		Restriction r1 = new LiteralRestriction();
-		pp1.add(r1);
+        /*
+         * Working pair
+         */
+        SubPattern pp1 = new SubPattern( pattern,
+                                         0 );
+        SubPattern pp2 = new SubPattern( pattern,
+                                         1 );
 
-		Restriction r2 = new LiteralRestriction();
-		pp2.add(r2);
+        Restriction r1 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp1.add( r1 );
 
-		Restriction r3 = new LiteralRestriction();
-		pp1.add(r3);
+        Restriction r2 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp2.add( r2 );
 
-		Restriction r4 = new LiteralRestriction();
-		pp2.add(r4);
+        Restriction r3 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp1.add( r3 );
 
-		Opposites o1 = new Opposites(r1, r2);
-		Opposites o2 = new Opposites(r3, r4);
+        Restriction r4 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp2.add( r4 );
 
-		/*
-		 * Pair that doesn't work.
-		 */
-		PatternPossibility pp3 = new PatternPossibility();
-		PatternPossibility pp4 = new PatternPossibility();
+        Opposites o1 = new Opposites( r1,
+                                      r2 );
+        Opposites o2 = new Opposites( r3,
+                                      r4 );
 
-		Restriction r5 = new LiteralRestriction();
-		pp3.add(r5);
+        /*
+         * Pair that doesn't work.
+         */
+        SubPattern pp3 = new SubPattern( pattern,
+                                         2 );
+        SubPattern pp4 = new SubPattern( pattern,
+                                         3 );
 
-		Restriction r6 = new LiteralRestriction();
-		pp4.add(r6);
+        Restriction r5 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp3.add( r5 );
 
-		Restriction r7 = new LiteralRestriction();
-		pp3.add(r7);
+        Restriction r6 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp4.add( r6 );
 
-		Restriction r8 = new LiteralRestriction();
-		pp4.add(r8);
+        Restriction r7 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp3.add( r7 );
 
-		Opposites o3 = new Opposites(r5, r6);
+        Restriction r8 = LiteralRestriction.createRestriction( pattern,
+                                                               "" );
+        pp4.add( r8 );
 
-		data.add(r1);
-		data.add(r2);
-		data.add(r3);
-		data.add(r4);
-		data.add(r5);
-		data.add(r6);
-		data.add(r7);
-		data.add(r8);
-		data.add(pp1);
-		data.add(pp2);
-		data.add(pp3);
-		data.add(pp4);
-		data.add(o1);
-		data.add(o2);
-		data.add(o3);
+        Opposites o3 = new Opposites( r5,
+                                      r6 );
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        data.add( r1 );
+        data.add( r2 );
+        data.add( r3 );
+        data.add( r4 );
+        data.add( r5 );
+        data.add( r6 );
+        data.add( r7 );
+        data.add( r8 );
+        data.add( pp1 );
+        data.add( pp2 );
+        data.add( pp3 );
+        data.add( pp4 );
+        data.add( o1 );
+        data.add( o2 );
+        data.add( o3 );
 
-		Map<Cause, Set<Cause>> map = createOppositesMap(
-				CauseType.PATTERN_POSSIBILITY, sessionResult.iterateObjects());
+        StatelessSessionResult sessionResult = session.executeWithResults( data );
 
-		assertTrue((TestBase.causeMapContains(map, pp1, pp2) ^ TestBase
-				.causeMapContains(map, pp2, pp1)));
+        Map<Cause, Set<Cause>> map = createOppositesMap( VerifierComponentType.SUB_PATTERN,
+                                                         sessionResult.iterateObjects() );
 
-		if (!map.isEmpty()) {
-			fail("More opposites than was expected.");
-		}
-	}
+        assertTrue( (TestBase.causeMapContains( map,
+                                                pp1,
+                                                pp2 ) ^ TestBase.causeMapContains( map,
+                                                                                   pp2,
+                                                                                   pp1 )) );
+
+        if ( !map.isEmpty() ) {
+            fail( "More opposites than was expected." );
+        }
+    }
 }

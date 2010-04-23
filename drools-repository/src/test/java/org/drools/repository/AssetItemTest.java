@@ -89,6 +89,39 @@ public class AssetItemTest extends TestCase {
 
     }
 
+
+    public void testUpdateStringProperty() throws Exception {
+        RulesRepository repo = getRepo();
+        PackageItem def = repo.loadDefaultPackage();
+        AssetItem asset = repo.loadDefaultPackage().addAsset("testUpdateStringProperty", "test content");
+        asset.updateContent("new content");
+        asset.checkin("");
+        Calendar lm = asset.getLastModified();
+
+        Thread.sleep(100);
+        asset.updateStringProperty("Anything", "AField");
+
+        assertEquals("Anything", asset.getStringProperty("AField"));
+        Calendar lm_ = asset.getLastModified();
+
+        assertTrue(lm_.getTimeInMillis() > lm.getTimeInMillis());
+
+        Thread.sleep(100);
+
+        asset.updateStringProperty("More", "AField", false);
+
+        assertEquals(lm_.getTimeInMillis(), asset.getLastModified().getTimeInMillis());
+
+        asset.updateContent("more content");
+        asset.checkin("");
+
+        asset = repo.loadAssetByUUID(asset.getUUID());
+        assertEquals("More", asset.getStringProperty("AField"));
+
+        
+    }
+
+
     public void testGetPackageItemHistorical() throws Exception {
         RulesRepository repo = getRepo();
         PackageItem pkg = repo.createPackage("testGetPackageItemHistorical", "");
@@ -129,10 +162,6 @@ public class AssetItemTest extends TestCase {
     	assertEquals("foo", asset[0]);
     	assertEquals("bar", asset[1]);
 
-    	asset = AssetItem.getAssetNameFromFileName("foo.bar.xls");
-    	assertEquals("foo", asset[0]);
-    	assertEquals("bar.xls", asset[1]);
-
     	asset = AssetItem.getAssetNameFromFileName("Rule 261.3 Something foo.drl");
     	assertEquals("Rule 261.3 Something foo", asset[0]);
     	assertEquals("drl", asset[1]);
@@ -148,6 +177,26 @@ public class AssetItemTest extends TestCase {
     	asset = AssetItem.getAssetNameFromFileName("Rule_261.3_Something_foo.model.drl");
     	assertEquals("Rule_261.3_Something_foo", asset[0]);
     	assertEquals("model.drl", asset[1]);
+
+    	asset = AssetItem.getAssetNameFromFileName("application-model-1.0.0.jar");
+    	assertEquals("application-model-1.0.0", asset[0]);
+    	assertEquals("jar", asset[1]);
+
+    	asset = AssetItem.getAssetNameFromFileName("something-1.0.0.drl");
+    	assertEquals("something-1.0.0", asset[0]);
+    	assertEquals("drl", asset[1]);
+
+        asset = AssetItem.getAssetNameFromFileName("foo.bpel.jar");
+        assertEquals("foo", asset[0]);
+        assertEquals("bpel.jar", asset[1]);
+        
+    	asset = AssetItem.getAssetNameFromFileName("SubmitApplication.rf");
+    	assertEquals("SubmitApplication", asset[0]);
+    	assertEquals("rf", asset[1]);
+
+    	asset = AssetItem.getAssetNameFromFileName("Submit.rf");
+    	assertEquals("Submit", asset[0]);
+    	assertEquals("rf", asset[1]);
 
 
 //    	System.err.println(asset[0]);

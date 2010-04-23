@@ -1,6 +1,7 @@
 package org.drools.repository;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -9,6 +10,10 @@ import junit.framework.TestCase;
 
 public class PackageItemTest extends TestCase {
 
+	private PackageItem loadGlobalArea() {
+		return getRepo().loadGlobalArea();
+	}
+	
     public void testListPackages() throws Exception {
         RulesRepository repo = getRepo();
         PackageItem item = repo.createPackage( "testListPackages1", "lalalala" );
@@ -69,7 +74,7 @@ public class PackageItemTest extends TestCase {
         repo.save();
 
 
-        PackageItem pkgNested = p.createPackage("NestedGoodness");
+        PackageItem pkgNested = p.createSubPackage("NestedGoodness");
         assertNotNull(pkgNested);
 
         int n = iteratorToList(repo.listPackages()).size();
@@ -80,9 +85,6 @@ public class PackageItemTest extends TestCase {
 
         int n_ = iteratorToList(repo.listPackages()).size();
         assertEquals(n - 1, n_);
-
-
-
     }
 
     public void testRulePackageItem() throws Exception {
@@ -103,12 +105,7 @@ public class PackageItemTest extends TestCase {
             }
         }
         fail("should have picked up the testRulePackage but didnt.");
-
-
     }
-
-
-
 
     /**
      * This is showing how to copy a package with standard JCR
@@ -143,7 +140,6 @@ public class PackageItemTest extends TestCase {
         it1.checkin( "la" );
         it1_ = pkg2.loadAsset( "testPackageCopy1" );
         assertEquals("new content", it1_.getContent());
-
     }
 
     public void testPackageSnapshot() throws Exception {
@@ -254,8 +250,6 @@ public class PackageItemTest extends TestCase {
 
         assertEquals("BOO", res[0]);
         assertEquals("BOO2", res[1]);
-
-
     }
 
     private RulesRepository getRepo() {
@@ -345,7 +339,6 @@ public class PackageItemTest extends TestCase {
         AssetItem prior = (AssetItem) rules.get( 0 );
 
         assertFalse("new content".equals( prior.getContent() ));
-
     }
 
     public void testIgnoreState() throws Exception {
@@ -385,7 +378,6 @@ public class PackageItemTest extends TestCase {
         } catch (RulesRepositoryException e) {
             assertNotNull(e.getMessage());
         }
-
     }
 
     public void testPackageInstanceWrongNodeType() throws Exception {
@@ -398,9 +390,7 @@ public class PackageItemTest extends TestCase {
         } catch (RulesRepositoryException e) {
             assertNotNull(e.getMessage());
         }
-
     }
-
 
     public void testLoadRulePackageItemByUUID() throws Exception {
 
@@ -461,10 +451,33 @@ public class PackageItemTest extends TestCase {
             rules = iteratorToList(rulePackageItem1.getAssets());
             assertNotNull(rules);
             assertEquals(2, rules.size());
-
     }
 
+    public void testAddRuleItemFromGlobalArea() {
+        AssetItem ruleItem1 = loadGlobalArea().addAsset("testAddRuleItemFromGlobalAreaRuleItem", "test description");
+        ruleItem1.updateContent( "test content" );
+        ruleItem1.checkin( "updated the rule content" );
+        
+        PackageItem rulePackageItem2 = getRepo().createPackage("testAddRuleItemFromGlobalArea1","desc");
+        AssetItem linkedRuleItem1 = rulePackageItem2.addAssetImportedFromGlobalArea(ruleItem1.getName());
+        linkedRuleItem1.updateContent( "test content for linked" );
+        linkedRuleItem1.checkin( "updated the rule content for linked" );       
+ 
+        //test that it is following the head revision
+        ruleItem1.updateContent("new lhs");
+        ruleItem1.checkin( "updated again" );        
+        
+        Iterator rulesIt2 = rulePackageItem2.getAssets();
+		List rules2 = iteratorToList(rulesIt2);
+		assertEquals(1, rules2.size());
 
+		AssetItem ai = (AssetItem) rules2.get(0);
+		assertTrue(ai.getName().equals("testAddRuleItemFromGlobalAreaRuleItem"));
+		assertEquals("new lhs", ai.getContent());
+		assertEquals("test description", ai.getDescription());
+		assertEquals("updated again", ai.getCheckinComment());       
+    }
+    
     List iteratorToList(Iterator it) {
         List list = new ArrayList();
         while(it.hasNext()) {
@@ -472,12 +485,6 @@ public class PackageItemTest extends TestCase {
         }
         return list;
     }
-
-
-
-
-
-
 
     public void testGetRules() {
             PackageItem rulePackageItem1 = getRepo().createPackage("testGetRules", "desc");
@@ -510,8 +517,6 @@ public class PackageItemTest extends TestCase {
             assertNotNull(loaded);
             assertEquals("testGetRules", loaded.getName());
             assertEquals("desc", loaded.getDescription());
-
-
     }
 
     public void testToString() {
@@ -521,7 +526,6 @@ public class PackageItemTest extends TestCase {
             ruleItem1.updateContent( "test lhs content" );
 
             assertNotNull(rulePackageItem1.toString());
-
     }
 
     public void testRemoveRule() {
@@ -561,7 +565,6 @@ public class PackageItemTest extends TestCase {
             rules = iteratorToList(rulePackageItem1.getAssets());
             assertNotNull(rules);
             assertEquals(0, rules.size());
-
     }
 
     public void testSearchByFormat() throws Exception {
@@ -602,9 +605,44 @@ public class PackageItemTest extends TestCase {
         assertTrue(list2.get( 0 ) instanceof AssetItem);
         assertTrue(list2.get( 1 ) instanceof AssetItem);
         assertTrue(list2.get( 2 ) instanceof AssetItem);
-
     }
 
+    public void testSearchSharedAssetByFormat() throws Exception {
+        AssetItem item = loadGlobalArea().addAsset( "testSearchSharedAssetByFormat", "" );
+        item.updateFormat( "testSearchSharedAssetByFormat" );
+        item.checkin( "la" );
+        
+        AssetItemIterator it = loadGlobalArea().queryAssets( "drools:format='testSearchSharedAssetByFormat'" );
+        List list = iteratorToList( it );
+        assertEquals(1, list.size());
+        assertTrue(list.get( 0 ) instanceof AssetItem);
+        
+        PackageItem pkg2 = getRepo().createPackage( "testSearchSharedAssetByFormat", "" );
+        getRepo().save();
+        AssetItem linkedItem = pkg2.addAssetImportedFromGlobalArea(item.getName());
+
+        Thread.sleep( 150 );
+
+        item = loadGlobalArea().loadAsset("testSearchSharedAssetByFormat");
+        assertEquals("testSearchSharedAssetByFormat", item.getFormat());
+
+        it = loadGlobalArea().queryAssets( "drools:format='testSearchSharedAssetByFormat'" );
+        list = iteratorToList( it );
+        assertEquals(1, list.size());
+        assertTrue(list.get( 0 ) instanceof AssetItem);
+ 
+/*        linkedItem = pkg2.loadAsset("testSearchLinkedAssetByFormatAsset2");
+        assertNotNull(linkedItem);
+        assertEquals("global", linkedItem.getPackageName());
+       	
+        it = pkg2.queryAssets( "drools:format='xyz'" );
+        list = iteratorToList( it );*/
+        
+        //REVISIT: Not working yet.
+        //assertEquals(1, list.size());
+        //assertTrue(list.get( 0 ) instanceof AssetItem);
+    }
+    
     public void testListArchivedAssets() throws Exception {
         PackageItem pkg = getRepo().createPackage( "org.drools.archivedtest", "" );
         getRepo().save();
@@ -641,8 +679,6 @@ public class PackageItemTest extends TestCase {
 
         list = iteratorToList( it );
         assertEquals(4, list.size());
-
-
     }
 
     public void testExcludeAssetTypes() throws Exception {
@@ -674,8 +710,6 @@ public class PackageItemTest extends TestCase {
         it = pkg.listAssetsNotOfFormat(new String[] {"drl", "xls"});
         ls = iteratorToList(it);
         assertEquals(0, ls.size());
-
-
     }
 
     public void testSortHistoryByVersionNumber() {
@@ -706,8 +740,6 @@ public class PackageItemTest extends TestCase {
         item = getRepo().loadPackage("testHeader");
         assertEquals("new header", getHeader(item));
         assertEquals("boo", item.getExternalURI());
-
-
     }
 
     public void testGetFormatAndUpToDate() {
@@ -731,7 +763,6 @@ public class PackageItemTest extends TestCase {
     	}
 		as.updateContent(h);
 		//as.checkin("");
-
     }
 
     public static String getHeader(PackageItem pkg) {
@@ -772,9 +803,8 @@ public class PackageItemTest extends TestCase {
         getRepo().save();
 
         assertEquals(v, item.getVersionNumber());
-
     }
-
+	
     static class MockAssetItem extends AssetItem {
         private long version;
 

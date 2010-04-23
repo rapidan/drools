@@ -21,9 +21,10 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import org.drools.FactException;
+import org.drools.FactHandle;
+import org.drools.WorkingMemory;
 import org.drools.common.InternalWorkingMemoryActions;
 import org.drools.impl.StatefulKnowledgeSessionImpl;
-import org.drools.reteoo.ReteooStatefulSession;
 import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.rule.Declaration;
 import org.drools.rule.GroupElement;
@@ -31,8 +32,6 @@ import org.drools.rule.Rule;
 import org.drools.runtime.ExitPoint;
 import org.drools.runtime.KnowledgeRuntime;
 import org.drools.runtime.rule.WorkingMemoryEntryPoint;
-import org.drools.FactHandle;
-import org.drools.WorkingMemory;
 import org.drools.spi.Activation;
 import org.drools.spi.KnowledgeHelper;
 import org.drools.spi.Tuple;
@@ -215,4 +214,15 @@ public class SequentialKnowledgeHelper
     public void setIdentityMap(IdentityHashMap<Object, FactHandle> identityMap) {
         this.identityMap = identityMap;
     }
+
+	public <T> T getContext(Class<T> contextClass) {
+		// TODO
+		return null;
+	}
+
+    public void cancelRemainingPreviousLogicalDependencies() {
+        // TODO Auto-generated method stub
+        
+    }
+
 }

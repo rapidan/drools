@@ -15,28 +15,77 @@ package org.drools.guvnor.client.modeldriven.ui;
  * limitations under the License.
  */
 
-
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.Set;
 
-import org.drools.guvnor.client.common.*;
+import org.drools.guvnor.client.common.ClickableLabel;
+import org.drools.guvnor.client.common.DirtyableComposite;
+import org.drools.guvnor.client.common.DirtyableFlexTable;
+import org.drools.guvnor.client.common.DirtyableHorizontalPane;
+import org.drools.guvnor.client.common.DirtyableVerticalPane;
+import org.drools.guvnor.client.common.ErrorPopup;
+import org.drools.guvnor.client.common.FormStylePopup;
+import org.drools.guvnor.client.common.ImageButton;
+import org.drools.guvnor.client.common.InfoPopup;
+import org.drools.guvnor.client.common.LoadingPopup;
+import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.explorer.ExplorerLayoutManager;
+import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.*;
+import org.drools.guvnor.client.modeldriven.brl.ActionCallMethod;
+import org.drools.guvnor.client.modeldriven.brl.ActionGlobalCollectionAdd;
+import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
+import org.drools.guvnor.client.modeldriven.brl.ActionInsertLogicalFact;
+import org.drools.guvnor.client.modeldriven.brl.ActionRetractFact;
+import org.drools.guvnor.client.modeldriven.brl.ActionSetField;
+import org.drools.guvnor.client.modeldriven.brl.ActionUpdateField;
+import org.drools.guvnor.client.modeldriven.brl.CompositeFactPattern;
+import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
+import org.drools.guvnor.client.modeldriven.brl.FactPattern;
+import org.drools.guvnor.client.modeldriven.brl.FreeFormLine;
+import org.drools.guvnor.client.modeldriven.brl.FromAccumulateCompositeFactPattern;
+import org.drools.guvnor.client.modeldriven.brl.FromCollectCompositeFactPattern;
+import org.drools.guvnor.client.modeldriven.brl.FromCompositeFactPattern;
+import org.drools.guvnor.client.modeldriven.brl.IAction;
+import org.drools.guvnor.client.modeldriven.brl.IPattern;
+import org.drools.guvnor.client.modeldriven.brl.RuleAttribute;
+import org.drools.guvnor.client.modeldriven.brl.RuleMetadata;
+import org.drools.guvnor.client.modeldriven.brl.RuleModel;
 import org.drools.guvnor.client.packages.SuggestionCompletionCache;
+import org.drools.guvnor.client.packages.WorkingSetManager;
+import org.drools.guvnor.client.rpc.AnalysisReport;
+import org.drools.guvnor.client.rpc.AnalysisReportLine;
+import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
 import org.drools.guvnor.client.rpc.RuleAsset;
 import org.drools.guvnor.client.ruleeditor.RuleViewer;
 import org.drools.guvnor.client.security.Capabilities;
-import org.drools.guvnor.client.messages.Constants;
 
-import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.ui.*;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.ChangeListener;
+import com.google.gwt.user.client.ui.ClickListener;
+import com.google.gwt.user.client.ui.FocusPanel;
+import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.HasHorizontalAlignment;
+import com.google.gwt.user.client.ui.HasVerticalAlignment;
+import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.Image;
+import com.google.gwt.user.client.ui.KeyboardListener;
+import com.google.gwt.user.client.ui.KeyboardListenerAdapter;
+import com.google.gwt.user.client.ui.ListBox;
+import com.google.gwt.user.client.ui.MouseListenerAdapter;
+import com.google.gwt.user.client.ui.TextBox;
+import com.google.gwt.user.client.ui.Widget;
+import com.gwtext.client.core.ExtElement;
 import com.gwtext.client.util.Format;
 
 /**
@@ -45,30 +94,64 @@ import com.gwtext.client.util.Format;
  * @author Michael Neale
  *
  */
-public class RuleModeller extends DirtyableComposite {
+public class RuleModeller extends DirtyableComposite implements RuleModelEditor {
 
     private DirtyableFlexTable layout;
-    private SuggestionCompletionEngine completions;
     private RuleModel model;
     private Constants constants = ((Constants) GWT.create(Constants.class));
-
-    public RuleModeller(RuleAsset asset, RuleViewer viewer) {
-        this(asset);
+    private boolean showingOptions = false;
+    private int currentLayoutRow = 0;
+    private String packageName;
+    private RuleAsset asset;
+    private ModellerWidgetFactory widgetFactory;
+    
+    public RuleModeller(RuleAsset asset, RuleViewer viewer, ModellerWidgetFactory widgetFactory) {
+        this(asset, widgetFactory);
     }
 
-    public RuleModeller(RuleAsset asset) {
+    public RuleModeller(RuleAsset asset, ModellerWidgetFactory widgetFactory) {
+		this.asset = asset;
         this.model = (RuleModel) asset.content;
+        this.packageName = asset.metaData.packageName;
 
-        this.completions = SuggestionCompletionCache.getInstance().getEngineFromCache( asset.metaData.packageName );
-
+        this.widgetFactory = widgetFactory;
+        
         layout = new DirtyableFlexTable();
 
         initWidget();
 
-        layout.setStyleName( "model-builder-Background" );
-        initWidget( layout );
-        setWidth( "100%" );
-        setHeight( "100%" );
+        layout.setStyleName("model-builder-Background");
+        initWidget(layout);
+        setWidth("100%");
+        setHeight("100%");
+    }
+
+    private boolean isLock(String attr) {
+
+        //UNCOMMENT THIS WHEN READY !
+        //if (ExplorerLayoutManager.shouldShow(Capabilities.SHOW_CREATE_NEW_PACKAGE)) return true;
+
+
+        if (this.model.metadataList.length == 0) {
+            return false;
+        } else {
+            for (RuleMetadata at : this.model.metadataList) {
+                if (at.attributeName.equals(attr)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /** return true if we should not allow unfrozen editing of the RHS */
+    public boolean lockRHS() {
+        return isLock(RuleAttributeWidget.LOCK_RHS); //NON-NLS
+    }
+
+    /** return true if we should not allow unfrozen editing of the LHS */
+    public boolean lockLHS() {
+        return isLock(RuleAttributeWidget.LOCK_LHS); //NON-NLS
     }
 
     /**
@@ -76,12 +159,14 @@ public class RuleModeller extends DirtyableComposite {
      */
     public void initWidget() {
         layout.clear();
+        this.currentLayoutRow = 0;
 
-        Image addPattern = new ImageButton( "images/new_item.gif" );
+        Image addPattern = new ImageButton("images/new_item.gif");
         addPattern.setTitle(constants.AddAConditionToThisRule());
-        addPattern.addClickListener( new ClickListener() {
+        addPattern.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
-                showConditionSelector(w);
+                showConditionSelector(w, null);
             }
         });
 
@@ -89,39 +174,78 @@ public class RuleModeller extends DirtyableComposite {
         layout.getColumnFormatter().setWidth(1, "87%");
         layout.getColumnFormatter().setWidth(2, "5%");
 
+        //layout.setBorderWidth(2);
+
+        layout.setWidget(currentLayoutRow, 0, new SmallLabel("<b>" + constants.WHEN() + "</b>"));
+
+        if (!lockLHS()) {
+            layout.setWidget(currentLayoutRow, 2, addPattern);
+        }
+        currentLayoutRow++;
+
+        renderLhs(this.model);
 
 
-        layout.setWidget( 0, 0, new SmallLabel(constants.WHEN()) );
-        layout.setWidget( 0, 2, addPattern );
-
-
-
-        layout.setWidget( 1, 1, renderLhs(this.model) );
-        layout.getFlexCellFormatter().setHorizontalAlignment(1, 1, HasHorizontalAlignment.ALIGN_LEFT);
-        layout.getFlexCellFormatter().setVerticalAlignment(1, 1, HasVerticalAlignment.ALIGN_TOP);
-        layout.setWidget( 2, 0, new SmallLabel(constants.THEN()) );
+        layout.setWidget(currentLayoutRow, 0, new SmallLabel("<b>" + constants.THEN() + "</b>"));
 
         Image addAction = new ImageButton("images/new_item.gif"); //NON-NLS
         addAction.setTitle(constants.AddAnActionToThisRule());
-        addAction.addClickListener( new ClickListener() {
+        addAction.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
-                showActionSelector(w);
+                showActionSelector(w, null);
             }
         });
-        layout.setWidget( 2, 2, addAction );
+        if (!lockRHS()) {
+            layout.setWidget(currentLayoutRow, 2, addAction);
+        }
+        currentLayoutRow++;
 
-        layout.setWidget( 3, 1, renderRhs(this.model) );
-        layout.getFlexCellFormatter().setHorizontalAlignment(3, 1, HasHorizontalAlignment.ALIGN_LEFT);
-        layout.getFlexCellFormatter().setVerticalAlignment(3, 1, HasVerticalAlignment.ALIGN_TOP);
+        renderRhs(this.model);
 
-        layout.setWidget( 4, 0, new SmallLabel(constants.optionsRuleModeller()) );
-        layout.setWidget( 4, 2, getAddAttribute() );
-        layout.setWidget( 5, 1, new RuleAttributeWidget(this, this.model) );
+        if (showAttributes()) {
 
+            final int tmp1 = currentLayoutRow;
+            final int tmp2 = currentLayoutRow + 1;
+
+            final RuleModeller self = this;
+            if (!this.showingOptions) {
+                ClickableLabel showMoreOptions = new ClickableLabel("(show options...)", new ClickListener() {
+
+                    public void onClick(Widget sender) {
+                        showingOptions = true;
+                        layout.setWidget(tmp1, 0, new SmallLabel(constants.optionsRuleModeller()));
+                        layout.setWidget(tmp1, 2, getAddAttribute());
+                        layout.setWidget(tmp2, 1, new RuleAttributeWidget(self, self.model));
+                    }
+                });
+                layout.setWidget(tmp1, 0, showMoreOptions);
+            } else {
+                layout.setWidget(tmp1, 0, new SmallLabel(constants.optionsRuleModeller()));
+                layout.setWidget(tmp1, 2, getAddAttribute());
+                layout.setWidget(tmp2, 1, new RuleAttributeWidget(self, self.model));
+
+            }
+
+
+        }
+
+        currentLayoutRow++;
+        layout.setWidget(currentLayoutRow + 1, 1, spacerWidget());
+        layout.getCellFormatter().setHeight(currentLayoutRow + 1, 1, "100%");
+
+
+        this.verifyRule(null);
+    }
+
+    private boolean showAttributes() {
+        //return false;
+        return ExplorerLayoutManager.shouldShow(Capabilities.SHOW_PACKAGE_VIEW);
     }
 
     public void refreshWidget() {
         initWidget();
+        showWarningsAndErrors();
         makeDirty();
     }
 
@@ -129,7 +253,8 @@ public class RuleModeller extends DirtyableComposite {
         Image add = new ImageButton("images/new_item.gif"); //NON-NLS
         add.setTitle(constants.AddAnOptionToTheRuleToModifyItsBehaviorWhenEvaluatedOrExecuted());
 
-        add.addClickListener( new ClickListener() {
+        add.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
                 showAttributeSelector(w);
             }
@@ -137,60 +262,85 @@ public class RuleModeller extends DirtyableComposite {
         return add;
     }
 
-
     protected void showAttributeSelector(Widget w) {
         final FormStylePopup pop = new FormStylePopup("images/config.png", constants.AddAnOptionToTheRule()); //NON-NLS
         final ListBox list = RuleAttributeWidget.getAttributeList();
+
         final Image addbutton = new ImageButton("images/new_item.gif");                                                //NON-NLS
         final TextBox box = new TextBox();
 
 
-        list.setSelectedIndex( 0 );
+        list.setSelectedIndex(0);
 
-        list.addChangeListener( new ChangeListener() {
+        list.addChangeListener(new ChangeListener() {
+
             public void onChange(Widget w) {
-              model.addAttribute( new RuleAttribute(list.getItemText( list.getSelectedIndex() ), "") );
-              refreshWidget();
-              pop.hide();
+                String attr = list.getItemText(list.getSelectedIndex());
+                if (attr.equals(RuleAttributeWidget.LOCK_LHS) || attr.equals(RuleAttributeWidget.LOCK_RHS)) {
+                    model.addMetadata(new RuleMetadata(attr, "true"));
+                } else {
+                    model.addAttribute(new RuleAttribute(attr, ""));
+                }
+                refreshWidget();
+                pop.hide();
             }
         });
-        box.setVisibleLength( 15 );
+        box.setVisibleLength(15);
 
         addbutton.setTitle(constants.AddMetadataToTheRule());
 
-        addbutton.addClickListener( new ClickListener() {
+        addbutton.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
 
-            	model.addMetadata( new RuleMetadata(box.getText(), "") );
-            	refreshWidget();
+                model.addMetadata(new RuleMetadata(box.getText(), ""));
+                refreshWidget();
                 pop.hide();
             }
         });
         DirtyableHorizontalPane horiz = new DirtyableHorizontalPane();
-        horiz.add( box );
-        horiz.add( addbutton );
+        horiz.add(box);
+        horiz.add(addbutton);
 
 
 
 
 
-        pop.addAttribute(constants.Metadata3(), horiz );
-        pop.addAttribute(constants.Attribute1(), list );
+        pop.addAttribute(constants.Metadata3(), horiz);
+        pop.addAttribute(constants.Attribute1(), list);
 
-        //add text field
-        //add button
-        //add listener that adds the rule Attribute
-//        pop.addAttribute( "Metadata:",
-//                editableText( new FieldBinding() {
-//                                  public String getValue() {
-//                                      return data.subject;
-//                                  }
-//
-//                                  public void setValue(String val) {
-//                                      data.subject = val;
-//                                  }
-//                              },
-//                              "A short description of the subject matter." ) );
+        Button freezeConditions = new Button(constants.Conditions());
+        freezeConditions.addClickListener(new ClickListener() {
+
+            public void onClick(Widget sender) {
+                model.addMetadata(new RuleMetadata(RuleAttributeWidget.LOCK_LHS, "true"));
+                refreshWidget();
+                pop.hide();
+            }
+        });
+        Button freezeActions = new Button(constants.Actions());
+        freezeActions.addClickListener(new ClickListener() {
+
+            public void onClick(Widget sender) {
+                model.addMetadata(new RuleMetadata(RuleAttributeWidget.LOCK_RHS, "true"));
+                refreshWidget();
+                pop.hide();
+            }
+        });
+        HorizontalPanel hz = new HorizontalPanel();
+        if (!lockLHS()) {
+            hz.add(freezeConditions);
+        }
+        if (!lockRHS()) {
+            hz.add(freezeActions);
+        }
+        hz.add(new InfoPopup(constants.FrozenAreas(), constants.FrozenExplanation()));
+
+        if (hz.getWidgetCount() > 1) {
+            pop.addAttribute(constants.FreezeAreasForEditing(), hz);
+        }
+
+
 
 
         pop.show();
@@ -199,187 +349,244 @@ public class RuleModeller extends DirtyableComposite {
     /**
      * Do all the widgets for the RHS.
      */
-    private Widget renderRhs(final RuleModel model) {
-        DirtyableVerticalPane widget = new DirtyableVerticalPane();
+    private void renderRhs(final RuleModel model) {
 
-        for ( int i = 0; i < model.rhs.length; i++ ) {
+        for (int i = 0; i < model.rhs.length; i++) {
+            DirtyableVerticalPane widget = new DirtyableVerticalPane();
+            widget.setWidth("100%");
             IAction action = model.rhs[i];
 
-            Widget w = null;
-            if (action instanceof ActionCallMethod) {
-                w = new ActionCallMethodWidget(this, (ActionCallMethod) action, completions);
-            } else if (action instanceof ActionSetField) {
-                w =  new ActionSetFieldWidget(this, (ActionSetField) action, completions ) ;
-            } else if (action instanceof ActionInsertFact) {
-                w = new ActionInsertFactWidget(this, (ActionInsertFact) action, completions );
-            } else if (action instanceof ActionRetractFact) {
-                w = new ActionRetractFactWidget(this.completions, (ActionRetractFact) action );
-            } else if (action instanceof DSLSentence) {
-                w = new DSLSentenceWidget((DSLSentence) action,this.completions);
-                w.setStyleName( "model-builderInner-Background" ); //NON-NLS
-            } else if (action instanceof FreeFormLine) {
-            	final TextBox tb = new TextBox();
-            	final FreeFormLine ffl = (FreeFormLine) action;
-            	tb.setText(ffl.text);
-            	tb.addChangeListener(new ChangeListener() {
-					public void onChange(Widget arg0) {
-						ffl.text = tb.getText();
-					}
-            	});
-            	w = tb;
-            } else if (action instanceof ActionGlobalCollectionAdd) {
-                ActionGlobalCollectionAdd gca = (ActionGlobalCollectionAdd) action;
-                SimplePanel sp = new SimplePanel();
-                sp.setStyleName("model-builderInner-Background"); //NON-NLS
-                w = sp;
-                sp.add(new SmallLabel("&nbsp;" + Format.format(constants.AddXToListY(), gca.factName, gca.globalName)));
-            }
+            //if lockRHS() set the widget RO, otherwise let them decide.
+            Boolean readOnly = this.lockRHS()?true:null;
 
-            //w.setWidth( "100%" );
-            widget.add( spacerWidget() );
-            //vert.setWidth( "100%" );
+            RuleModellerWidget w = getWidgetFactory().getWidget(this, action, readOnly);
+
+            w.setWidth( "100%" );
+            widget.add(spacerWidget());
 
             DirtyableHorizontalPane horiz = new DirtyableHorizontalPane();
+            horiz.setWidth("100%");
+            //horiz.setBorderWidth(2);
 
-            Image remove = new ImageButton("images/delete_item_small.gif"); //NON-NLS
+            Image remove = new ImageButton("images/delete_faded.gif"); //NON-NLS
             remove.setTitle(constants.RemoveThisAction());
             final int idx = i;
-            remove.addClickListener( new ClickListener() {
+            remove.addClickListener(new ClickListener() {
+
                 public void onClick(Widget w) {
-                	if (Window.confirm(constants.RemoveThisItem())) {
-                            model.removeRhsItem(idx);
-                            refreshWidget();
+                    if (Window.confirm(constants.RemoveThisItem())) {
+                        model.removeRhsItem(idx);
+                        refreshWidget();
                     }
                 }
-            } );
-            horiz.add( w );
+            });
+            horiz.add(w);
             if (!(w instanceof ActionRetractFactWidget)) {
-                w.setWidth( "100%" );               //NON-NLS
-                horiz.setWidth( "100%" );
+                w.setWidth("100%");               //NON-NLS
+                horiz.setWidth("100%");
             }
 
-            horiz.add( remove );
-            widget.add( horiz );
+            if (!lockRHS()) {
+                horiz.add(remove);
+            }
+
+
+            widget.add(horiz);
+
+
+
+            layout.setHTML(currentLayoutRow, 0, "<div class='x-form-field'>" + (i + 1) + ".</div>");
+            layout.getFlexCellFormatter().setHorizontalAlignment(currentLayoutRow, 0, HasHorizontalAlignment.ALIGN_CENTER);
+            layout.getFlexCellFormatter().setVerticalAlignment(currentLayoutRow, 0, HasVerticalAlignment.ALIGN_MIDDLE);
+
+
+            layout.setWidget(currentLayoutRow, 1, widget);
+            layout.getFlexCellFormatter().setHorizontalAlignment(currentLayoutRow, 1, HasHorizontalAlignment.ALIGN_LEFT);
+            layout.getFlexCellFormatter().setVerticalAlignment(currentLayoutRow, 1, HasVerticalAlignment.ALIGN_TOP);
+            layout.getFlexCellFormatter().setWidth(currentLayoutRow, 1, "100%");
+
+            final int index = i;
+            if (!(this.lockRHS() || w.isReadOnly())) {
+                this.addActionsButtonsToLayout(constants.AddAnActionBelow(), new ClickListener() {
+
+                    public void onClick(Widget w) {
+                        showActionSelector(w, index + 1);
+                    }
+                },new ClickListener() {
+
+                    public void onClick(Widget sender) {
+                        model.moveRhsItemDown(index);
+                        refreshWidget();
+                    }
+                },new ClickListener() {
+
+                    public void onClick(Widget sender) {
+                        model.moveRhsItemUp(index);
+                        refreshWidget();
+                    }
+                });
+            }
+
+            
+
+            currentLayoutRow++;
+
 
         }
 
-        return widget;
     }
-
-
 
     /**
      * Pops up the fact selector.
      */
-    protected void showConditionSelector(final Widget w) {
-
+    protected void showConditionSelector(final Widget w, Integer position) {
+        //XXX {bauna} add actions for LHS
         final FormStylePopup popup = new FormStylePopup();
         popup.setWidth(-1);
         popup.setTitle(constants.AddAConditionToTheRule());
 
         final Map<String, Command> cmds = new HashMap<String, Command>();
 
-        final ListBox choices = new ListBox(true);
+        final ListBox positionCbo = new ListBox();
 
-        
+        if (position == null) {
+            positionCbo.addItem(constants.Bottom(), String.valueOf(this.model.lhs.length));
+            positionCbo.addItem(constants.Top(), "0");
+            for (int i = 1; i < model.lhs.length; i++) {
+                positionCbo.addItem(Format.format(constants.Line0(), i), String.valueOf(i));
+            }
+        } else {
+            //if position is fixed, we just add one element to the drop down.
+            positionCbo.addItem(String.valueOf(position));
+            positionCbo.setSelectedIndex(0);
+        }
+
+
+
+        final ListBox choices = new ListBox(true);
 
         //
         // The list of DSL sentences
         //
+        SuggestionCompletionEngine completions = SuggestionCompletionCache.getInstance().getEngineFromCache(packageName);
         if (completions.getDSLConditions().length > 0) {
-
-
-
-            for(int i = 0; i < completions.getDSLConditions().length; i++ ) {
+            for (int i = 0; i < completions.getDSLConditions().length; i++) {
                 final DSLSentence sen = completions.getDSLConditions()[i];
                 String key = "DSL" + i;
                 choices.addItem(sen.toString(), key);
                 cmds.put(key, new Command() {
+
                     public void execute() {
-                       addNewDSLLhs(sen);
-                       popup.hide();
-                    }
-                });
-            }
-
-        }
-
-        //
-        // The list of facts
-        //
-        final String[] facts = completions.getFactTypes();
-        if (facts != null && facts.length > 0) {
-            choices.addItem("..................");
-            
-            for ( int i = 0; i < facts.length; i++ ) {
-                final String f = facts[i];
-                String key = "NF" + f;
-
-                choices.addItem(f + " ...",  key);
-                cmds.put(key, new Command() {
-                    public void execute() {
-                        addNewFact(f);
+                        addNewDSLLhs(sen, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                         popup.hide();
                     }
                 });
             }
         }
 
+        //
+        // The list of facts
+        //
+        final String[] facts = completions.getFactTypes();
+        if (facts.length > 0) {
+            choices.addItem("..................");
+
+            for (int i = 0; i < facts.length; i++) {
+                final String f = facts[i];
+                String key = "NF" + f;
+
+                choices.addItem(f + " ...", key);
+                cmds.put(key, new Command() {
+
+                    public void execute() {
+                        addNewFact(f, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
+                        popup.hide();
+                    }
+                });
+            }
+        }
 
         //
         // The list of top level CEs
         //
-        String ces[]  = HumanReadable.CONDITIONAL_ELEMENTS;
+        String ces[] = HumanReadable.CONDITIONAL_ELEMENTS;
 
         choices.addItem("..................");
-        for ( int i = 0; i < ces.length; i++ ) {
+        for (int i = 0; i < ces.length; i++) {
             final String ce = ces[i];
             String key = "CE" + ce;
-            choices.addItem( HumanReadable.getCEDisplayName( ce ) + " ...", key );
+            choices.addItem(HumanReadable.getCEDisplayName(ce) + " ...", key);
             cmds.put(key, new Command() {
+
                 public void execute() {
-                    addNewCE(ce);
+                    addNewCE(ce, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     popup.hide();
                 }
             });
-
-
         }
 
+        String fces[] = HumanReadable.FROM_CONDITIONAL_ELEMENTS;
 
+        choices.addItem("..................");
+        for (int i = 0; i < fces.length; i++) {
+            final String ce = fces[i];
+            String key = "FCE" + ce;
+            choices.addItem(HumanReadable.getCEDisplayName(ce) + " ...", key);
+            cmds.put(key, new Command() {
 
-
-
+                public void execute() {
+                    addNewFCE(ce, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
+                    popup.hide();
+                }
+            });
+        }
 
         if (ExplorerLayoutManager.shouldShow(Capabilities.SHOW_PACKAGE_VIEW)) {
             choices.addItem("..................");
             choices.addItem(constants.FreeFormDrl(), "FF");
             cmds.put("FF", new Command() {
+
                 public void execute() {
-                    model.addLhsItem(new FreeFormLine());
+                    model.addLhsItem(new FreeFormLine(), Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     refreshWidget();
                     popup.hide();
                 }
             });
+
+            //XXX used to test 
+//            choices.addItem("..................");
+//            choices.addItem(constants.ExpressionEditor(), "EE");
+//            cmds.put("EE", new Command() {
+//
+//                public void execute() {
+//                    model.addLhsItem(new ExpressionFormLine(), Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
+//                    refreshWidget();
+//                    popup.hide();
+//                }
+//            });
         }
 
-
         if (completions.getDSLConditions().length == 0 && facts.length == 0) {
-        	popup.addRow(new HTML("<div class='highlight'>" + constants.NoModelTip() + "</div>")); //NON-NLS
+            popup.addRow(new HTML("<div class='highlight'>" + constants.NoModelTip() + "</div>")); //NON-NLS
         }
 
         final ChangeListener cl = new ChangeListener() {
+
             public void onChange(Widget sender) {
                 int sel = choices.getSelectedIndex();
                 if (sel != -1) {
                     Command cmd = cmds.get(choices.getValue(choices.getSelectedIndex()));
-                    if (cmd != null) cmd.execute();
+                    if (cmd != null) {
+                        cmd.execute();
+                    }
+                    verifyRule(null);
                 }
             }
         };
         //choices.addChangeListener(cl);
 
         choices.addKeyboardListener(new KeyboardListenerAdapter() {
+
             @Override
             public void onKeyUp(final Widget sender, char keyCode, int modifiers) {
                 if (keyCode == KeyboardListener.KEY_ENTER) {
@@ -388,12 +595,21 @@ public class RuleModeller extends DirtyableComposite {
             }
         });
 
+        //only show the drop down if we are not using fixed position.
+        if (position == null) {
+            HorizontalPanel hp0 = new HorizontalPanel();
+            hp0.add(new HTML(constants.PositionColon()));
+            hp0.add(positionCbo);
+            hp0.add(new InfoPopup(constants.PositionColon(), constants.ConditionPositionExplanation()));
+            popup.addRow(hp0);
+        }
 
         HorizontalPanel hp = new HorizontalPanel();
         hp.add(choices);
         Button b = new Button(constants.OK());
         hp.add(b);
         b.addClickListener(new ClickListener() {
+
             public void onClick(final Widget sender) {
                 cl.onChange(sender);
             }
@@ -404,25 +620,36 @@ public class RuleModeller extends DirtyableComposite {
         choices.setFocus(true);
 
         popup.setAfterShow(new Command() {
+
             public void execute() {
                 choices.setFocus(true);
             }
         });
-
     }
 
-
-    protected void addNewDSLLhs(DSLSentence sentence) {
-        model.addLhsItem( sentence.copy() );
+    protected void addNewDSLLhs(DSLSentence sentence, int position) {
+        model.addLhsItem(sentence.copy(), position);
         refreshWidget();
-
     }
 
-
-    protected void showActionSelector(Widget w) {
+    protected void showActionSelector(Widget w, Integer position) {
+        //XXX {Bauna} add RHS Actions
         final FormStylePopup popup = new FormStylePopup();
         popup.setWidth(-1);
         popup.setTitle(constants.AddANewAction());
+
+        final ListBox positionCbo = new ListBox();
+        if (position == null) {
+            positionCbo.addItem(constants.Bottom(), String.valueOf(this.model.rhs.length));
+            positionCbo.addItem(constants.Top(), "0");
+            for (int i = 1; i < model.rhs.length; i++) {
+                positionCbo.addItem(Format.format(constants.Line0(), i), String.valueOf(i));
+            }
+        } else {
+            //if position is fixed, we just add one element to the drop down.
+            positionCbo.addItem(String.valueOf(position));
+            positionCbo.setSelectedIndex(0);
+        }
 
         final ListBox choices = new ListBox(true);
         final Map<String, Command> cmds = new HashMap<String, Command>();
@@ -430,9 +657,10 @@ public class RuleModeller extends DirtyableComposite {
         //
         // First load up the stuff to do with bound variables or globals
         //
+        SuggestionCompletionEngine completions = SuggestionCompletionCache.getInstance().getEngineFromCache(packageName);
         List<String> vars = model.getBoundFacts();
         List<String> vars2 = model.getRhsBoundFacts();
-        String[] globals = this.completions.getGlobalVariables();
+        String[] globals = completions.getGlobalVariables();
 
 
         //
@@ -440,15 +668,16 @@ public class RuleModeller extends DirtyableComposite {
         //
         if (completions.getDSLActions().length > 0) {
 
-            for(int i = 0; i < completions.getDSLActions().length; i++ ) {
-                final DSLSentence sen = completions.getDSLActions()[ i ];
-                if(sen!=null) {
+            for (int i = 0; i < completions.getDSLActions().length; i++) {
+                final DSLSentence sen = completions.getDSLActions()[i];
+                if (sen != null) {
                     String sentence = sen.toString();
                     choices.addItem(sentence, "DSL" + sentence);  //NON-NLS
                     cmds.put("DSL" + sentence, new Command() {    //NON-NLS
+
                         public void execute() {
-                          addNewDSLRhs(sen);
-                          popup.hide();
+                            addNewDSLRhs(sen, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
+                            popup.hide();
                         }
                     });
                 }
@@ -460,14 +689,15 @@ public class RuleModeller extends DirtyableComposite {
 
 
         //Do Set field (NOT modify)
-        for ( Iterator iter = vars.iterator(); iter.hasNext(); ) {
-            final String v = (String) iter.next();
+        for (Iterator<String> iter = vars.iterator(); iter.hasNext();) {
+            final String v = iter.next();
 
             //varBox.addItem( v );
             choices.addItem(Format.format(constants.ChangeFieldValuesOf0(), v), "VAR" + v); //NON-NLS
             cmds.put("VAR" + v, new Command() {        //NON-NLS
+
                 public void execute() {
-                    addActionSetField(v);
+                    addActionSetField(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     popup.hide();
                 }
             });
@@ -475,12 +705,13 @@ public class RuleModeller extends DirtyableComposite {
 
         }
 
-        for ( int i = 0; i < globals.length; i++ ) {     //we also do globals here...
+        for (int i = 0; i < globals.length; i++) {     //we also do globals here...
             final String v = globals[i];
             choices.addItem(Format.format(constants.ChangeFieldValuesOf0(), v), "GLOBVAR" + v);   //NON-NLS
             cmds.put("GLOBVAR" + v, new Command() {        //NON-NLS
+
                 public void execute() {
-                    addActionSetField(v);
+                    addActionSetField(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     popup.hide();
                 }
             });
@@ -488,27 +719,29 @@ public class RuleModeller extends DirtyableComposite {
 
 
         //RETRACT
-        for ( Iterator iter = vars.iterator(); iter.hasNext(); ) {
-            final String v = (String) iter.next();
+        for (Iterator<String> iter = vars.iterator(); iter.hasNext();) {
+            final String v = iter.next();
             //retractBox.addItem( v );
             choices.addItem(Format.format(constants.Retract0(), v), "RET" + v); //NON-NLS
             cmds.put("RET" + v, new Command() {                                          //NON-NLS
+
                 public void execute() {
-                     addRetract(v);
-                     popup.hide();
+                    addRetract(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
+                    popup.hide();
                 }
             });
         }
 
         //MODIFY
-        for ( Iterator iter = vars.iterator(); iter.hasNext(); ) {
-            final String v = (String) iter.next();
+        for (Iterator<String> iter = vars.iterator(); iter.hasNext();) {
+            final String v = iter.next();
             // modifyBox.addItem( v );
 
             choices.addItem(Format.format(constants.Modify0(), v), "MOD" + v);    //NON-NLS
             cmds.put("MOD" + v, new Command() {                                            //NON-NLS
+
                 public void execute() {
-                    addModify(v);
+                    addModify(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     popup.hide();
                 }
             });
@@ -518,49 +751,47 @@ public class RuleModeller extends DirtyableComposite {
 
 
         //Now inserts:
-        for ( int i = 0; i < completions.getFactTypes().length; i++ ) {
+        for (int i = 0; i < completions.getFactTypes().length; i++) {
             final String item = completions.getFactTypes()[i];
             choices.addItem(Format.format(constants.InsertFact0(), item), "INS" + item); //NON-NLS
             cmds.put("INS" + item, new Command() {                                                //NON-NLS
+
                 public void execute() {
-                    model.addRhsItem( new ActionInsertFact(item) );
+                    model.addRhsItem(new ActionInsertFact(item), Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     refreshWidget();
                     popup.hide();
                 }
             });
         }
 
-        for ( int i = 0; i < completions.getFactTypes().length; i++ ) {
+        for (int i = 0; i < completions.getFactTypes().length; i++) {
             final String item = completions.getFactTypes()[i];
             choices.addItem(Format.format(constants.LogicallyInsertFact0(), item), "LINS" + item); //NON-NLS
             cmds.put("LINS" + item, new Command() {                                                         //NON-NLS
+
                 public void execute() {
-                       model.addRhsItem( new ActionInsertLogicalFact(item) );
-                       refreshWidget();
-                       popup.hide();
+                    model.addRhsItem(new ActionInsertLogicalFact(item), Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
+                    refreshWidget();
+                    popup.hide();
                 }
             });
         }
 
-
-
-
         choices.addItem("................");
-
-
         //now global collections
-        if (completions.globalCollections.length > 0 && vars.size() > 0) {
+        if (completions.getGlobalCollections().length > 0 && vars.size() > 0) {
             for (String bf : vars) {
-                for(int i = 0; i < completions.globalCollections.length; i++) {
-                    final String glob = completions.globalCollections[i];
+                for (int i = 0; i < completions.getGlobalCollections().length; i++) {
+                    final String glob = completions.getGlobalCollections()[i];
                     final String var = bf;
                     choices.addItem(Format.format(constants.Append0ToList1(), var, glob), "GLOBCOL" + glob + var); //NON-NLS
                     cmds.put("GLOBCOL" + glob + var, new Command() {                                                        //NON-NLS
+
                         public void execute() {
                             ActionGlobalCollectionAdd gca = new ActionGlobalCollectionAdd();
                             gca.globalName = glob;
                             gca.factName = var;
-                            model.addRhsItem(gca);
+                            model.addRhsItem(gca, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                             refreshWidget();
                             popup.hide();
                         }
@@ -569,59 +800,70 @@ public class RuleModeller extends DirtyableComposite {
             }
         }
 
-
         if (ExplorerLayoutManager.shouldShow(Capabilities.SHOW_PACKAGE_VIEW)) {
             choices.addItem(constants.AddFreeFormDrl(), "FF");  //NON-NLS
             cmds.put("FF", new Command() {                     //NON-NLS
+
                 public void execute() {
-                    model.addRhsItem(new FreeFormLine());
+                    model.addRhsItem(new FreeFormLine(), Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                     refreshWidget();
                     popup.hide();
                 }
             });
-            for ( int i = 0; i < globals.length; i++ ) {     //we also do globals here...
+            for (int i = 0; i < globals.length; i++) {     //we also do globals here...
                 final String v = globals[i];
-                choices.addItem(Format.format(constants.CallMethodOn0(), v ), "GLOBCALL" + v); //NON-NLS
+                choices.addItem(Format.format(constants.CallMethodOn0(), v), "GLOBCALL" + v); //NON-NLS
                 cmds.put("GLOBCALL" + v, new Command() {      //NON-NLS
+
                     public void execute() {
-                        addCallMethod(v);
+                        addCallMethod(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                         popup.hide();
                     }
                 });
 
             }
 
-                    //CALL methods
-            for ( Iterator iter = vars.iterator(); iter.hasNext(); ) {
-                final String v = (String) iter.next();
+            //CALL methods
+            for (Iterator<String> iter = vars.iterator(); iter.hasNext();) {
+                final String v = iter.next();
 
-                choices.addItem(Format.format(constants.CallMethodOn0(), v ), "CALL" + v); //NON-NLS
+                choices.addItem(Format.format(constants.CallMethodOn0(), v), "CALL" + v); //NON-NLS
                 cmds.put("CALL" + v, new Command() { //NON-NLS
+
                     public void execute() {
-                        addCallMethod(v);
+                        addCallMethod(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                         popup.hide();
                     }
                 });
             }
             //Do Set field (NOT modify)
-            for ( Iterator iter = vars2.iterator(); iter.hasNext(); ) {
-                final String v = (String) iter.next();
+            for (Iterator<String> iter = vars2.iterator(); iter.hasNext();) {
+                final String v = iter.next();
 
                 choices.addItem(Format.format(constants.CallMethodOn0(), v), "CALL" + v); //NON-NLS
                 cmds.put("CALL" + v, new Command() {        //NON-NLS
+
                     public void execute() {
-                        addCallMethod(v);
+                        addCallMethod(v, Integer.parseInt(positionCbo.getValue(positionCbo.getSelectedIndex())));
                         popup.hide();
                     }
                 });
-
-
             }
+        }
 
+
+        //only show the drop down if we are not using fixed position.
+        if (position == null) {
+            HorizontalPanel hp0 = new HorizontalPanel();
+            hp0.add(new HTML(constants.PositionColon()));
+            hp0.add(positionCbo);
+            hp0.add(new InfoPopup(constants.PositionColon(), constants.ActionPositionExplanation()));
+            popup.addRow(hp0);
         }
 
         HorizontalPanel hp = new HorizontalPanel();
         final ClickListener cl = new ClickListener() {
+
             public void onClick(Widget sender) {
                 int sel = choices.getSelectedIndex();
                 if (sel != -1) {
@@ -631,6 +873,7 @@ public class RuleModeller extends DirtyableComposite {
         };
 
         choices.addKeyboardListener(new KeyboardListenerAdapter() {
+
             @Override
             public void onKeyUp(Widget sender, char keyCode, int modifiers) {
                 if (keyCode == KeyboardListener.KEY_ENTER) {
@@ -649,109 +892,120 @@ public class RuleModeller extends DirtyableComposite {
         choices.setFocus(true);
     }
 
-
-
-
-    protected void addModify(String itemText) {
-        this.model.addRhsItem(new ActionUpdateField(itemText));
-        refreshWidget();
-
-    }
-
-    protected void addNewDSLRhs(DSLSentence sentence) {
-        this.model.addRhsItem( sentence.copy() );
+    protected void addModify(String itemText, int position) {
+        this.model.addRhsItem(new ActionUpdateField(itemText), position);
         refreshWidget();
     }
 
-    protected void addRetract(String var) {
-        this.model.addRhsItem( new ActionRetractFact(var) );
+    protected void addNewDSLRhs(DSLSentence sentence, int position) {
+        this.model.addRhsItem(sentence.copy(), position);
         refreshWidget();
     }
 
-    protected void addActionSetField(String itemText) {
-        this.model.addRhsItem(new ActionSetField(itemText));
+    protected void addRetract(String var, int position) {
+        this.model.addRhsItem(new ActionRetractFact(var), position);
         refreshWidget();
     }
 
-    protected void addCallMethod(String itemText) {
-        this.model.addRhsItem(new ActionCallMethod(itemText));
+    protected void addActionSetField(String itemText, int position) {
+        this.model.addRhsItem(new ActionSetField(itemText), position);
         refreshWidget();
     }
 
-    protected void addNewCE(String s) {
-        this.model.addLhsItem( new CompositeFactPattern(s) );
+    protected void addCallMethod(String itemText, int position) {
+        this.model.addRhsItem(new ActionCallMethod(itemText), position);
         refreshWidget();
-        
+    }
+
+    protected void addNewCE(String s, int position) {
+        this.model.addLhsItem(new CompositeFactPattern(s), position);
+        refreshWidget();
+    }
+
+    protected void addNewFCE(String type, int position) {
+        FromCompositeFactPattern p = null;
+        if (type.equals("from")) {
+            p = new FromCompositeFactPattern();
+        } else if (type.equals("from accumulate")) {
+            p = new FromAccumulateCompositeFactPattern();
+        } else if (type.equals("from collect")) {
+            p = new FromCollectCompositeFactPattern();
+        }
+
+        this.model.addLhsItem(p, position);
+        refreshWidget();
     }
 
     /**
      * Adds a fact to the model, and then refreshes the display.
      */
-    protected void addNewFact(String itemText) {
-        this.model.addLhsItem( new FactPattern(itemText) );
+    protected void addNewFact(String itemText, int position) {
+        this.model.addLhsItem(new FactPattern(itemText), position);
         refreshWidget();
     }
 
     /**
      * Builds all the condition widgets.
      */
-    private Widget renderLhs(final RuleModel model) {
-        DirtyableVerticalPane vert = new DirtyableVerticalPane();
+    private void renderLhs(final RuleModel model) {
 
-        for ( int i = 0; i < model.lhs.length; i++ ) {
+
+        for (int i = 0; i < model.lhs.length; i++) {
+            DirtyableVerticalPane vert = new DirtyableVerticalPane();
+            vert.setWidth("100%");
+
+            //if lockLHS() set the widget RO, otherwise let them decide.
+            Boolean readOnly = this.lockLHS()?true:null;
+
             IPattern pattern = model.lhs[i];
-            Widget w = null;
-            if (pattern instanceof FactPattern) {
-                w = new FactPatternWidget(this, pattern, completions, true) ;
-                vert.add( wrapLHSWidget( model,
-                              i,
-                              w ) );
-                vert.add( spacerWidget() );
-            } else if (pattern instanceof CompositeFactPattern) {
-                w = new CompositeFactPatternWidget(this, (CompositeFactPattern) pattern, completions) ;
-                vert.add( wrapLHSWidget( model, i, w ));
-                vert.add( spacerWidget() );
-            } else if (pattern instanceof DSLSentence) {
-                //ignore this time
-            } else if (pattern instanceof FreeFormLine){
-            	final FreeFormLine ffl = (FreeFormLine) pattern;
-            	final TextBox tb = new TextBox();
-            	tb.setText(ffl.text);
-            	tb.setTitle(constants.ThisIsADrlExpressionFreeForm());
-            	tb.addChangeListener(new ChangeListener() {
-            		public void onChange(Widget arg0) {
-            			ffl.text = tb.getText();
-					}
-            	});
-            	vert.add(wrapLHSWidget(model, i, tb));
-            	vert.add( spacerWidget() );
-            } else {
-                throw new RuntimeException("I don't know what type of pattern that is.");
+            
+            RuleModellerWidget w = getWidgetFactory().getWidget(this, pattern, readOnly);
+
+            vert.add(wrapLHSWidget(model, i, w));
+            vert.add(spacerWidget());
+
+
+            layout.setWidget(currentLayoutRow, 0, this.wrapLineNumber(i+1, true));
+            layout.getFlexCellFormatter().setHorizontalAlignment(currentLayoutRow, 0, HasHorizontalAlignment.ALIGN_CENTER);
+            layout.getFlexCellFormatter().setVerticalAlignment(currentLayoutRow, 0, HasVerticalAlignment.ALIGN_MIDDLE);
+
+            layout.setWidget(currentLayoutRow, 1, vert);
+            layout.getFlexCellFormatter().setHorizontalAlignment(currentLayoutRow, 1, HasHorizontalAlignment.ALIGN_LEFT);
+            layout.getFlexCellFormatter().setVerticalAlignment(currentLayoutRow, 1, HasVerticalAlignment.ALIGN_TOP);
+            layout.getFlexCellFormatter().setWidth(currentLayoutRow, 1, "100%");
+
+            final int index = i;
+            if (!(this.lockLHS() || w.isReadOnly())) {
+                this.addActionsButtonsToLayout(constants.AddAConditionBelow(), new ClickListener() {
+
+                    public void onClick(Widget w) {
+                        showConditionSelector(w, index + 1);
+                    }
+                },new ClickListener() {
+
+                    public void onClick(Widget sender) {
+                        model.moveLhsItemDown(index);
+                        refreshWidget();
+                    }
+                },new ClickListener() {
+
+                    public void onClick(Widget sender) {
+                        model.moveLhsItemUp(index);
+                        refreshWidget();
+                    }
+                });
             }
 
+            
+
+            currentLayoutRow++;
         }
 
-
-        DirtyableVerticalPane dsls = new DirtyableVerticalPane();
-        for ( int i = 0; i < model.lhs.length; i++ ) {
-            IPattern pattern = model.lhs[i];
-            Widget w = null;
-
-            if (pattern instanceof DSLSentence) {
-                w = new DSLSentenceWidget((DSLSentence) pattern,completions);
-
-                dsls.add( wrapLHSWidget( model, i, w ) );
-                dsls.setStyleName( "model-builderInner-Background" ); //NON-NLS
-            }
-        }
-        vert.add( dsls );
-
-        return vert;
     }
 
     private HTML spacerWidget() {
         HTML h = new HTML("&nbsp;");       //NON-NLS
-        h.setHeight( "2px" );              //NON-NLS
+        h.setHeight("2px");              //NON-NLS
         return h;
     }
 
@@ -759,36 +1013,127 @@ public class RuleModeller extends DirtyableComposite {
      * This adds the widget to the UI, also adding the remove icon.
      */
     private Widget wrapLHSWidget(final RuleModel model,
-                              int i,
-                              Widget w) {
+            int i,
+            RuleModellerWidget w) {
         DirtyableHorizontalPane horiz = new DirtyableHorizontalPane();
 
-        Image remove = new ImageButton("images/delete_item_small.gif"); //NON-NLS
+        final Image remove = new ImageButton("images/delete_faded.gif"); //NON-NLS
         remove.setTitle(constants.RemoveThisENTIREConditionAndAllTheFieldConstraintsThatBelongToIt());
         final int idx = i;
-        remove.addClickListener( new ClickListener() {
+        remove.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
-            	if (Window.confirm(constants.RemoveThisEntireConditionQ())) {
-                        if (model.removeLhsItem(idx)) {
-                            refreshWidget();
-                        } else {
-                            ErrorPopup.showMessage(constants.CanTRemoveThatItemAsItIsUsedInTheActionPartOfTheRule());
-                        }
+                if (Window.confirm(constants.RemoveThisEntireConditionQ())) {
+                    if (model.removeLhsItem(idx)) {
+                        refreshWidget();
+                    } else {
+                        ErrorPopup.showMessage(constants.CanTRemoveThatItemAsItIsUsedInTheActionPartOfTheRule());
+                    }
                 }
             }
-        } );
+        });
 
 
-        horiz.setWidth( "100%" );
-        w.setWidth( "100%" );
+        horiz.setWidth("100%");
+        w.setWidth("100%");
 
-        horiz.add( w );
-        horiz.add( remove );
+        horiz.add(w);
+        if (!(this.lockLHS() || w.isReadOnly())) {
+            horiz.add(remove);
+        }
 
         return horiz;
     }
 
+    private Widget wrapLineNumber(int number, boolean isLHSLine){
+        String id = "rhsLine";
+        if (isLHSLine){
+            id="lhsLine";
+        }
+        id+=number;
 
+        DirtyableHorizontalPane horiz = new DirtyableHorizontalPane();
+        horiz.add(new HTML("<div class='x-form-field' id='"+id+"'>" + number + ".</div>"));
+
+        return horiz;
+    }
+
+    private void addLineIcon(int row, String img, String title){
+        Widget widget = layout.getWidget(row, 0);
+        if (widget instanceof DirtyableHorizontalPane){
+            DirtyableHorizontalPane horiz = (DirtyableHorizontalPane)widget;
+            final Image icon = new ImageButton(img);
+            icon.setTitle(title);
+            horiz.add(icon);
+        }
+    }
+
+    private void clearLineIcons(int row){
+        if (layout.getCellCount(row)<=0){
+            return;
+        }
+        Widget widget = layout.getWidget(row, 0);
+        if (widget instanceof DirtyableHorizontalPane){
+            DirtyableHorizontalPane horiz = (DirtyableHorizontalPane)widget;
+            while (horiz.getWidgetCount() > 1){
+                horiz.remove(horiz.getWidgetCount()-1);
+            }
+        }
+    }
+
+    private void clearLinesIcons(){
+        for (int i = 0; i < layout.getRowCount(); i++) {
+            this.clearLineIcons(i);
+        }
+    }
+
+    private void addActionsButtonsToLayout(String title, ClickListener addBelowListener, ClickListener moveDownListener, ClickListener moveUpListener) {
+
+        DirtyableHorizontalPane hp = new DirtyableHorizontalPane();
+
+        Image addPattern = new ImageButton("images/new_item_below.png");
+        addPattern.setTitle(title);
+        addPattern.addClickListener(addBelowListener);
+
+        Image moveDown = new ImageButton("images/shuffle_down.gif");
+        moveDown.setTitle(constants.MoveDown());
+        moveDown.addClickListener(moveDownListener);
+
+        Image moveUp = new ImageButton("images/shuffle_up.gif");
+        moveUp.setTitle(constants.MoveUp());
+        moveUp.addClickListener(moveUpListener);
+        
+        hp.add(addPattern);
+        hp.add(moveDown);
+        hp.add(moveUp);
+
+
+
+        final ExtElement e = new ExtElement(hp.getElement());
+        e.setOpacity(0.1f, false);
+
+        FocusPanel actionPanel = new FocusPanel(hp);
+
+        MouseListenerAdapter mouseListenerAdapter = new MouseListenerAdapter() {
+
+            @Override
+            public void onMouseEnter(Widget sender) {
+                e.setOpacity(1, false);
+            }
+
+            @Override
+            public void onMouseLeave(Widget sender) {
+                e.setOpacity(0.1f, false);
+            }
+        };
+
+
+        actionPanel.addMouseListener(mouseListenerAdapter);
+
+        layout.setWidget(currentLayoutRow, 2, actionPanel);
+        layout.getFlexCellFormatter().setHorizontalAlignment(currentLayoutRow, 2, HasHorizontalAlignment.ALIGN_CENTER);
+        layout.getFlexCellFormatter().setVerticalAlignment(currentLayoutRow, 2, HasVerticalAlignment.ALIGN_MIDDLE);
+    }
 
     public RuleModel getModel() {
         return model;
@@ -798,17 +1143,100 @@ public class RuleModeller extends DirtyableComposite {
      * Returns true is a var name has already been used
      * either by the rule, or as a global.
      */
-
     public boolean isVariableNameUsed(String name) {
-
-        return model.isVariableNameUsed( name ) || completions.isGlobalVariable( name );
+        SuggestionCompletionEngine completions = SuggestionCompletionCache.getInstance().getEngineFromCache(packageName);
+        return model.isVariableNameUsed(name) || completions.isGlobalVariable(name);
     }
 
+    @Override
     public boolean isDirty() {
-        return ( layout.hasDirty() || dirtyflag) ;
+        return (layout.hasDirty() || dirtyflag);
     }
 
     public SuggestionCompletionEngine getSuggestionCompletions() {
-        return this.completions;
+        return SuggestionCompletionCache.getInstance().getEngineFromCache(packageName);
     }
+
+
+    private List<AnalysisReportLine> errors;
+    private List<AnalysisReportLine> warnings;
+
+    private void showWarningsAndErrors(){
+        this.clearLinesIcons();
+        if (this.warnings != null){
+            for (AnalysisReportLine warning : this.warnings) {
+                if (warning.patternOrderNumber != null){
+                    this.addLineIcon(warning.patternOrderNumber+1, "images/warning.gif", warning.description);
+                }
+            }
+        }
+        if (this.errors != null){
+            for (AnalysisReportLine error : this.errors) {
+                if (error.patternOrderNumber != null){
+                    this.addLineIcon(error.patternOrderNumber+1, "images/error.gif", error.description);
+                }
+            }
+        }
+    }
+
+    public void verifyRule(final Command cmd){
+        errors = new ArrayList<AnalysisReportLine>();
+        warnings = new ArrayList<AnalysisReportLine>();
+        
+        //if AutoVerifierEnabled is off, just execute cmd and return.
+        if (!WorkingSetManager.getInstance().isAutoVerifierEnabled()){
+            if (cmd != null){
+                cmd.execute();
+            }
+            return;
+        }
+
+        LoadingPopup.showMessage(constants.VerifyingItemPleaseWait());
+        Set<String> activeWorkingSets = WorkingSetManager.getInstance().getActiveAssetUUIDs(asset.metaData.packageName);
+        RepositoryServiceFactory.getService().verifyAssetWithoutVerifiersRules(this.asset, activeWorkingSets,
+                new AsyncCallback<AnalysisReport>() {
+
+                    public void onSuccess(AnalysisReport report) {
+                        LoadingPopup.close();
+                        
+                        errors = Arrays.asList(report.errors);
+                        warnings = Arrays.asList(report.warnings);
+
+                        showWarningsAndErrors();
+
+                        if (cmd != null) {
+                            cmd.execute();
+                        }
+                    }
+
+                    public void onFailure(Throwable arg0) {
+                        // TODO Auto-generated method stub
+                    }
+                });
+
+    }
+
+    public boolean hasVerifierErrors(){
+        return this.errors != null && this.errors.size() > 0;
+    }
+
+    public boolean hasVerifierWarnings(){
+        return this.warnings != null && this.warnings.size() > 0;
+    }
+
+	public ModellerWidgetFactory getWidgetFactory() {
+		return widgetFactory;
+	}
+
+	public void setWidgetFactory(ModellerWidgetFactory widgetFactory) {
+		this.widgetFactory = widgetFactory;
+	}
+
+	public RuleModeller getRuleModeller() {
+		return this;
+	}
+
+	public boolean isTemplate() {
+		return widgetFactory.isTemplate();
+	}
 }

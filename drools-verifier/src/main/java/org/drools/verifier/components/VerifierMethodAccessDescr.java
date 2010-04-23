@@ -4,35 +4,32 @@ package org.drools.verifier.components;
  * 
  * @author Toni Rikkola
  */
-public class VerifierMethodAccessDescr extends VerifierComponent {
+public class VerifierMethodAccessDescr extends RuleComponent {
 
-	private static int index = 0;
+    private String methodName;
+    private String arguments;
 
-	private String methodName;
-	private String arguments;
+    public VerifierMethodAccessDescr(VerifierRule rule) {
+        super( rule );
+    }
 
-	public VerifierMethodAccessDescr() {
-		super(index++);
-	}
+    public String getArguments() {
+        return arguments;
+    }
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.METHOD_ACCESSOR;
-	}
+    public void setArguments(String arguments) {
+        this.arguments = arguments;
+    }
 
-	public String getArguments() {
-		return arguments;
-	}
+    public String getMethodName() {
+        return methodName;
+    }
 
-	public void setArguments(String arguments) {
-		this.arguments = arguments;
-	}
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
+    }
 
-	public String getMethodName() {
-		return methodName;
-	}
-
-	public void setMethodName(String methodName) {
-		this.methodName = methodName;
-	}
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.METHOD_ACCESSOR;
+    }
 }

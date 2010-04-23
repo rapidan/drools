@@ -67,13 +67,13 @@ public class PopulateDataTest extends TestCase {
 
         PackageItem pkg = serv.repository.loadPackage("com.billasurf.manufacturing.plant");
 
-        serv.buildPackage(pkg.getUUID(), null, true);
+        serv.buildPackage(pkg.getUUID(), true);
 
     }
 
     private void createPermissions(ServiceImplementation serv) {
     	Map<String, List<String>> perms = new HashMap<String, List<String>>();
-    	perms.put(RoleTypes.ADMIN, new ArrayList());
+    	perms.put(RoleTypes.ADMIN, new ArrayList<String>());
 		serv.updateUserPermissions("woozle1", perms);
 
 		perms = new HashMap<String, List<String>>();
@@ -92,7 +92,7 @@ public class PopulateDataTest extends TestCase {
         assertNotNull(file);
 
         FileManagerUtils fm = new FileManagerUtils();
-        fm.repository = repo;
+        fm.setRepository(repo);
 
         fm.attachFileToAsset( uuid, file, "billasurf.jar" );
 
@@ -109,8 +109,9 @@ public class PopulateDataTest extends TestCase {
         SuggestionCompletionEngine eng = serv.loadSuggestionCompletionEngine( "com.billasurf.manufacturing.plant" );
         assertNotNull(eng);
 
-        assertEquals(2, eng.factTypes.length);
-        String[] fields = (String[]) eng.fieldsForType.get( "Board" );
+        //The loader could define extra imports
+        assertTrue( eng.getFactTypes().length >= 2);
+        String[] fields = (String[]) eng.getModelFields( "Board" );
         assertTrue(fields.length >= 3);
 
         String[] globalVars = eng.getGlobalVariables();
@@ -118,7 +119,7 @@ public class PopulateDataTest extends TestCase {
         assertEquals("prs", globalVars[0]);
         assertTrue(eng.getFieldCompletionsForGlobalVariable( "prs" ).length >= 2);
 
-        fields = (String[]) eng.fieldsForType.get( "Person" );
+        fields = (String[]) eng.getModelFields( "Person" );
 
         assertTrue(fields.length >= 2);
 
@@ -142,10 +143,6 @@ public class PopulateDataTest extends TestCase {
         uuid = serv.createNewRule( "Fibreglass supplier selection", "This defines XXX.", "Manufacturing/Boards", "com.billasurf.manufacturing", AssetFormats.BUSINESS_RULE );
         uuid = serv.createNewRule( "Recommended wax", "This defines XXX.", "Manufacturing/Boards", "com.billasurf.manufacturing", AssetFormats.BUSINESS_RULE );
         uuid = serv.createNewRule( "SomeDSL", "Ignore me.", "Manufacturing/Boards", "com.billasurf.manufacturing", AssetFormats.DSL );
-
-
-
-
     }
 
     private void createPackages(ServiceImplementation serv) throws SerializableException {

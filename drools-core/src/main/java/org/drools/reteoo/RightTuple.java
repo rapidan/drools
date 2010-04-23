@@ -1,65 +1,97 @@
 package org.drools.reteoo;
 
 import org.drools.common.InternalFactHandle;
-import org.drools.util.Entry;
-import org.drools.util.RightTupleList;
+import org.drools.core.util.Entry;
+import org.drools.core.util.RightTupleList;
 
 public class RightTuple
     implements
     Entry {
-    private InternalFactHandle handle;
+    protected InternalFactHandle handle;
 
-    private RightTuple         handlePrevious;
-    private RightTuple         handleNext;
+    private RightTuple           handlePrevious;
+    private RightTuple           handleNext;
 
-    private RightTupleList     memory;
+    private RightTupleList       memory;
 
-    private Entry              previous;
-    private Entry              next;
+    private Entry                previous;
+    private Entry                next;
 
-    private LeftTuple          betaChildren;
+    public LeftTuple             firstChild;
+    public LeftTuple             lastChild;
 
-    private LeftTuple          blocked;
+    private LeftTuple            blocked;
 
-    private RightTupleSink     sink;
-
-    private int                hashCode;
+    protected RightTupleSink     sink;
 
     public RightTuple() {
 
+    }
+    
+    public RightTuple(InternalFactHandle handle) {
+        // This constructor is here for DSL testing
+        this.handle = handle;
     }
 
     public RightTuple(InternalFactHandle handle,
                       RightTupleSink sink) {
         this.handle = handle;
-        this.hashCode = this.handle.hashCode();
         this.sink = sink;
 
-        RightTuple currentFirst = handle.getRightTuple();
-        if ( currentFirst != null ) {
-            currentFirst.handlePrevious = this;
-            this.handleNext = currentFirst;
+        RightTuple last = handle.getLastRightTuple();
+        if ( last == null ) {
+            // no other RightTuples, just add.
+            handle.setFirstRightTuple( this );
+            handle.setLastRightTuple( this );
+        } else {
+            // add to end of RightTuples on handle
+            this.handlePrevious = last;
+            last.setHandleNext( this );
+            this.handle.setLastRightTuple( this );
         }
-
-        handle.setRightTuple( this );
     }
 
     public RightTupleSink getRightTupleSink() {
         return this.sink;
     }
+    
+    public void reAdd() {
+        RightTuple last = handle.getLastRightTuple();
+        if ( last == null ) {
+            // node other RightTuples, just add.
+            handle.setFirstRightTuple( this );
+            handle.setLastRightTuple( this );
+        } else {
+            this.handleNext = null; // null this in case it was set when this RightTuple was last used
+            // add to end of RightTuples on handle
+            this.handlePrevious = last;
+            last.setHandleNext( this );
+            this.handle.setLastRightTuple( this );
+        }        
+    }
 
     public void unlinkFromRightParent() {
-        if ( this.handle != null ) {
-            if( this.handlePrevious != null ) {
-                this.handlePrevious.handleNext = this.handleNext;
-            }
-            if( this.handleNext != null ) {
-                this.handleNext.handlePrevious = this.handlePrevious;
-            }
-            if( this.handle.getRightTuple() == this ) {
-                this.handle.setRightTuple( this.handleNext );
-            }
+        RightTuple previousParent = this.handlePrevious;
+        RightTuple nextParent = this.handleNext;
+
+        if ( previousParent != null && nextParent != null ) {
+            // remove  from middle
+            this.handlePrevious.handleNext = nextParent;
+            this.handleNext.handlePrevious = previousParent;
+        } else if ( nextParent != null ) {
+            // remove from first
+            this.handleNext.handlePrevious = null;
+            this.handle.setFirstRightTuple( this.handleNext );
+        } else if ( previousParent != null ) {
+            // remove from end
+            this.handlePrevious.handleNext = null;
+            this.handle.setLastRightTuple( this.handlePrevious );
+        } else {
+            // single remaining item, no previous or next
+            this.handle.setFirstRightTuple( null );
+            this.handle.setLastRightTuple( null );
         }
+
         this.handle = null;
         this.handlePrevious = null;
         this.handleNext = null;
@@ -67,7 +99,8 @@ public class RightTuple
         this.previous = null;
         this.next = null;
         this.memory = null;
-        this.betaChildren = null;
+        this.firstChild = null;
+        this.lastChild = null;
         this.sink = null;
     }
 
@@ -77,16 +110,20 @@ public class RightTuple
 
     public LeftTuple getBlocked() {
         return this.blocked;
-    }    
+    }
+    
+    public void nullBlocked() {
+        this.blocked = null;
+    }
 
-    public void setBlocked(LeftTuple leftTuple) {
+    public void addBlocked(LeftTuple leftTuple) {
         if ( this.blocked != null && leftTuple != null ) {
             leftTuple.setBlockedNext( this.blocked );
             this.blocked.setBlockedPrevious( leftTuple );
-        }            
+        }
         this.blocked = leftTuple;
     }
-    
+
     public void removeBlocked(LeftTuple leftTuple) {
         LeftTuple previous = (LeftTuple) leftTuple.getBlockedPrevious();
         LeftTuple next = (LeftTuple) leftTuple.getBlockedNext();
@@ -96,14 +133,14 @@ public class RightTuple
             next.setBlockedPrevious( previous );
         } else if ( next != null ) {
             //remove from first
-            this.blocked = next ;
+            this.blocked = next;
             next.setBlockedPrevious( null );
         } else if ( previous != null ) {
             //remove from end
             previous.setBlockedNext( null );
         } else {
-            this.blocked =  null;
-        }        
+            this.blocked = null;
+        }
     }
 
     public RightTupleList getMemory() {
@@ -146,24 +183,16 @@ public class RightTuple
         this.next = next;
     }
 
-    public LeftTuple getBetaChildren() {
-        return betaChildren;
-    }
-
-    public void setBetaChildren(LeftTuple betachildren) {
-        this.betaChildren = betachildren;
-    }
-
-    public int getHashCode() {
-        return hashCode;
-    }
-
-    public void setHashCode(int hashCode) {
-        this.hashCode = hashCode;
-    }
+    //    public LeftTuple getFirstChild() {
+    //        return firstChild;
+    //    }
+    //
+    //    public void setFirstChildren(LeftTuple betachildren) {
+    //        this.firstChild = betachildren;
+    //    }
 
     public int hashCode() {
-        return this.hashCode;
+        return this.handle.hashCode();
     }
 
     public String toString() {
@@ -177,7 +206,7 @@ public class RightTuple
         }
 
         // A ReteTuple is  only the same if it has the same hashCode, factId and parent
-        if ( (other == null) || (this.hashCode != other.hashCode) ) {
+        if ( (other == null) || (hashCode() != other.hashCode()) ) {
             return false;
         }
 

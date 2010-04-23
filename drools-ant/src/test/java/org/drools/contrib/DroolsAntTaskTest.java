@@ -25,7 +25,7 @@ import org.drools.KnowledgeBase;
 import org.drools.RuleBase;
 import org.drools.definition.KnowledgePackage;
 import org.drools.rule.Package;
-import org.drools.util.DroolsStreamUtils;
+import org.drools.core.util.DroolsStreamUtils;
 
 /**
  * DroolsAntTask test case
@@ -57,7 +57,7 @@ public class DroolsAntTaskTest extends BuildFileTest {
             Assert.fail( "Should not throw any exception: " + e.getMessage() );
         }
 
-        Package p1 = (Package) DroolsStreamUtils.streamIn( new FileInputStream( "target/cheese.rules.dpkg" ) );
+        Package p1 = (Package) DroolsStreamUtils.streamIn( new FileInputStream( "target/cheese.rules.pkg" ) );
 
         assertNotNull( p1 );
         assertEquals( 1,
@@ -73,7 +73,7 @@ public class DroolsAntTaskTest extends BuildFileTest {
             Assert.fail( "Should not throw any exception: " + e.getMessage() );
         }
 
-        KnowledgePackage kpackage1 = (KnowledgePackage) DroolsStreamUtils.streamIn( new FileInputStream( "target/cheese.rules.dpkg" ) );
+        KnowledgePackage kpackage1 = (KnowledgePackage) DroolsStreamUtils.streamIn( new FileInputStream( "target/cheese.rules.pkg" ) );
 
         assertNotNull( kpackage1 );
         assertEquals( 1,

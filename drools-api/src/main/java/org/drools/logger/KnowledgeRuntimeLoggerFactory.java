@@ -1,6 +1,5 @@
 package org.drools.logger;
 
-import org.drools.ProviderInitializationException;
 import org.drools.event.KnowledgeRuntimeEventManager;
 
 /**
@@ -22,13 +21,15 @@ import org.drools.event.KnowledgeRuntimeEventManager;
  */
 public class KnowledgeRuntimeLoggerFactory {
 
-    private static KnowledgeRuntimeLoggerProvider knowledgeRuntimeLoggerProvider;
+    private static KnowledgeRuntimeLoggerFactoryService knowledgeRuntimeLoggerFactoryService;
 
     /**
-     * Creates a file logger in the current thread and events are written as they happen.
-     * 
+     * Creates a file logger in the current thread. The file is in XML format, suitable for interpretation by Eclipse's Drools Audit View
+     * or other tools. Note that while events are written as they happen, the file will not be flushed until it is closed or the underlying
+     * file buffer is filled. If you need real time logging then use a Console Logger or a Threaded File Logger.
+     *
      * @param session
-     * @param fileName
+     * @param fileName - .log is appended to this.
      * @return
      */
     public static KnowledgeRuntimeLogger newFileLogger(KnowledgeRuntimeEventManager session,
@@ -38,11 +39,12 @@ public class KnowledgeRuntimeLoggerFactory {
     }
 
     /**
-     * Creates a file logger that executes in a different thread, where information is written on given intervals
-     * 
+     * Creates a file logger that executes in a different thread, where information is written on given intervals (in milliseconds).
+     * The file is in XML format, suitable for interpretation by Eclipse's Drools Audit View or other tools.
+     *
      * @param session
-     * @param fileName
-     * @param interval
+     * @param fileName - .log is appended to this.
+     * @param interval - in milliseconds.
      * @return
      */
     public static KnowledgeRuntimeLogger newThreadedFileLogger(KnowledgeRuntimeEventManager session,
@@ -54,7 +56,8 @@ public class KnowledgeRuntimeLoggerFactory {
     }
 
     /**
-     * Logs events to command line console
+     * Logs events to command line console. This is not in XML format, so it cannot be parsed
+     * by other tools, but is in real time and is more human readable.
      * 
      * @param session
      * @return
@@ -63,24 +66,24 @@ public class KnowledgeRuntimeLoggerFactory {
         return getKnowledgeRuntimeLoggerProvider().newConsoleLogger( session );
     }
 
-    private static synchronized void setKnowledgeRuntimeLoggerProvider(KnowledgeRuntimeLoggerProvider provider) {
-        KnowledgeRuntimeLoggerFactory.knowledgeRuntimeLoggerProvider = provider;
+    private static synchronized void setKnowledgeRuntimeLoggerProvider(KnowledgeRuntimeLoggerFactoryService provider) {
+        KnowledgeRuntimeLoggerFactory.knowledgeRuntimeLoggerFactoryService = provider;
     }
 
-    private static synchronized KnowledgeRuntimeLoggerProvider getKnowledgeRuntimeLoggerProvider() {
-        if ( knowledgeRuntimeLoggerProvider == null ) {
+    private static synchronized KnowledgeRuntimeLoggerFactoryService getKnowledgeRuntimeLoggerProvider() {
+        if ( knowledgeRuntimeLoggerFactoryService == null ) {
             loadProvider();
         }
-        return knowledgeRuntimeLoggerProvider;
+        return knowledgeRuntimeLoggerFactoryService;
     }
 
     @SuppressWarnings("unchecked")
     private static void loadProvider() {
         try {
-            Class<KnowledgeRuntimeLoggerProvider> cls = (Class<KnowledgeRuntimeLoggerProvider>) Class.forName( "org.drools.audit.KnowledgeRuntimeLoggerProviderImpl" );
+            Class<KnowledgeRuntimeLoggerFactoryService> cls = (Class<KnowledgeRuntimeLoggerFactoryService>) Class.forName( "org.drools.audit.KnowledgeRuntimeLoggerProviderImpl" );
             setKnowledgeRuntimeLoggerProvider( cls.newInstance() );
         } catch ( Exception e ) {
-            throw new ProviderInitializationException( "Provider org.drools.audit.KnowledgeRuntimeLoggerProviderImpl could not be set.",
+            throw new RuntimeException( "Provider org.drools.audit.KnowledgeRuntimeLoggerProviderImpl could not be set.",
                                                        e );
         }
     }

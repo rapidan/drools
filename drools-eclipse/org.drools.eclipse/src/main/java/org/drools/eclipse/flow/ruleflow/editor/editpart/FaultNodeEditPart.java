@@ -44,7 +44,16 @@ public class FaultNodeEditPart extends ElementEditPart {
     
     protected IFigure createFigure() {
     	SkinProvider skinProvider = SkinManager.getInstance().getSkinProvider(SKIN);
-    	return skinProvider.createFaultNodeFigure();
+    	IFigure result = skinProvider.createFaultNodeFigure();
+    	Rectangle constraint = getElementWrapper().getConstraint();
+    	if (constraint.width == -1) {
+    		constraint.width = result.getSize().width;
+    	}
+    	if (constraint.height == -1) {
+    		constraint.height = result.getSize().height;
+    	}
+    	getElementWrapper().setConstraint(constraint);
+    	return result;
     }
     
     public static class FaultNodeFigure extends AbstractElementFigure {

@@ -1,37 +1,58 @@
 package org.drools.verifier.report.components;
 
+import java.util.Arrays;
+import java.util.Collection;
+
 /**
  * Pattern, rule or similar that is always satisfied.
  * 
  * @author trikkola
  * 
  */
-public class AlwaysTrue implements Cause {
+public class AlwaysTrue
+    implements
+    Reason,
+    Cause {
 
-	private static int index = 0;
+    private static int              index = 0;
 
-	private final int id = index++;
+    private final String            path  = String.valueOf( index++ );
 
-	private final Cause cause;
+    private final Cause             impactedComponent;
 
-	/**
-	 * 
-	 * @param cause
-	 *            Component that is always satisfied.
-	 */
-	public AlwaysTrue(Cause cause) {
-		this.cause = cause;
-	}
+    private final Collection<Cause> causes;
 
-	public CauseType getCauseType() {
-		return CauseType.ALWAYS_TRUE;
-	}
+    /**
+     * 
+     * @param cause
+     *            Component that is always satisfied.
+     */
+    public AlwaysTrue(Cause cause,
+                      Collection<Cause> causes) {
+        this.impactedComponent = cause;
+        this.causes = causes;
+    }
 
-	public int getId() {
-		return id;
-	}
+    public AlwaysTrue(Cause cause,
+                      Cause... causes) {
+        this.impactedComponent = cause;
+        this.causes = Arrays.asList( causes );
+    }
 
-	public Cause getCause() {
-		return cause;
-	}
+    public ReasonType getReasonType() {
+        return ReasonType.ALWAYS_TRUE;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public Cause getCause() {
+        return impactedComponent;
+    }
+
+    public Collection<Cause> getCauses() {
+        return causes;
+    }
+
 }

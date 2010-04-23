@@ -33,8 +33,10 @@ public class AssetFormatsTest extends TestCase {
                     fmt.equals( AssetFormats.DSL_TEMPLATE_RULE )
                     ||
                     fmt.equals( AssetFormats.DECISION_TABLE_GUIDED )
+                    ||
+                    fmt.equals( AssetFormats.RULE_TEMPLATE )
             ) ) {
-                fail("Incorrect grouping of business rules.");
+                fail("Incorrect grouping of business rules. format=" + fmt );
             }
         }
     }
@@ -44,11 +46,13 @@ public class AssetFormatsTest extends TestCase {
         assertFalse(AssetFormats.isPackageDependency(AssetFormats.DRL));
         assertFalse(AssetFormats.isPackageDependency(AssetFormats.DECISION_TABLE_GUIDED));
         assertFalse(AssetFormats.isPackageDependency(AssetFormats.TEST_SCENARIO));
+        assertFalse(AssetFormats.isPackageDependency(AssetFormats.RULE_TEMPLATE));
         assertTrue(AssetFormats.isPackageDependency(AssetFormats.DSL));
         assertTrue(AssetFormats.isPackageDependency(AssetFormats.MODEL));
         assertTrue(AssetFormats.isPackageDependency(AssetFormats.FUNCTION));
         assertTrue(AssetFormats.isPackageDependency( AssetFormats.ENUMERATION ));
         assertTrue(AssetFormats.isPackageDependency( AssetFormats.DRL_MODEL ));
+        assertTrue(AssetFormats.isPackageDependency( AssetFormats.WORKING_SET ));
     }
 
 }

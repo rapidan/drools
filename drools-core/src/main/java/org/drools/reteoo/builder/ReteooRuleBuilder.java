@@ -39,6 +39,7 @@ import org.drools.rule.GroupElement;
 import org.drools.rule.InvalidPatternException;
 import org.drools.rule.Pattern;
 import org.drools.rule.Query;
+import org.drools.rule.QueryElement;
 import org.drools.rule.Rule;
 import org.drools.time.TemporalDependencyMatrix;
 
@@ -59,6 +60,8 @@ public class ReteooRuleBuilder {
                                new PatternBuilder() );
         this.utils.addBuilder( EvalCondition.class,
                                new EvalBuilder() );
+        this.utils.addBuilder( QueryElement.class,
+                               new QueryElementBuilder() );        
         this.utils.addBuilder( From.class,
                                new FromBuilder() );
         this.utils.addBuilder( Collect.class,
@@ -89,8 +92,7 @@ public class ReteooRuleBuilder {
      */
     public List<TerminalNode> addRule(final Rule rule,
                         final InternalRuleBase rulebase,
-                        final ReteooBuilder.IdGenerator idGenerator) throws InvalidPatternException {
-
+                        final ReteooBuilder.IdGenerator idGenerator) throws InvalidPatternException {    	
         // the list of terminal nodes
         final List<TerminalNode> nodes = new ArrayList<TerminalNode>();
 

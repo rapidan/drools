@@ -1,34 +1,38 @@
 package org.drools.verifier.components;
 
-import org.drools.verifier.report.components.CauseType;
+public class TextConsequence extends RuleComponent
+    implements
+    Consequence {
 
-public class TextConsequence extends VerifierComponent implements Consequence {
+    private String text;
 
-	private static int index = 0;
-	private String text;
+    public TextConsequence(VerifierRule rule) {
+        super( rule );
+    }
 
-	public TextConsequence() {
-		super(index++);
-	}
+    @Override
+    public String getPath() {
+        return getRulePath() + ".consequence";
+    }
 
-	public ConsequenceType getConsequenceType() {
-		return ConsequenceType.TEXT;
-	}
+    public ConsequenceType getConsequenceType() {
+        return ConsequenceType.TEXT;
+    }
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.CONSEQUENCE;
-	}
+    public void setText(String text) {
+        this.text = text;
+    }
 
-	public CauseType getCauseType() {
-		return CauseType.CONSEQUENCE;
-	}
+    public String getText() {
+        return text;
+    }
 
-	public void setText(String text) {
-		this.text = text;
-	}
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.CONSEQUENCE;
+    }
 
-	public String getText() {
-		return text;
-	}
+    public String toString() {
+        return "TextConsequence: {\n" + text + "\n";
+    }
+
 }

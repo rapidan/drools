@@ -18,13 +18,12 @@ package org.drools.eclipse.flow.ruleflow.view.property.action;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.core.util.ArrayUtils;
 import org.drools.eclipse.editors.DRLSourceViewerConfig;
 import org.drools.eclipse.editors.scanners.DRLPartionScanner;
 import org.drools.eclipse.flow.common.view.property.EditBeanDialog;
 import org.drools.eclipse.flow.ruleflow.view.property.constraint.RuleFlowGlobalsDialog;
 import org.drools.eclipse.flow.ruleflow.view.property.constraint.RuleFlowImportsDialog;
-import org.drools.process.core.Process;
-import org.drools.util.ArrayUtils;
 import org.drools.workflow.core.DroolsAction;
 import org.drools.workflow.core.WorkflowProcess;
 import org.drools.workflow.core.impl.DroolsConsequenceAction;
@@ -222,7 +221,7 @@ public class ActionDialog extends EditBeanDialog<DroolsAction> {
 				int code = dialog.open();
 				if (code != CANCEL) {
 					List<String> imports = dialog.getImports();
-					((Process) process).setImports(imports);
+					process.setImports(imports);
 					List<String> functionImports = dialog.getFunctionImports();
 					process.setFunctionImports(functionImports);
 					completionProcessor.reset();
@@ -241,7 +240,7 @@ public class ActionDialog extends EditBeanDialog<DroolsAction> {
 				int code = dialog.open();
 				if (code != CANCEL) {
 					Map<String, String> globals = dialog.getGlobals();
-					((Process) process).setGlobals(globals);
+					process.setGlobals(globals);
 					completionProcessor.reset();
 				}
 			}

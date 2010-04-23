@@ -18,11 +18,15 @@ package org.drools.workflow.instance.node;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.drools.common.InternalRuleBase;
+import org.drools.definition.process.Node;
 import org.drools.definition.process.Process;
 import org.drools.process.core.context.variable.VariableScope;
 import org.drools.process.instance.ProcessInstance;
+import org.drools.process.instance.WorkItem;
 import org.drools.process.instance.context.variable.VariableScopeInstance;
 import org.drools.runtime.process.EventListener;
 import org.drools.runtime.process.NodeInstance;
@@ -36,9 +40,10 @@ import org.mvel2.MVEL;
  * 
  * @author <a href="mailto:kris_verlaenen@hotmail.com">Kris Verlaenen</a>
  */
-public class SubProcessNodeInstance extends EventBasedNodeInstance implements EventListener {
+public class SubProcessNodeInstance extends StateBasedNodeInstance implements EventListener {
 
     private static final long serialVersionUID = 400L;
+    private static final Pattern PARAMETER_MATCHER = Pattern.compile("#\\{(\\S+)\\}", Pattern.DOTALL);
     
     private long processInstanceId;
 	
@@ -73,6 +78,35 @@ public class SubProcessNodeInstance extends EventBasedNodeInstance implements Ev
             }
         }
         String processId = getSubProcessNode().getProcessId();
+        // resolve processId if necessary
+        Map<String, String> replacements = new HashMap<String, String>();
+		Matcher matcher = PARAMETER_MATCHER.matcher(processId);
+        while (matcher.find()) {
+        	String paramName = matcher.group(1);
+        	if (replacements.get(paramName) == null) {
+            	VariableScopeInstance variableScopeInstance = (VariableScopeInstance)
+                	resolveContextInstance(VariableScope.VARIABLE_SCOPE, paramName);
+                if (variableScopeInstance != null) {
+                    Object variableValue = variableScopeInstance.getVariable(paramName);
+                	String variableValueString = variableValue == null ? "" : variableValue.toString(); 
+	                replacements.put(paramName, variableValueString);
+                } else {
+                	try {
+                		Object variableValue = MVEL.eval(paramName, new NodeInstanceResolverFactory(this));
+	                	String variableValueString = variableValue == null ? "" : variableValue.toString();
+	                	replacements.put(paramName, variableValueString);
+                	} catch (Throwable t) {
+	                    System.err.println("Could not find variable scope for variable " + paramName);
+	                    System.err.println("when trying to replace variable in processId for sub process " + getNodeName());
+	                    System.err.println("Continuing without setting process id.");
+                	}
+                }
+        	}
+        }
+        for (Map.Entry<String, String> replacement: replacements.entrySet()) {
+        	processId = processId.replace("#{" + replacement.getKey() + "}", replacement.getValue());
+        }
+        // start process instance
         Process process = ((InternalRuleBase) ((ProcessInstance) getProcessInstance())
     		.getWorkingMemory().getRuleBase()).getProcess(processId);
         if (process == null) {
@@ -83,8 +117,10 @@ public class SubProcessNodeInstance extends EventBasedNodeInstance implements Ev
 	    	ProcessInstance processInstance = ( ProcessInstance )
 	    		((ProcessInstance) getProcessInstance()).getWorkingMemory()
 	    			.startProcess(processId, parameters);
-	    	if (!getSubProcessNode().isWaitForCompletion()
-	    	        || processInstance.getState() == ProcessInstance.STATE_COMPLETED) {
+	    	if (!getSubProcessNode().isWaitForCompletion()) {
+	    		triggerCompleted();
+	    	} else if (processInstance.getState() == ProcessInstance.STATE_COMPLETED) {
+	    		handleOutMappings(processInstance);
 	    		triggerCompleted();
 	    	} else {
 	    		this.processInstanceId = processInstance.getId();
@@ -95,7 +131,7 @@ public class SubProcessNodeInstance extends EventBasedNodeInstance implements Ev
     
     public void cancel() {
         super.cancel();
-        if (!getSubProcessNode().isIndependent()) {
+        if (getSubProcessNode() == null || !getSubProcessNode().isIndependent()) {
             ProcessInstance processInstance = (ProcessInstance)
                 ((ProcessInstance) getProcessInstance()).getWorkingMemory()
                     .getProcessInstance(processInstanceId);
@@ -141,28 +177,40 @@ public class SubProcessNodeInstance extends EventBasedNodeInstance implements Ev
     
     public void processInstanceCompleted(ProcessInstance processInstance) {
         removeEventListeners();
-        VariableScopeInstance subProcessVariableScopeInstance = (VariableScopeInstance)
-            processInstance.getContextInstance(VariableScope.VARIABLE_SCOPE);
-        for (Map.Entry<String, String> mapping: getSubProcessNode().getOutMappings().entrySet()) {
-            VariableScopeInstance variableScopeInstance = (VariableScopeInstance)
-                resolveContextInstance(VariableScope.VARIABLE_SCOPE, mapping.getValue());
-            if (variableScopeInstance != null) {
-            	Object value = subProcessVariableScopeInstance.getVariable(mapping.getKey());
-            	if (value == null) {
-            		try {
-                		value = MVEL.eval(mapping.getKey(), new VariableScopeResolverFactory(subProcessVariableScopeInstance));
-                	} catch (Throwable t) {
-                		// do nothing
-                	}
-            	}
-                variableScopeInstance.setVariable(mapping.getValue(), value);
-            } else {
-                System.err.println("Could not find variable scope for variable " + mapping.getValue());
-                System.err.println("when trying to complete SubProcess node " + getSubProcessNode().getName());
-                System.err.println("Continuing without setting variable.");
-            }
-        }
+        handleOutMappings(processInstance);
         triggerCompleted();
+    }
+    
+    private void handleOutMappings(ProcessInstance processInstance) {
+        VariableScopeInstance subProcessVariableScopeInstance = (VariableScopeInstance)
+	        processInstance.getContextInstance(VariableScope.VARIABLE_SCOPE);
+	    for (Map.Entry<String, String> mapping: getSubProcessNode().getOutMappings().entrySet()) {
+	        VariableScopeInstance variableScopeInstance = (VariableScopeInstance)
+	            resolveContextInstance(VariableScope.VARIABLE_SCOPE, mapping.getValue());
+	        if (variableScopeInstance != null) {
+	        	Object value = subProcessVariableScopeInstance.getVariable(mapping.getKey());
+	        	if (value == null) {
+	        		try {
+	            		value = MVEL.eval(mapping.getKey(), new VariableScopeResolverFactory(subProcessVariableScopeInstance));
+	            	} catch (Throwable t) {
+	            		// do nothing
+	            	}
+	        	}
+	            variableScopeInstance.setVariable(mapping.getValue(), value);
+	        } else {
+	            System.err.println("Could not find variable scope for variable " + mapping.getValue());
+	            System.err.println("when trying to complete SubProcess node " + getSubProcessNode().getName());
+	            System.err.println("Continuing without setting variable.");
+	        }
+	    }
+    }
+    
+    public String getNodeName() {
+    	Node node = getNode();
+    	if (node == null) {
+    		return "[Dynamic] Sub Process";
+    	}
+    	return super.getNodeName();
     }
 
 }

@@ -1,96 +1,82 @@
 package org.drools.verifier.components;
 
+import org.drools.verifier.data.VerifierComponent;
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 
 /**
  * 
  * @author Toni Rikkola
  */
-public class Field extends VerifierComponent implements Cause {
+public class Field extends VerifierComponent
+    implements
+    Cause {
 
-	public static class FieldType {
-		public static final FieldType BOOLEAN = new FieldType("boolean");
-		public static final FieldType STRING = new FieldType("String");
-		public static final FieldType INT = new FieldType("int");
-		public static final FieldType DOUBLE = new FieldType("double");
-		public static final FieldType DATE = new FieldType("Date");
-		public static final FieldType VARIABLE = new FieldType("Variable");
-		public static final FieldType OBJECT = new FieldType("Object");
-		public static final FieldType ENUM = new FieldType("Enum");
-		public static final FieldType UNKNOWN = new FieldType("Unknown");
+    public static final String BOOLEAN  = "java.lang.Boolean";
+    public static final String STRING   = "java.lang.String";
+    public static final String INT      = "java.lang.Integer";
+    public static final String DOUBLE   = "java.lang.Double";
+    public static final String DATE     = "java.util.Date";
+    public static final String VARIABLE = "Variable";
+    public static final String OBJECT   = "Object";
+    public static final String ENUM     = "Enum";
+    public static final String UNKNOWN  = "Unknown";
 
-		private final String string;
+    private String             objectTypePath;
+    protected String           objectTypeName;
+    protected String           name;
+    private String             fieldType;
 
-		private FieldType(String string) {
-			this.string = string;
-		}
+    @Override
+    public String getPath() {
+        return String.format( "%s.field[name=%s]",
+                              getObjectTypePath(),
+                              getName() );
+    }
 
-		@Override
-		public String toString() {
-			return string;
-		}
-	}
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.FIELD;
+    }
 
-	private static int index = 0;
+    public String getName() {
+        return name;
+    }
 
-	private int objectTypeId;
-	protected String objectTypeName;
-	protected String name;
-	private FieldType fieldType;
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public Field() {
-		super(index++);
-	}
+    public String getFieldType() {
+        return fieldType;
+    }
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.FIELD;
-	}
+    public void setFieldType(String fieldType) {
+        // Only set fieldType to variable if there is no other fieldType found.
+        if ( fieldType == VARIABLE && this.fieldType == null ) {
+            this.fieldType = fieldType;
+        } else {
+            this.fieldType = fieldType;
+        }
+    }
 
-	public CauseType getCauseType() {
-		return CauseType.FIELD;
-	}
+    public String getObjectTypePath() {
+        return objectTypePath;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public void setObjectTypePath(String objectTypePath) {
+        this.objectTypePath = objectTypePath;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public String getObjectTypeName() {
+        return objectTypeName;
+    }
 
-	public FieldType getFieldType() {
-		return fieldType;
-	}
+    public void setObjectTypeName(String objectTypeName) {
+        this.objectTypeName = objectTypeName;
+    }
 
-	public void setFieldType(FieldType fieldType) {
-		// Only set fieldType to variable if there is no other fieldType found.
-		if (fieldType == FieldType.VARIABLE && this.fieldType == null) {
-			this.fieldType = fieldType;
-		} else {
-			this.fieldType = fieldType;
-		}
-	}
+    @Override
+    public String toString() {
+        return "Field '" + name + "' from object type '" + objectTypeName + "'";
+    }
 
-	public int getObjectTypeId() {
-		return objectTypeId;
-	}
-
-	public void setObjectTypeId(int objectTypeId) {
-		this.objectTypeId = objectTypeId;
-	}
-
-	public String getObjectTypeName() {
-		return objectTypeName;
-	}
-
-	public void setClassName(String objectTypeName) {
-		this.objectTypeName = objectTypeName;
-	}
-
-	@Override
-	public String toString() {
-		return "Field '" + name + "' from object type '" + objectTypeName + "'";
-	}
 }

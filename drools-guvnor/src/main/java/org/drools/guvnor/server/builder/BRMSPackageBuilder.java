@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+import org.drools.bpmn2.xml.BPMNSemanticModule;
 import org.drools.compiler.PackageBuilder;
 import org.drools.compiler.PackageBuilderConfiguration;
 import org.drools.guvnor.client.common.AssetFormats;
@@ -42,9 +43,7 @@ import org.drools.repository.AssetItemIterator;
 import org.drools.repository.PackageItem;
 import org.drools.repository.RulesRepositoryException;
 import org.drools.rule.MapBackedClassLoader;
-import org.drools.rule.builder.dialect.java.JavaDialectConfiguration;
 import org.drools.util.ChainedProperties;
-import org.drools.builder.conf.DefaultPackageNameOption;
 
 /**
  * This decorates the drools-compiler PackageBuilder
@@ -71,9 +70,9 @@ public class BRMSPackageBuilder extends PackageBuilder {
         // See if we can find a packagebuilder.conf
         // We do this manually here, as we cannot rely on PackageBuilder doing this correctly
         // note this chainedProperties already checks System properties too
-        ChainedProperties chainedProperties = new ChainedProperties( BRMSPackageBuilder.class.getClassLoader(), // pass this as it searches currentThread anyway
-                                                                     "packagebuilder.conf",
-                                                                     false ); // false means it ignores any default values
+        ChainedProperties chainedProperties = new ChainedProperties( "packagebuilder.conf",
+        		BRMSPackageBuilder.class.getClassLoader(), // pass this as it searches currentThread anyway
+        		false ); // false means it ignores any default values
 
         // the default compiler. This is nominally JANINO but can be overridden by setting drools.dialect.java.compiler to ECLIPSE
         Properties properties = new Properties();
@@ -81,9 +80,10 @@ public class BRMSPackageBuilder extends PackageBuilder {
                                 chainedProperties.getProperty( "drools.dialect.java.compiler", "ECLIPSE" ) );
         properties.putAll(buildProps);
         PackageBuilderConfiguration pkgConf = new PackageBuilderConfiguration( properties );
-
+        
         pkgConf.setAllowMultipleNamespaces(false);
         pkgConf.setClassLoader( loader );
+        pkgConf.addSemanticModule(new BPMNSemanticModule());
 
         return new BRMSPackageBuilder( pkgConf );
 
@@ -116,7 +116,7 @@ public class BRMSPackageBuilder extends PackageBuilder {
                 byte[] buf = new byte[1024];
                 int len = 0;
                 while ( (entry = jis.getNextJarEntry()) != null ) {
-                    if ( !entry.isDirectory() ) {
+                    if ( !entry.isDirectory() && !entry.getName().endsWith( ".java" ) ) {
                         ByteArrayOutputStream out = new ByteArrayOutputStream();
                         while ( (len = jis.read( buf )) >= 0 ) {
                             out.write( buf, 0, len );

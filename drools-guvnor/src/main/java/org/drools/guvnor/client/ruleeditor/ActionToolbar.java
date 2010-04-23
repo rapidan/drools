@@ -1,4 +1,5 @@
 package org.drools.guvnor.client.ruleeditor;
+
 /*
  * Copyright 2005 JBoss Inc
  *
@@ -15,32 +16,36 @@ package org.drools.guvnor.client.ruleeditor;
  * limitations under the License.
  */
 
+import java.util.Set;
 
-
-
-import org.drools.guvnor.client.common.FormStylePopup;
-import org.drools.guvnor.client.common.GenericCallback;
-import org.drools.guvnor.client.common.StatusChangePopup;
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.gwt.user.client.ui.*;
+import com.gwtext.client.core.EventObject;
+import com.gwtext.client.util.Format;
+import com.gwtext.client.widgets.*;
+import com.gwtext.client.widgets.menu.Menu;
+import com.gwtext.client.widgets.menu.Item;
+import com.gwtext.client.widgets.menu.BaseItem;
+import com.gwtext.client.widgets.menu.event.BaseItemListenerAdapter;
+import com.gwtext.client.widgets.event.ButtonListenerAdapter;
+import org.drools.guvnor.client.common.*;
+import static org.drools.guvnor.client.common.AssetFormats.*;
+import org.drools.guvnor.client.messages.Constants;
+import org.drools.guvnor.client.qa.VerifierResultWidget;
+import org.drools.guvnor.client.rpc.AnalysisReport;
 import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
 import org.drools.guvnor.client.rpc.RuleAsset;
-import org.drools.guvnor.client.messages.Constants;
-
-import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.ClickListener;
-import com.google.gwt.user.client.ui.Composite;
-import com.google.gwt.user.client.ui.TextBox;
-import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.core.client.GWT;
-import com.gwtext.client.core.EventObject;
-import com.gwtext.client.widgets.QuickTipsConfig;
-import com.gwtext.client.widgets.Toolbar;
-import com.gwtext.client.widgets.ToolbarButton;
-import com.gwtext.client.widgets.ToolbarTextItem;
-import com.gwtext.client.widgets.event.ButtonListenerAdapter;
-import com.gwtext.client.util.Format;
-
+import org.drools.guvnor.client.rpc.BuilderResult;
+import org.drools.guvnor.client.explorer.ExplorerLayoutManager;
+import org.drools.guvnor.client.modeldriven.ui.RuleModelEditor;
+import org.drools.guvnor.client.modeldriven.ui.RuleModeller;
+import org.drools.guvnor.client.security.Capabilities;
+import org.drools.guvnor.client.packages.PackageBuilderWidget;
+import org.drools.guvnor.client.packages.WorkingSetManager;
 
 /**
  * This contains the widgets used to action a rule asset
@@ -49,236 +54,387 @@ import com.gwtext.client.util.Format;
  */
 public class ActionToolbar extends Composite {
 
-	private Toolbar		toolbar;
-    private CheckinAction checkinAction;
-    private CheckinAction archiveAction;
-    private Command deleteAction;
+    static String[]         VALIDATING_FORMATS = new String[]{BUSINESS_RULE, DSL_TEMPLATE_RULE, DECISION_SPREADSHEET_XLS, DRL, ENUMERATION, DECISION_TABLE_GUIDED, DRL_MODEL, DSL, FUNCTION, RULE_TEMPLATE};
+
+    static String[]         VERIFY_FORMATS     = new String[]{BUSINESS_RULE, DECISION_SPREADSHEET_XLS, DRL, DECISION_TABLE_GUIDED, DRL_MODEL, RULE_TEMPLATE};
+
+    private Toolbar         toolbar;
+    private CheckinAction   checkinAction;
+    private Command         archiveAction;
+    private Command         deleteAction;
     private ToolbarTextItem state;
-	final private RuleAsset asset;
-	private Command afterCheckinEvent;
-    private Constants constants = GWT.create(Constants.class);
+    final private RuleAsset asset;
+    private Command         afterCheckinEvent;
+    private Constants       constants          = GWT.create( Constants.class );
+    private SmallLabel      savedOK;
+    private Widget          editor;
+    private Command         closeCommand;
+    private Command         copyCommand;
+    private Command         promptCommand;
 
     public ActionToolbar(final RuleAsset asset,
+                         boolean readOnly,
+                         Widget editor,
                          final CheckinAction checkin,
-                         final CheckinAction archiv,
-                         final Command delete, boolean readOnly) {
+                         final Command archiv,
+                         final Command delete,
+                         Command closeCommand,
+                         Command copyCommand,
+                         Command promptCommand) {
 
         this.checkinAction = checkin;
         this.archiveAction = archiv;
         this.deleteAction = delete;
         this.asset = asset;
+        this.editor = editor;
+        this.closeCommand = closeCommand;
+        this.copyCommand = copyCommand;
+        this.promptCommand = promptCommand;
 
-        this.state = new ToolbarTextItem(constants.Status() + " ");
-;
+        this.state = new ToolbarTextItem( constants.Status() + " " );
 
         toolbar = new Toolbar();
 
-
         String status = asset.metaData.status;
 
-        setState(status);
+        setState( status );
 
-        if (!readOnly && !asset.isreadonly) {
-        	controls();
+        if ( !readOnly && !asset.isreadonly ) {
+            controls();
         }
 
-        toolbar.addItem(this.state);
+        toolbar.addItem( this.state );
 
         initWidget( toolbar );
     }
 
+    /**
+     * Show the saved OK message for a little while *.
+     */
+    public void showSavedConfirmation() {
+        savedOK.setVisible( true );
+        Timer t = new Timer() {
+            public void run() {
+                savedOK.setVisible( false );
+            }
+        };
+        t.schedule( 1500 );
+    }
 
     /**
      * Sets the visible status display.
      */
     private void setState(String status) {
-        state.setText(Format.format(constants.statusIs(), status));
+        state.setText( Format.format( constants.statusIs(),
+                                      status ) );
     }
 
     private void controls() {
+        ToolbarButton save = new ToolbarButton();
+        save.setText( constants.SaveChanges() );
+        save.setTooltip( getTip( constants.CommitAnyChangesForThisAsset() ) );
+        save.addListener( new ButtonListenerAdapter() {
+            public void onClick(com.gwtext.client.widgets.Button button,
+                                EventObject e) {
+                verifyAndDoCheckinConfirm( button,
+                                           false );
+            }
+        } );
+        toolbar.addButton( save );
 
-	    	ToolbarButton save = new ToolbarButton();
-	    	save.setText(constants.SaveChanges());
-			save.setTooltip(getTip(constants.CommitAnyChangesForThisAsset()));
-			save.addListener(new ButtonListenerAdapter() {
-		        			public void onClick(
-		        					com.gwtext.client.widgets.Button button,
-		        					EventObject e) {
-		                        	doCheckinConfirm(button);
-	        				}
-		        			});
-			toolbar.addButton(save);
+        ToolbarButton saveAndClose = new ToolbarButton();
+        saveAndClose.setText( constants.SaveAndClose() );
+        saveAndClose.setTooltip( getTip( constants.CommitAnyChangesForThisAsset() ) );
+        saveAndClose.addListener( new ButtonListenerAdapter() {
+            public void onClick(com.gwtext.client.widgets.Button button,
+                                EventObject e) {
+                verifyAndDoCheckinConfirm( button,
+                                           true );
+            }
+        } );
+        toolbar.addButton( saveAndClose );
+
+        savedOK = new SmallLabel( "<font color='green'>" + constants.SavedOK() + "</font>" );
+        savedOK.setVisible( false );
+        toolbar.addElement( savedOK.getElement() );
 
         toolbar.addFill();
         toolbar.addSeparator();
 
-		ToolbarButton copy = new ToolbarButton();
-		copy.setText(constants.Copy());
-		copy.setTooltip(constants.CopyThisAsset());
-		copy.addListener(new ButtonListenerAdapter() {
-			public void onClick(
-					com.gwtext.client.widgets.Button button,
-					EventObject e) {
-                	doCopyDialog(button);
-			}
-			});
-		toolbar.addButton(copy);
+        Menu moreMenu = new Menu();
+        moreMenu.addItem( new Item( constants.Copy(),
+                                    new BaseItemListenerAdapter() {
+                                        @Override
+                                        public void onClick(BaseItem baseItem,
+                                                            EventObject eventObject) {
+                                            copyCommand.execute();
+                                        }
+                                    } ) );
+        moreMenu.addItem( new Item( constants.PromoteToGlobal(),
+                                    new BaseItemListenerAdapter() {
+                                        @Override
+                                        public void onClick(BaseItem baseItem,
+                                                            EventObject eventObject) {
+                                            promptCommand.execute();
+                                        }
+                                    } ) );
+        moreMenu.addItem( new Item( constants.Archive(),
+                                    new BaseItemListenerAdapter() {
+                                        @Override
+                                        public void onClick(BaseItem baseItem,
+                                                            EventObject eventObject) {
+                                            if ( Window.confirm( constants.AreYouSureYouWantToArchiveThisItem() + "\n" + constants.ArchiveThisAssetThisWillNotPermanentlyDeleteIt() ) ) {
+                                                archiveAction.execute();
+                                            }
+                                        }
+                                    } ) );
 
+        final Item deleteItem = new Item( constants.Delete(),
+                                          new BaseItemListenerAdapter() {
+                                              @Override
+                                              public void onClick(BaseItem baseItem,
+                                                                  EventObject eventObject) {
+                                                  if ( Window.confirm( constants.DeleteAreYouSure() ) ) {
+                                                      deleteAction.execute();
+                                                  }
+                                              }
+                                          } );
+        moreMenu.addItem( deleteItem );
+        deleteItem.setTitle( constants.DeleteAssetTooltip() );
+        this.afterCheckinEvent = new Command() {
+            public void execute() {
+                deleteItem.setDisabled( true );
+            }
+        };
 
-		ToolbarButton archive = new ToolbarButton();
-		archive.setText(constants.Archive());
-		archive.setTooltip(getTip(constants.ArchiveThisAssetThisWillNotPermanentlyDeleteIt()));
-		archive.addListener(new ButtonListenerAdapter() {
-			public void onClick(
-					com.gwtext.client.widgets.Button button,
-					EventObject e) {
-                        if (Window.confirm(constants.AreYouSureYouWantToArchiveThisItem())) {
-                            archiveAction.doCheckin(constants.ArchivedItemOn() + new java.util.Date().toString());
-                        }
-			}
-			});
-		toolbar.addButton(archive);
-
-
-
-
-        if (notCheckedInYet()) {
-
-        	final ToolbarButton delete = new ToolbarButton();
-        	delete.setText(constants.Delete());
-    		delete.setTooltip(getTip(constants.DeleteAssetTooltip()));
-    		delete.addListener(new ButtonListenerAdapter() {
-    			public void onClick(
-    					com.gwtext.client.widgets.Button button,
-    					EventObject e) {
-                            if (Window.confirm(constants.DeleteAreYouSure()) ) {
-                                deleteAction.execute();
-                            }
-				}
-    			});
-    		toolbar.addButton(delete);
-
-    		this.afterCheckinEvent = new Command() {
-
-				public void execute() {
-					delete.setVisible(false);
-				}
-
-    		};
-
+        if ( !notCheckedInYet() ) {
+            deleteItem.setDisabled( true );
         }
 
+        moreMenu.addItem( new Item( constants.ChangeStatus(),
+                                    new BaseItemListenerAdapter() {
+                                        @Override
+                                        public void onClick(BaseItem baseItem,
+                                                            EventObject eventObject) {
+                                            showStatusChanger();
+                                        }
+                                    } ) );
 
+        ToolbarMenuButton more = new ToolbarMenuButton( constants.Actions(),
+                                                        moreMenu );
 
+        if ( isValidatorTypeAsset() ) {
 
-
-        ToolbarButton stateChange = new ToolbarButton();
-        stateChange.setText(constants.ChangeStatus());
-		stateChange.setTooltip(getTip(constants.ChangeStatusTip()));
-		stateChange.addListener(new ButtonListenerAdapter() {
-			public void onClick(
-					com.gwtext.client.widgets.Button button,
-					EventObject e) {
-				showStatusChanger(button);
-			}
-			});
-
-		toolbar.addButton(stateChange);
-    }
-
-	private boolean notCheckedInYet() {
-		return asset.metaData.versionNumber == 0;
-	}
-
-	private QuickTipsConfig getTip(final String t) {
-		return new QuickTipsConfig() {
-			{
-				setText(t);
-			}
-
-		};
-	}
-
-
-
-    protected void doCopyDialog(Widget w) {
-        final FormStylePopup form = new FormStylePopup("images/rule_asset.gif", constants.CopyThisItem());
-        final TextBox newName = new TextBox();
-        form.addAttribute(constants.NewName(), newName );
-
-        Button ok = new Button(constants.CreateCopy());
-        ok.addClickListener( new ClickListener() {
-            public void onClick(Widget w) {
-            	if (newName.getText() == null || newName.getText().equals("")) {
-            		Window.alert(constants.AssetNameMustNotBeEmpty());
-            		return;
-            	}
-                String name = newName.getText().trim();
-                if (!NewAssetWizard.validatePathPerJSR170(name)) return;
-                RepositoryServiceFactory.getService().copyAsset( asset.uuid, asset.metaData.packageName, name,
-                                                                 new GenericCallback<String>() {
-                                                                    public void onSuccess(String data) {
-                                                                        completedCopying(newName.getText(), asset.metaData.packageName);
-                                                                        form.hide();
-                                                                    }
-
-                                                                     @Override
-                                                                     public void onFailure(Throwable t) {
-                                                                         if (t.getMessage().indexOf("ItemExistsException") > -1) { //NON-NLS
-                                                                             Window.alert(constants.ThatNameIsInUsePleaseTryAnother());
-                                                                         } else {
-                                                                             super.onFailure(t);
-                                                                         }
-                                                                     }
-                                                                 });
+            if ( editor instanceof RuleModelEditor ) {
+                ToolbarButton workingSets = new ToolbarButton();
+                workingSets.setText( constants.SelectWorkingSets() );
+                workingSets.addListener( new ButtonListenerAdapter() {
+                    public void onClick(com.gwtext.client.widgets.Button button,
+                                        EventObject e) {
+                        showWorkingSetsSelection( ((RuleModelEditor) editor).getRuleModeller() );
+                    }
+                } );
+                toolbar.addButton( workingSets );
             }
-        } );
-        form.addAttribute( "", ok );
 
-		//form.setPopupPosition((DirtyableComposite.getWidth() - form.getOffsetWidth()) / 2, 100);
-		form.show();
+            ToolbarButton validate = new ToolbarButton();
+            validate.setText( constants.Validate() );
+            validate.addListener( new ButtonListenerAdapter() {
+                public void onClick(com.gwtext.client.widgets.Button button,
+                                    EventObject e) {
+                    doValidate();
+                }
+            } );
+            toolbar.addButton( validate );
+
+            if ( isVerificationTypeAsset() ) {
+                ToolbarButton verify = new ToolbarButton();
+                verify.setText( constants.Verify() );
+                verify.addListener( new ButtonListenerAdapter() {
+                    public void onClick(com.gwtext.client.widgets.Button button,
+                                        EventObject e) {
+                        doVerify();
+                    }
+                } );
+                toolbar.addButton( verify );
+
+            }
+
+            if ( shouldShowViewSource() ) {
+                ToolbarButton viewSource = new ToolbarButton();
+                viewSource.setText( constants.ViewSource() );
+                viewSource.addListener( new ButtonListenerAdapter() {
+                    public void onClick(com.gwtext.client.widgets.Button button,
+                                        EventObject e) {
+                        doViewsource();
+                    }
+                } );
+                toolbar.addButton( viewSource );
+            }
+        }
+
+        toolbar.addButton( more );
+    }
+
+    private boolean shouldShowViewSource() {
+        return ExplorerLayoutManager.shouldShow( Capabilities.SHOW_PACKAGE_VIEW );
+    }
+
+    private void doViewsource() {
+        onSave();
+        LoadingPopup.showMessage( constants.CalculatingSource() );
+        RepositoryServiceFactory.getService().buildAssetSource( this.asset,
+                                                                new GenericCallback<String>() {
+                                                                    public void onSuccess(String src) {
+                                                                        showSource( src );
+                                                                    }
+                                                                } );
+    }
+
+    private void showSource(String src) {
+        PackageBuilderWidget.showSource( src,
+                                         this.asset.metaData.name );
+        LoadingPopup.close();
+    }
+
+    private void doVerify() {
+        onSave();
+        LoadingPopup.showMessage( constants.VerifyingItemPleaseWait() );
+        Set<String> activeWorkingSets = null;
+        activeWorkingSets = WorkingSetManager.getInstance().getActiveAssetUUIDs( asset.metaData.packageName );
+        RepositoryServiceFactory.getService().verifyAsset( asset,
+                                                           activeWorkingSets,
+                                                           new AsyncCallback<AnalysisReport>() {
+
+                                                               public void onSuccess(AnalysisReport report) {
+                                                                   LoadingPopup.close();
+                                                                   final FormStylePopup form = new FormStylePopup( "images/rule_asset.gif",
+                                                                                                                   constants.VerificationReport() );
+                                                                   ScrollPanel scrollPanel = new ScrollPanel( new VerifierResultWidget( report,
+                                                                                                                                        false ) );
+                                                                   scrollPanel.setWidth( "100%" );
+                                                                   form.addRow( scrollPanel );
+
+                                                                   LoadingPopup.close();
+                                                                   form.show();
+                                                               }
+
+                                                               public void onFailure(Throwable arg0) {
+                                                                   // TODO Auto-generated method stub
+
+                                                               }
+                                                           } );
 
     }
 
-    private void completedCopying(String name, String pkg) {
-        Window.alert( Format.format(constants.CreatedANewItemSuccess(), name, pkg) );
+    private void doValidate() {
+        onSave();
+        LoadingPopup.showMessage( constants.ValidatingItemPleaseWait() );
+        RepositoryServiceFactory.getService().buildAsset( asset,
+                                                          new GenericCallback<BuilderResult>() {
+                                                              public void onSuccess(BuilderResult results) {
+                                                                  RuleValidatorWrapper.showBuilderErrors( results );
+                                                              }
+                                                          } );
+    }
 
+    public void onSave() {
+        if ( editor instanceof SaveEventListener ) {
+            SaveEventListener el = (SaveEventListener) editor;
+            el.onSave();
+        }
+    }
+
+    private boolean isValidatorTypeAsset() {
+        String format = asset.metaData.format;
+        for ( String fmt : VALIDATING_FORMATS ) {
+            if ( fmt.equals( format ) ) return true;
+        }
+        return false;
+    }
+
+    private boolean isVerificationTypeAsset() {
+        String format = asset.metaData.format;
+        for ( String fmt : VERIFY_FORMATS ) {
+            if ( fmt.equals( format ) ) return true;
+        }
+        return false;
+    }
+
+    private boolean notCheckedInYet() {
+        return asset.metaData.versionNumber == 0;
+    }
+
+    private QuickTipsConfig getTip(final String t) {
+        return new QuickTipsConfig() {
+            {
+                setText( t );
+            }
+        };
+    }
+
+    protected void verifyAndDoCheckinConfirm(final Widget w,
+                                             final boolean closeAfter) {
+        if ( editor instanceof RuleModeller ) {
+            ((RuleModeller) editor).verifyRule( new Command() {
+
+                public void execute() {
+                    if ( ((RuleModeller) editor).hasVerifierErrors() || ((RuleModeller) editor).hasVerifierWarnings() ) {
+                        if ( !Window.confirm( constants.theRuleHasErrorsOrWarningsDotDoYouWantToContinue() ) ) {
+                            return;
+                        }
+                    }
+                    doCheckinConfirm( w,
+                                      closeAfter );
+                }
+            } );
+        } else {
+            doCheckinConfirm( w,
+                              closeAfter );
+        }
     }
 
     /**
      * Called when user wants to checkin.
+     * set closeAfter to true if it should close this whole thing after saving it.
      */
-    protected void doCheckinConfirm(Widget w) {
-        final CheckinPopup pop = new CheckinPopup(w.getAbsoluteLeft(), w.getAbsoluteTop(), constants.CheckInChanges());
+    protected void doCheckinConfirm(Widget w,
+                                    final boolean closeAfter) {
+        final CheckinPopup pop = new CheckinPopup( w.getAbsoluteLeft(),
+                                                   w.getAbsoluteTop(),
+                                                   constants.CheckInChanges() );
         pop.setCommand( new Command() {
             public void execute() {
-                checkinAction.doCheckin(pop.getCheckinComment());
-                if (afterCheckinEvent != null) afterCheckinEvent.execute();
+                checkinAction.doCheckin( pop.getCheckinComment() );
+                if ( afterCheckinEvent != null ) afterCheckinEvent.execute();
+                if ( closeAfter ) closeCommand.execute();
             }
-        });
+        } );
         pop.show();
     }
 
-
-
-	/**
+    /**
      * Show the stats change popup.
      */
-    private void showStatusChanger(Widget w) {
-        final StatusChangePopup pop = new StatusChangePopup(asset.uuid, false);
-        pop.setChangeStatusEvent(new Command() {
+    private void showStatusChanger() {
+        final StatusChangePopup pop = new StatusChangePopup( asset.uuid,
+                                                             false );
+        pop.setChangeStatusEvent( new Command() {
             public void execute() {
                 setState( pop.getState() );
             }
-        });
+        } );
 
         pop.show();
     }
 
-
-    public static interface CheckinAction {
-    	void doCheckin(String comment);
+    protected void showWorkingSetsSelection(RuleModeller modeller) {
+        final WorkingSetSelectorPopup pop = new WorkingSetSelectorPopup( modeller,
+                                                                         asset );
+        pop.show();
     }
 
-
+    public static interface CheckinAction {
+        void doCheckin(String comment);
+    }
 }

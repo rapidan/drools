@@ -13,9 +13,15 @@ public interface ProcessRuntime {
     void signalEvent(String type,
                      Object event);
 
+    void signalEvent(String type,
+                     Object event,
+                     long processInstanceId);
+
     Collection<ProcessInstance> getProcessInstances();
 
     ProcessInstance getProcessInstance(long id);
+    
+    void abortProcessInstance(long id);
 
     WorkItemManager getWorkItemManager();
 

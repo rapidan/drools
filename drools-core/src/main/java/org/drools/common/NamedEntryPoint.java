@@ -9,8 +9,10 @@ import java.util.Collection;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.drools.FactException;
+import org.drools.FactHandle;
 import org.drools.RuleBase;
 import org.drools.RuntimeDroolsException;
+import org.drools.WorkingMemory;
 import org.drools.WorkingMemoryEntryPoint;
 import org.drools.RuleBaseConfiguration.AssertBehaviour;
 import org.drools.impl.StatefulKnowledgeSessionImpl.ObjectStoreWrapper;
@@ -19,8 +21,6 @@ import org.drools.reteoo.LeftTuple;
 import org.drools.reteoo.ObjectTypeConf;
 import org.drools.rule.EntryPoint;
 import org.drools.rule.Rule;
-import org.drools.FactHandle;
-import org.drools.WorkingMemory;
 import org.drools.spi.Activation;
 import org.drools.spi.FactHandleFactory;
 import org.drools.spi.PropagationContext;
@@ -102,32 +102,34 @@ public class NamedEntryPoint
             // you cannot assert a null object
             return null;
         }
-
-        ObjectTypeConf typeConf = this.typeConfReg.getObjectTypeConf( this.entryPoint,
-                                                                      object );
-
-        InternalFactHandle handle = this.handleFactory.newFactHandle( object,
-                                                                      typeConf,
-                                                                      wm );
-        handle.setEntryPoint( this );
-        this.objectStore.addHandle( handle,
-                                    object );
-
-        if ( dynamic ) {
-            addPropertyChangeListener( object );
-        }
-
+        
         try {
-            this.lock.lock();
-            insert( handle,
-                    object,
-                    rule,
-                    activation );
+            this.wm.startOperation();
+            ObjectTypeConf typeConf = this.typeConfReg.getObjectTypeConf( this.entryPoint,
+                                                                          object );
+            InternalFactHandle handle = this.handleFactory.newFactHandle( object,
+                                                                          typeConf,
+                                                                          wm );
+            handle.setEntryPoint( this );
+            this.objectStore.addHandle( handle,
+                                        object );
+            if ( dynamic ) {
+                addPropertyChangeListener( object );
+            }
+            try {
+                this.lock.lock();
+                insert( handle,
+                        object,
+                        rule,
+                        activation );
 
+            } finally {
+                this.lock.unlock();
+            }
+            return handle;
         } finally {
-            this.lock.unlock();
+            this.wm.endOperation();
         }
-        return handle;
     }
 
     protected void insert(final InternalFactHandle handle,
@@ -178,11 +180,12 @@ public class NamedEntryPoint
         try {
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
+            this.wm.startOperation();
 
             final InternalFactHandle handle = (InternalFactHandle) factHandle;
             final Object originalObject = handle.getObject();
 
-            if ( handle.getId() == -1 || object == null ) {
+            if ( handle.getId() == -1 || object == null || ( handle.isEvent() && ((EventFactHandle)handle).isExpired() )) {
                 // the handle is invalid, most likely already retracted, so
                 // return
                 // and we cannot assert a null object
@@ -233,10 +236,9 @@ public class NamedEntryPoint
                                                                       object,
                                                                       this.wm );
 
-            propagationContext.clearRetractedTuples();
-
             this.wm.executeQueuedActions();
         } finally {
+            this.wm.endOperation();
             this.lock.unlock();
         }
     }
@@ -257,6 +259,7 @@ public class NamedEntryPoint
         try {
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
+            this.wm.startOperation();
 
             final InternalFactHandle handle = (InternalFactHandle) factHandle;
             if ( handle.getId() == -1 ) {
@@ -299,6 +302,7 @@ public class NamedEntryPoint
 
             this.wm.executeQueuedActions();
         } finally {
+            this.wm.endOperation();
             this.lock.unlock();
         }
     }
@@ -315,13 +319,14 @@ public class NamedEntryPoint
         try {
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
+            this.wm.startOperation();
 
             final InternalFactHandle handle = (InternalFactHandle) factHandle;
             // final Object originalObject = (handle.isShadowFact()) ?
             // ((ShadowProxy) handle.getObject()).getShadowedObject() :
             // handle.getObject();
 
-            if ( handle.getId() == -1 ) {
+            if ( handle.getId() == -1 || ( handle.isEvent() && ((EventFactHandle)handle).isExpired() ) ) {
                 // the handle is invalid, most likely already retracted, so
                 // return
                 return;
@@ -350,6 +355,7 @@ public class NamedEntryPoint
                                                this.wm );
 
         } finally {
+            this.wm.endOperation();
             this.lock.unlock();
         }
     }
@@ -381,9 +387,16 @@ public class NamedEntryPoint
         try {
             this.lock.lock();
             this.ruleBase.executeQueuedActions();
+            this.wm.startOperation();
 
             final InternalFactHandle handle = (InternalFactHandle) factHandle;
             final Object originalObject = handle.getObject();
+
+            if ( handle.getId() == -1 || ( handle.isEvent() && ((EventFactHandle)handle).isExpired() ) ) {
+                // the handle is invalid, most likely already retracted, so
+                // return
+                return;
+            }
 
             this.handleFactory.increaseFactHandleRecency( handle );
 
@@ -415,10 +428,9 @@ public class NamedEntryPoint
                                                                       object,
                                                                       this.wm );
 
-            propagationContext.clearRetractedTuples();
-
             this.wm.executeQueuedActions();
         } finally {
+            this.wm.endOperation();
             this.lock.unlock();
         }
     }
@@ -507,28 +519,40 @@ public class NamedEntryPoint
         return this.objectStore.getObjectForHandle( (InternalFactHandle) factHandle );
     }    
     
+    @SuppressWarnings("unchecked")
     public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles() {
         return new ObjectStoreWrapper( this.objectStore,
                                        null,
                                        ObjectStoreWrapper.FACT_HANDLE );
     }
 
+    @SuppressWarnings("unchecked")
     public <T extends org.drools.runtime.rule.FactHandle> Collection< T > getFactHandles(org.drools.runtime.ObjectFilter filter) {
         return new ObjectStoreWrapper( this.objectStore,
                                        filter,
                                        ObjectStoreWrapper.FACT_HANDLE );
     }
 
+    @SuppressWarnings("unchecked")
     public Collection< Object > getObjects() {
         return new ObjectStoreWrapper( this.objectStore,
                                        null,
                                        ObjectStoreWrapper.OBJECT );
     }
 
+    @SuppressWarnings("unchecked")
     public Collection< Object > getObjects(org.drools.runtime.ObjectFilter filter) {
         return new ObjectStoreWrapper( this.objectStore,
                                        filter,
                                        ObjectStoreWrapper.OBJECT );
+    }
+
+    public String getEntryPointId() {
+        return this.entryPoint.getEntryPointId();
+    }
+
+    public long getFactCount() {
+        return this.objectStore.size();
     }    
 
 }

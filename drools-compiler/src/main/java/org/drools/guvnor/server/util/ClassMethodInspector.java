@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.drools.guvnor.client.modeldriven.MethodInfo;
+import org.drools.guvnor.server.rules.ClassToGenericClassConverter;
 
 /**
  * 
@@ -24,7 +25,7 @@ public class ClassMethodInspector {
 
     private final Set<MethodInfo> methods = new HashSet<MethodInfo>();
 
-    public ClassMethodInspector(final Class< ? > clazz) throws IOException {
+    public ClassMethodInspector(final Class< ? > clazz, ClassToGenericClassConverter converter) throws IOException {
         Method[] methods = clazz.getDeclaredMethods();
 
         for ( int i = 0; i < methods.length; i++ ) {
@@ -32,14 +33,18 @@ public class ClassMethodInspector {
             int modifiers = methods[i].getModifiers();
             String methodName = aMethod.getName();
 
-            if ( isNotGetterOrSetter( methodName ) && isReasonableMethod( clazz,
-                                                                          methodName ) && Modifier.isPublic( modifiers ) ) {
+            if ( isNotGetterOrSetter(aMethod) && isReasonableMethod( clazz,
+            		methodName ) && Modifier.isPublic( modifiers ) ) {
 
-                Class< ? >[] listParam = aMethod.getParameterTypes();
-
-                MethodInfo info = new MethodInfo( methodName,
-                                                  solveParams( listParam ) );
-                this.methods.add( info );
+                Class<?>[] listParam = aMethod.getParameterTypes();
+                
+				MethodInfo info = new MethodInfo(methodName,
+						solveParams(listParam), 
+						aMethod.getReturnType(),
+						SuggestionCompletionEngineBuilder
+								.obtainGenericType(aMethod.getGenericReturnType()),
+						converter.translateClassToGenericType(clazz));
+				this.methods.add(info);
             }
         }
     }
@@ -58,7 +63,6 @@ public class ClassMethodInspector {
             return false;
         }
 
-
         if ( Collection.class.isAssignableFrom( clazz ) ) {
             if ( checkCollectionMethods( methodName ) ) {
                 return false;
@@ -73,7 +77,7 @@ public class ClassMethodInspector {
 
         if ( List.class.isAssignableFrom( clazz ) ) {
 
-            if ( checkCollectionMethods( methodName ) || "listIterator".equals( methodName ) || "lastIndexOf".equals( methodName ) || "indexOf".equals( methodName ) || "subList".equals( methodName ) ) {
+            if ( checkCollectionMethods( methodName ) || "get".equals( methodName ) || "listIterator".equals( methodName ) || "lastIndexOf".equals( methodName ) || "indexOf".equals( methodName ) || "subList".equals( methodName ) ) {
                 return false;
             }
         }
@@ -115,10 +119,12 @@ public class ClassMethodInspector {
      * 
      * @param methodName
      */
-    private boolean isNotGetterOrSetter(String methodName) {
-        boolean isGetterOrSetter = (methodName.length() > 3 && (methodName.startsWith( "set" ) || methodName.startsWith( "get" )));
-
-        return !isGetterOrSetter;
+    private boolean isNotGetterOrSetter(Method m) {
+    	String name = m.getName();
+        return !((name.length() > 3 && (name.startsWith( "set" ) || name.startsWith( "get" ))) ||
+        	(name.length() > 2 && name.startsWith("is") 
+        			&& (Boolean.class.isAssignableFrom(m.getReturnType()) || Boolean.TYPE == m.getReturnType())));
+        
     }
 
     public List<String> getMethodFields(String methodName) {

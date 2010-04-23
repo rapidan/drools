@@ -1,43 +1,50 @@
 package org.drools.verifier.components;
 
+/**
+ * 
+ * @author Toni Rikkola
+ */
 public class EnumRestriction extends Restriction {
 
-	private int enumBaseId;
-	private String enumBase;
-	private String enumName;
+    private String enumBasePath;
+    private String enumBase;
+    private String enumName;
 
-	@Override
-	public RestrictionType getRestrictionType() {
-		return RestrictionType.ENUM;
-	}
+    public EnumRestriction(Pattern pattern) {
+        super( pattern );
+    }
 
-	public int getEnumBaseId() {
-		return enumBaseId;
-	}
+    @Override
+    public RestrictionType getRestrictionType() {
+        return RestrictionType.ENUM;
+    }
 
-	public void setEnumBaseId(int enumBaseId) {
-		this.enumBaseId = enumBaseId;
-	}
+    public String getEnumBasePath() {
+        return enumBasePath;
+    }
 
-	public String getEnumBase() {
-		return enumBase;
-	}
+    public void setEnumBasePath(String enumBasePath) {
+        this.enumBasePath = enumBasePath;
+    }
 
-	public void setEnumBase(String enumBase) {
-		this.enumBase = enumBase;
-	}
+    public String getEnumBase() {
+        return enumBase;
+    }
 
-	public String getEnumName() {
-		return enumName;
-	}
+    public void setEnumBase(String enumBase) {
+        this.enumBase = enumBase;
+    }
 
-	public void setEnumName(String enumName) {
-		this.enumName = enumName;
-	}
+    public String getEnumName() {
+        return enumName;
+    }
 
-	@Override
-	public String toString() {
-		return "QualifiedIdentifierRestrictionDescr enum: " + enumBase + "."
-				+ enumName;
-	}
+    public void setEnumName(String enumName) {
+        this.enumName = enumName;
+    }
+
+    @Override
+    public String toString() {
+        return "QualifiedIdentifierRestrictionDescr enum: " + enumBase + "." + enumName;
+    }
 }

@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.drools.Agenda;
 import org.drools.common.EventSupport;
 import org.drools.common.InternalRuleBase;
 import org.drools.common.InternalWorkingMemory;
@@ -33,19 +32,22 @@ import org.drools.definition.process.Node;
 import org.drools.definition.process.NodeContainer;
 import org.drools.definition.process.WorkflowProcess;
 import org.drools.process.core.context.variable.VariableScope;
+import org.drools.process.instance.ContextInstance;
 import org.drools.process.instance.ProcessInstance;
 import org.drools.process.instance.context.variable.VariableScopeInstance;
 import org.drools.process.instance.impl.ProcessInstanceImpl;
 import org.drools.runtime.process.EventListener;
 import org.drools.runtime.process.NodeInstanceContainer;
+import org.drools.workflow.core.impl.NodeImpl;
 import org.drools.workflow.core.node.EventNode;
 import org.drools.workflow.core.node.EventNodeInterface;
 import org.drools.workflow.instance.NodeInstance;
 import org.drools.workflow.instance.WorkflowProcessInstance;
-import org.drools.workflow.instance.node.EventBasedNodeInstance;
+import org.drools.workflow.instance.node.EndNodeInstance;
 import org.drools.workflow.instance.node.EventBasedNodeInstanceInterface;
 import org.drools.workflow.instance.node.EventNodeInstance;
 import org.drools.workflow.instance.node.EventNodeInstanceInterface;
+import org.drools.workflow.instance.node.StateBasedNodeInstance;
 
 /**
  * Default implementation of a RuleFlow process instance.
@@ -81,7 +83,7 @@ public abstract class WorkflowProcessInstanceImpl extends ProcessInstanceImpl
 	}
 
 	public Collection<org.drools.runtime.process.NodeInstance> getNodeInstances() {
-		return new ArrayList(getNodeInstances(false));
+		return new ArrayList<org.drools.runtime.process.NodeInstance>(getNodeInstances(false));
 	}
 
 	public Collection<NodeInstance> getNodeInstances(boolean recursive) {
@@ -99,6 +101,21 @@ public abstract class WorkflowProcessInstanceImpl extends ProcessInstanceImpl
 			}
 		}
 		return Collections.unmodifiableCollection(result);
+	}
+
+	public List<String> getActiveNodeIds() {
+		List<String> result = new ArrayList<String>();
+		addActiveNodeIds(this, result);
+		return result;
+	}
+	
+	private void addActiveNodeIds(NodeInstanceContainer container, List<String> result) {
+		for (org.drools.runtime.process.NodeInstance nodeInstance: container.getNodeInstances()) {
+			result.add(((NodeImpl) ((NodeInstanceImpl) nodeInstance).getNode()).getUniqueId());
+			if (nodeInstance instanceof NodeInstanceContainer) {
+				addActiveNodeIds((NodeInstanceContainer) nodeInstance, result);
+			}
+		}
 	}
 
 	public NodeInstance getFirstNodeInstance(final long nodeId) {
@@ -160,12 +177,65 @@ public abstract class WorkflowProcessInstanceImpl extends ProcessInstanceImpl
 	}
 	
 	public Object getVariable(String name) {
+		// for disconnected process instances, try going through the variable scope instances
+		// (as the default variable scope cannot be retrieved as the link to the process could
+		// be null and the associated working memory is no longer accessible)
+		if (getWorkingMemory() == null) {
+			List<ContextInstance> variableScopeInstances = 
+				getContextInstances(VariableScope.VARIABLE_SCOPE);
+			if (variableScopeInstances != null && variableScopeInstances.size() == 1) {
+				for (ContextInstance contextInstance: variableScopeInstances) {
+					Object value = ((VariableScopeInstance) contextInstance).getVariable(name);
+					if (value != null) {
+						return value;
+					}
+				}
+			}
+			return null;
+		}
+		// else retrieve the variable scope
 		VariableScopeInstance variableScopeInstance = (VariableScopeInstance)
 			getContextInstance(VariableScope.VARIABLE_SCOPE);
 		if (variableScopeInstance == null) {
 			return null;
 		}
 		return variableScopeInstance.getVariable(name);
+	}
+	
+	public Map<String, Object> getVariables() {
+        // for disconnected process instances, try going through the variable scope instances
+        // (as the default variable scope cannot be retrieved as the link to the process could
+        // be null and the associated working memory is no longer accessible)
+        if (getWorkingMemory() == null) {
+            List<ContextInstance> variableScopeInstances = 
+                getContextInstances(VariableScope.VARIABLE_SCOPE);
+            if (variableScopeInstances == null) {
+                return null;
+            }
+            Map<String, Object> result = new HashMap<String, Object>();
+            for (ContextInstance contextInstance: variableScopeInstances) {
+                Map<String, Object> variables = 
+                    ((VariableScopeInstance) contextInstance).getVariables();
+                result.putAll(variables);
+            }
+            return result;
+        }
+        // else retrieve the variable scope
+        VariableScopeInstance variableScopeInstance = (VariableScopeInstance)
+            getContextInstance(VariableScope.VARIABLE_SCOPE);
+        if (variableScopeInstance == null) {
+            return null;
+        }
+        return variableScopeInstance.getVariables();
+	}
+	
+	public void setVariable(String name, Object value) {
+		VariableScopeInstance variableScopeInstance = (VariableScopeInstance)
+			getContextInstance(VariableScope.VARIABLE_SCOPE);
+		if (variableScopeInstance == null) {
+			throw new IllegalArgumentException("No variable scope found.");
+		}
+		variableScopeInstance.setVariable(name, value);
 	}
 
 	public void setState(final int state) {
@@ -195,8 +265,8 @@ public abstract class WorkflowProcessInstanceImpl extends ProcessInstanceImpl
 	public void disconnect() {
 		removeEventListeners();
 		for (NodeInstance nodeInstance : nodeInstances) {
-			if (nodeInstance instanceof EventBasedNodeInstance) {
-				((EventBasedNodeInstance) nodeInstance).removeEventListeners();
+			if (nodeInstance instanceof StateBasedNodeInstance) {
+				((StateBasedNodeInstance) nodeInstance).removeEventListeners();
 			}
 		}
 		super.disconnect();
@@ -214,7 +284,7 @@ public abstract class WorkflowProcessInstanceImpl extends ProcessInstanceImpl
 	}
 
 	public String toString() {
-		final StringBuffer sb = new StringBuffer("WorkflowProcessInstance");
+		final StringBuilder sb = new StringBuilder("WorkflowProcessInstance");
 		sb.append(getId());
 		sb.append(" [processId=");
 		sb.append(getProcess().getId());
@@ -333,6 +403,19 @@ public abstract class WorkflowProcessInstanceImpl extends ProcessInstanceImpl
 	public String[] getEventTypes() {
 		return externalEventListeners.keySet().toArray(
 				new String[externalEventListeners.size()]);
+	}
+	
+	public void nodeInstanceCompleted(NodeInstance nodeInstance, String outType) {
+        if (nodeInstance instanceof EndNodeInstance) {
+            if (((org.drools.workflow.core.WorkflowProcess) getProcess()).isAutoComplete()) {
+                if (nodeInstances.isEmpty()) {
+                    setState(ProcessInstance.STATE_COMPLETED);
+                }
+            }
+        } else {
+    		throw new IllegalArgumentException(
+    			"Completing a node instance that has no outgoing connection not suppoerted.");
+        }
 	}
 
 }

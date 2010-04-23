@@ -68,9 +68,11 @@ public class EventFactHandle extends DefaultFactHandle {
 
     /**
      * @see FactHandle
+     * 1: is used for EventFactHandle
      */
     public String toExternalForm() {
-        return "[event fid:" + getId() + ":" + getRecency() + ":" + getObject() + "]";
+        //return "[event fid:" + getId() + ":" + getRecency() + ":" + getObject() + "]";
+        return "1:" + this.getId() + ":" + getIdentityHashCode() + ":" + getObjectHashCode() + ":" + getRecency();
     }
 
     /**
@@ -147,8 +149,10 @@ public class EventFactHandle extends DefaultFactHandle {
         clone.expired = expired;
         clone.setEntryPoint( getEntryPoint() );
         clone.setEqualityKey( getEqualityKey() );
-        clone.setLeftTuple( getLeftTuple() );
-        clone.setRightTuple( getRightTuple() );
+        clone.setFirstLeftTuple( getLastLeftTuple() );
+        clone.setLastLeftTuple( getLastLeftTuple() );
+        clone.setFirstRightTuple( getFirstRightTuple() );
+        clone.setLastRightTuple( getLastRightTuple() );
         clone.setObjectHashCode( getObjectHashCode() );
         return clone;
     }

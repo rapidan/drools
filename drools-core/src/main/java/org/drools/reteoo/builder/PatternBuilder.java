@@ -33,7 +33,6 @@ import org.drools.reteoo.ObjectSource;
 import org.drools.reteoo.ObjectTypeNode;
 import org.drools.reteoo.PropagationQueuingNode;
 import org.drools.rule.Behavior;
-import org.drools.rule.CompositeMaxDuration;
 import org.drools.rule.Declaration;
 import org.drools.rule.EntryPoint;
 import org.drools.rule.FixedDuration;
@@ -48,6 +47,9 @@ import org.drools.spi.AlphaNodeFieldConstraint;
 import org.drools.spi.Constraint;
 import org.drools.spi.Duration;
 import org.drools.spi.ObjectType;
+import org.drools.time.impl.CompositeMaxDurationTimer;
+import org.drools.time.impl.DurationTimer;
+import org.drools.time.impl.Timer;
 
 /**
  * A builder for patterns
@@ -181,18 +183,33 @@ public class PatternBuilder
             Declaration target = constraint.getRequiredDeclarations()[0];
             if( target.isPatternDeclaration() && target.getPattern().getObjectType().isEvent() ) {
                 long uplimit = ((VariableConstraint) constraint).getInterval().getUpperBound();
-                Duration dur = context.getRule().getDuration();
-                Duration newDur = new FixedDuration( uplimit ); 
-                if( dur instanceof CompositeMaxDuration ) {
-                    ((CompositeMaxDuration)dur).addDuration( newDur );
+                
+                Timer timer = context.getRule().getTimer();                
+                DurationTimer durationTimer = new DurationTimer(uplimit);                
+                
+                if ( timer instanceof CompositeMaxDurationTimer ) {
+                    // already a composite so just add
+                    ((CompositeMaxDurationTimer)timer).addDurationTimer( durationTimer );
                 } else {
-                    if( dur == null ) {
-                        dur = newDur;
+                    if ( timer == null ) {
+                        // no timer exists, so ok on it's own
+                        timer = durationTimer;
                     } else {
-                        dur = new CompositeMaxDuration( dur );
-                        ((CompositeMaxDuration)dur).addDuration( newDur );
+                        // timer exists so we need to make a composite
+                        CompositeMaxDurationTimer temp = new CompositeMaxDurationTimer();
+                        if ( timer instanceof DurationTimer ) {
+                            // previous timer was a duration, so add another DurationTimer
+                            temp.addDurationTimer( ( DurationTimer ) timer );                            
+                        } else {
+                            // previous timer was not a duration, so set it as the delegate Timer.
+                            temp.setTimer( context.getRule().getTimer() );    
+                        }
+                        // now add the new durationTimer
+                        temp.addDurationTimer( durationTimer );
+                        timer = temp;
                     }
-                    context.getRule().setDuration( dur );
+                    // with the composite made, reset it on the Rule
+                    context.getRule().setTimer( timer );
                 }
             }
         }
@@ -279,6 +296,11 @@ public class PatternBuilder
                 }
                 
             }
+            for( Behavior behavior : pattern.getBehaviors() ) {
+                if( behavior.getExpirationOffset() != -1 ) {
+                    expirationOffset = Math.max( behavior.getExpirationOffset(), expirationOffset );
+                }
+            }
             if( expirationOffset == 0) {
                 otn.setExpirationOffset( context.getTemporalDistance().getExpirationOffset( pattern ) );
             } else {
@@ -335,6 +357,6 @@ public class PatternBuilder
      */
     public boolean requiresLeftActivation(final BuildUtils utils,
                                           final RuleConditionElement rce) {
-        return ((Pattern) rce).getSource() != null;
+        return  ((Pattern) rce).getSource() != null;
     }
 }

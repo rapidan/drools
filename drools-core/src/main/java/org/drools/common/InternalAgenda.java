@@ -1,12 +1,16 @@
 package org.drools.common;
 
 import org.drools.Agenda;
+import org.drools.rule.GroupElement;
+import org.drools.rule.Rule;
 import org.drools.spi.Activation;
 import org.drools.spi.ActivationGroup;
 import org.drools.spi.AgendaFilter;
 import org.drools.spi.AgendaGroup;
 import org.drools.spi.ConsequenceException;
+import org.drools.spi.PropagationContext;
 import org.drools.spi.RuleFlowGroup;
+import org.drools.spi.Tuple;
 
 public interface InternalAgenda
     extends
@@ -16,11 +20,22 @@ public interface InternalAgenda
 
     public void removeScheduleItem(final ScheduledAgendaItem item);
     
-    public org.drools.util.LinkedList getScheduledActivationsLinkedList();
+    public org.drools.core.util.LinkedList getScheduledActivationsLinkedList();
 
     public boolean fireNextItem(AgendaFilter filter) throws ConsequenceException;
 
-    public void scheduleItem(final ScheduledAgendaItem item);
+    public void scheduleItem(final ScheduledAgendaItem item, InternalWorkingMemory workingMemory);
+
+    public AgendaItem createAgendaItem(final Tuple tuple,
+                                       final int salience,
+                                       final PropagationContext context,
+                                       final Rule rule,
+                                       final GroupElement subrule);
+
+    public ScheduledAgendaItem createScheduledAgendaItem(final Tuple tuple,
+                                                         final PropagationContext context,
+                                                         final Rule rule,
+                                                         final GroupElement subrule);   
     
     /**
      * Adds the activation to the agenda. Depending on the mode the agenda is running,

@@ -5,9 +5,7 @@ package org.drools.guvnor.client.modeldriven.ui;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import org.drools.guvnor.client.common.DirtyableComposite;
 import org.drools.guvnor.client.common.DirtyableFlexTable;
 import org.drools.guvnor.client.common.FormStylePopup;
 import org.drools.guvnor.client.common.ImageButton;
@@ -38,28 +36,33 @@ import com.google.gwt.user.client.ui.Widget;
  * @author isabel
  * 
  */
-public class ActionCallMethodWidget extends DirtyableComposite {
+public class ActionCallMethodWidget extends RuleModellerWidget {
 
     final private ActionCallMethod           model;
-    final private SuggestionCompletionEngine completions;
     final private DirtyableFlexTable         layout;
     private boolean                          isBoundFact = false;
 
     private String[]                         fieldCompletionTexts;
     private String[]                         fieldCompletionValues;
-    final private RuleModeller               modeller;
     private String                           variableClass;
     private Constants                        constants   = GWT.create( Constants.class );
 
+    private boolean readOnly;
+
     public ActionCallMethodWidget(RuleModeller mod,
-                                  ActionCallMethod set,
-                                  SuggestionCompletionEngine com) {
+                                  ActionCallMethod set) {
+        this(mod, set, null);
+    }
+
+    public ActionCallMethodWidget(RuleModeller mod,
+                                  ActionCallMethod set, Boolean readOnly) {
+        super(mod);
         this.model = set;
-        this.completions = com;
         this.layout = new DirtyableFlexTable();
-        this.modeller = mod;
 
         layout.setStyleName( "model-builderInner-Background" ); // NON-NLS
+
+        SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
         if ( completions.isGlobalVariable( set.variable ) ) {
 
             List<MethodInfo> infos = completions.getMethodInfosForGlobalVariable( set.variable );
@@ -72,7 +75,7 @@ public class ActionCallMethodWidget extends DirtyableComposite {
                 i++;
             }
 
-            this.variableClass = (String) completions.globalTypes.get( set.variable );
+            this.variableClass = (String) completions.getGlobalVariable( set.variable );
         } else {
             FactPattern pattern = mod.getModel().getBoundFact( set.variable );
             if ( pattern != null ) {
@@ -107,6 +110,18 @@ public class ActionCallMethodWidget extends DirtyableComposite {
                 }
             }
         }
+
+        if (readOnly == null){
+           this.readOnly = !completions.containsFactType(this.variableClass);
+        }else{
+           this.readOnly = readOnly;
+        }
+
+        if (this.readOnly){
+            layout.addStyleName("editor-disabled-widget");
+        }
+
+
         doLayout();
         initWidget( this.layout );
     }
@@ -156,7 +171,9 @@ public class ActionCallMethodWidget extends DirtyableComposite {
                 }
             } );
             horiz.add( new SmallLabel( HumanReadable.getActionDisplayName( "call" ) + " [" + model.variable + "]" ) ); // NON-NLS
-            horiz.add( edit );
+            if (!this.readOnly){
+                horiz.add( edit );
+            }
         } else {
             horiz.add( new SmallLabel( HumanReadable.getActionDisplayName( "call" ) + " [" + model.variable + "." + model.methodName + "]" ) ); // NON-NLS
         }
@@ -165,6 +182,9 @@ public class ActionCallMethodWidget extends DirtyableComposite {
     }
 
     protected void showAddFieldPopup(Widget w) {
+
+        final SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
+
         final FormStylePopup popup = new FormStylePopup( "images/newex_wiz.gif",
                                                          constants.ChooseAMethodToInvoke() ); // NON-NLS
         final ListBox box = new ListBox();
@@ -189,7 +209,7 @@ public class ActionCallMethodWidget extends DirtyableComposite {
                 model.methodName = methodName;
                 List<String> fieldList = new ArrayList<String>();
 
-                fieldList.addAll( completions.getMethodFields( variableClass,
+                fieldList.addAll( completions.getMethodParams( variableClass,
                                                                methodNameWithParams ) );
 
                 // String fieldType = completions.getFieldType( variableClass,
@@ -202,7 +222,7 @@ public class ActionCallMethodWidget extends DirtyableComposite {
                     i++;
                 }
 
-                modeller.refreshWidget();
+                getModeller().refreshWidget();
                 popup.hide();
             }
         } );
@@ -214,25 +234,27 @@ public class ActionCallMethodWidget extends DirtyableComposite {
 
     private Widget valueEditor(final ActionFieldFunction val) {
 
+        SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
+
         String type = "";
-        if ( this.completions.isGlobalVariable( this.model.variable ) ) {
-            type = (String) this.completions.globalTypes.get( this.model.variable );
+        if ( completions.isGlobalVariable( this.model.variable ) ) {
+            type = (String) completions.getGlobalVariable( this.model.variable );
         } else {
-            if ( this.modeller.getModel().getBoundFact( this.model.variable ) != null ) {
-                type = this.modeller.getModel().getBoundFact( this.model.variable ).factType;
+            if ( this.getModeller().getModel().getBoundFact( this.model.variable ) != null ) {
+                type = this.getModeller().getModel().getBoundFact( this.model.variable ).factType;
             } else {
-                if ( this.modeller.getModel().getRhsBoundFact( this.model.variable ) != null ) {
-                    type = this.modeller.getModel().getRhsBoundFact( this.model.variable ).factType;
+                if ( this.getModeller().getModel().getRhsBoundFact( this.model.variable ) != null ) {
+                    type = this.getModeller().getModel().getRhsBoundFact( this.model.variable ).factType;
                 }
             }
         }
 
-        DropDownData enums = this.completions.getEnums( type,
+        DropDownData enums = completions.getEnums( type,
                                                         this.model.fieldValues,
                                                         val.field );
         return new MethodParameterValueEditor( val,
                                                enums,
-                                               modeller,
+                                               this.getModeller(),
                                                val.type );
     }
 
@@ -272,10 +294,11 @@ public class ActionCallMethodWidget extends DirtyableComposite {
     }
 
     private Widget actionSelector(final ActionFieldFunction val) {
+        SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
+        
         final ListBox box = new ListBox();
-        final Map modMap = this.completions.modifiers;
         final String fieldType = val.type;
-        final String[] modifiers = (String[]) modMap.get( fieldType );
+        final String[] modifiers = completions.getModifiers( fieldType );
 
         if ( modifiers != null ) {
             for ( int i = 0; i < modifiers.length; i++ ) {
@@ -302,6 +325,11 @@ public class ActionCallMethodWidget extends DirtyableComposite {
 
     public boolean isDirty() {
         return layout.hasDirty();
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return this.readOnly;
     }
 
 }

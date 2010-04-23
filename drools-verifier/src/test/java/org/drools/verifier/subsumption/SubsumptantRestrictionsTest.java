@@ -1,182 +1,130 @@
 package org.drools.verifier.subsumption;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
 
-import org.drools.StatelessSession;
-import org.drools.StatelessSessionResult;
-import org.drools.base.RuleNameMatchesAgendaFilter;
-import org.drools.base.evaluators.Operator;
-import org.drools.verifier.TestBase;
-import org.drools.verifier.components.Field;
-import org.drools.verifier.components.LiteralRestriction;
-import org.drools.verifier.dao.VerifierResult;
-import org.drools.verifier.dao.VerifierResultFactory;
-import org.drools.verifier.report.components.Cause;
+import junit.framework.TestCase;
 
-public class SubsumptantRestrictionsTest extends SubsumptionTestBase {
+import org.drools.builder.ResourceType;
+import org.drools.io.ResourceFactory;
+import org.drools.runtime.ClassObjectFilter;
+import org.drools.verifier.Verifier;
+import org.drools.verifier.VerifierError;
+import org.drools.verifier.builder.VerifierBuilder;
+import org.drools.verifier.builder.VerifierBuilderFactory;
+import org.drools.verifier.builder.VerifierImpl;
+import org.drools.verifier.report.components.Subsumption;
 
-	public void testRestrictionRedundancyGreater() throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Restrictions.drl"));
+public class SubsumptantRestrictionsTest extends TestCase {
 
-		session.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-				"Find subsumptant restrictions, greater than"));
+    public void testVerifierLiteralRestrictionRedundancy1() throws Exception {
 
-		Collection<Object> data = new ArrayList<Object>();
+        VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
 
-		VerifierResult result = VerifierResultFactory.createVerifierResult();
-		session.setGlobal("result", result);
+        Verifier verifier = vBuilder.newVerifier();
 
-		/*
-		 * Redundant restrictions
-		 */
-		// Doubles
-		Field field1 = new Field();
+        verifier.addResourcesToVerify( ResourceFactory.newClassPathResource( "SubsumptantRestriction1.drl",
+                                                                             getClass() ),
+                                       ResourceType.DRL );
 
-		LiteralRestriction lr1 = new LiteralRestriction();
-		lr1.setOrderNumber(0);
-		lr1.setFieldId(field1.getId());
-		lr1.setValue("1.0");
-		lr1.setOperator(Operator.GREATER);
+        //        for ( VerifierError error : verifier.getErrors() ) {
+        //            System.out.println( error.getMessage() );
+        //        }
 
-		LiteralRestriction lr2 = new LiteralRestriction();
-		lr2.setOrderNumber(1);
-		lr2.setFieldId(field1.getId());
-		lr2.setValue("2.0");
-		lr2.setOperator(Operator.GREATER);
+        assertFalse( verifier.hasErrors() );
 
-		// Integers
-		Field field2 = new Field();
+        boolean noProblems = verifier.fireAnalysis();
+        assertTrue( noProblems );
 
-		LiteralRestriction lr3 = new LiteralRestriction();
-		lr3.setOrderNumber(0);
-		lr3.setFieldId(field2.getId());
-		lr3.setValue("1");
-		lr3.setOperator(Operator.GREATER);
+        Collection<Object> subsumptionList = ((VerifierImpl) verifier).getKnowledgeSession().getObjects( new ClassObjectFilter( Subsumption.class ) );
 
-		LiteralRestriction lr4 = new LiteralRestriction();
-		lr4.setOrderNumber(1);
-		lr4.setFieldId(field2.getId());
-		lr4.setValue("2");
-		lr4.setOperator(Operator.GREATER_OR_EQUAL);
+        assertEquals( 9,
+                      subsumptionList.size() );
 
-		// Dates
-		Field field3 = new Field();
+        verifier.dispose();
+    }
 
-		LiteralRestriction lr5 = new LiteralRestriction();
-		lr5.setOrderNumber(0);
-		lr5.setFieldId(field3.getId());
-		lr5.setValue("10-dec-2005");
-		lr5.setOperator(Operator.GREATER);
+    public void testVerifierLiteralRestrictionRedundancy2() throws Exception {
 
-		LiteralRestriction lr6 = new LiteralRestriction();
-		lr6.setOrderNumber(1);
-		lr6.setFieldId(field3.getId());
-		lr6.setValue("10-dec-2008");
-		lr6.setOperator(Operator.EQUAL);
+        VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
 
-		data.add(lr1);
-		data.add(lr2);
-		data.add(lr3);
-		data.add(lr4);
-		data.add(lr5);
-		data.add(lr6);
+        Verifier verifier = vBuilder.newVerifier();
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        verifier.addResourcesToVerify( ResourceFactory.newClassPathResource( "SubsumptantRestriction2.drl",
+                                                                             getClass() ),
+                                       ResourceType.DRL );
 
-		Map<Cause, Set<Cause>> map = createSubsumptionMap(sessionResult
-				.iterateObjects());
+        //        for ( VerifierError error : verifier.getErrors() ) {
+        //            System.out.println( error.getMessage() );
+        //        }
 
-		assertTrue(TestBase.causeMapContains(map, lr1, lr2));
-		assertTrue(TestBase.causeMapContains(map, lr3, lr4));
-		assertTrue(TestBase.causeMapContains(map, lr5, lr6));
+        assertFalse( verifier.hasErrors() );
 
-		if (!map.isEmpty()) {
-			fail("More redundancies than was expected.");
-		}
-	}
+        boolean noProblems = verifier.fireAnalysis();
+        assertTrue( noProblems );
 
-	public void testRestrictionRedundancyLess() throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Restrictions.drl"));
+        Collection<Object> subsumptionList = ((VerifierImpl) verifier).getKnowledgeSession().getObjects( new ClassObjectFilter( Subsumption.class ) );
 
-		session.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-				"Find subsumptant restrictions, less than"));
+        assertEquals( 9,
+                      subsumptionList.size() );
 
-		Collection<Object> data = new ArrayList<Object>();
+        verifier.dispose();
+    }
 
-		VerifierResult result = VerifierResultFactory.createVerifierResult();
-		session.setGlobal("result", result);
+    public void testVerifierLiteralRestrictionRedundancy3() throws Exception {
 
-		/*
-		 * Redundant restrictions
-		 */
-		// Doubles
-		Field field1 = new Field();
+        VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
 
-		LiteralRestriction lr1 = new LiteralRestriction();
-		lr1.setOrderNumber(0);
-		lr1.setFieldId(field1.getId());
-		lr1.setValue("2.0");
-		lr1.setOperator(Operator.LESS);
+        Verifier verifier = vBuilder.newVerifier();
 
-		LiteralRestriction lr2 = new LiteralRestriction();
-		lr2.setOrderNumber(1);
-		lr2.setFieldId(field1.getId());
-		lr2.setValue("1.0");
-		lr2.setOperator(Operator.LESS);
+        verifier.addResourcesToVerify( ResourceFactory.newClassPathResource( "SubsumptantRestriction3.drl",
+                                                                             getClass() ),
+                                       ResourceType.DRL );
 
-		// Integers
-		Field field2 = new Field();
+        //        for ( VerifierError error : verifier.getErrors() ) {
+        //            System.out.println( error.getMessage() );
+        //        }
 
-		LiteralRestriction lr3 = new LiteralRestriction();
-		lr3.setOrderNumber(0);
-		lr3.setFieldId(field2.getId());
-		lr3.setValue("2");
-		lr3.setOperator(Operator.LESS);
+        assertFalse( verifier.hasErrors() );
 
-		LiteralRestriction lr4 = new LiteralRestriction();
-		lr4.setOrderNumber(1);
-		lr4.setFieldId(field2.getId());
-		lr4.setValue("1");
-		lr4.setOperator(Operator.LESS_OR_EQUAL);
+        boolean noProblems = verifier.fireAnalysis();
+        assertTrue( noProblems );
 
-		// Dates
-		Field field3 = new Field();
+        Collection<Object> subsumptionList = ((VerifierImpl) verifier).getKnowledgeSession().getObjects( new ClassObjectFilter( Subsumption.class ) );
 
-		LiteralRestriction lr5 = new LiteralRestriction();
-		lr5.setOrderNumber(0);
-		lr5.setFieldId(field3.getId());
-		lr5.setValue("10-dec-2008");
-		lr5.setOperator(Operator.LESS);
+        assertEquals( 6,
+                      subsumptionList.size() );
 
-		LiteralRestriction lr6 = new LiteralRestriction();
-		lr6.setOrderNumber(1);
-		lr6.setFieldId(field3.getId());
-		lr6.setValue("10-dec-2005");
-		lr6.setOperator(Operator.EQUAL);
+        verifier.dispose();
+    }
 
-		data.add(lr1);
-		data.add(lr2);
-		data.add(lr3);
-		data.add(lr4);
-		data.add(lr5);
-		data.add(lr6);
+    public void testVerifierLiteralRestrictionRedundancy4() throws Exception {
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
 
-		Map<Cause, Set<Cause>> map = createSubsumptionMap(sessionResult
-				.iterateObjects());
+        Verifier verifier = vBuilder.newVerifier();
 
-		assertTrue(TestBase.causeMapContains(map, lr1, lr2));
-		assertTrue(TestBase.causeMapContains(map, lr3, lr4));
-		assertTrue(TestBase.causeMapContains(map, lr5, lr6));
+        verifier.addResourcesToVerify( ResourceFactory.newClassPathResource( "SubsumptantRestriction4.drl",
+                                                                             getClass() ),
+                                       ResourceType.DRL );
 
-		if (!map.isEmpty()) {
-			fail("More redundancies than was expected.");
-		}
-	}
+        //        for ( VerifierError error : verifier.getErrors() ) {
+        //            System.out.println( error.getMessage() );
+        //        }
+
+        assertFalse( verifier.hasErrors() );
+
+        boolean noProblems = verifier.fireAnalysis();
+        assertTrue( noProblems );
+
+        Collection<Object> subsumptionList = ((VerifierImpl) verifier).getKnowledgeSession().getObjects( new ClassObjectFilter( Subsumption.class ) );
+
+//        for ( Object object : subsumptionList ) {
+//            System.out.println( object );
+//        }
+
+        assertEquals( 4,
+                      subsumptionList.size() );
+
+        verifier.dispose();
+    }
 }

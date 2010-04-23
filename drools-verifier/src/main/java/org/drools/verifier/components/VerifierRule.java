@@ -1,79 +1,150 @@
 package org.drools.verifier.components;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.drools.verifier.components.Consequence.ConsequenceType;
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 
 /**
  *
  * @author Toni Rikkola
  */
-public class VerifierRule extends VerifierComponent implements Cause {
+public class VerifierRule extends PackageComponent
+    implements
+    Cause {
 
-	private static int index = 0;
+    private Map<String, String>       attributes      = new HashMap<String, String>();
 
-	private String ruleSalience;
-	private String ruleAgendaGroup;
-	private Consequence consequence;
-	private int lineNumber;
+    private String                    consequencePath;
+    private ConsequenceType           consequenceType;
+    private int                       lineNumber;
 
-	private int packageId;
+    private int                       packageId;
 
-	public VerifierRule() {
-		super(index++);
-		ruleId = index;
-	}
+    private String                    name;
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.RULE;
-	}
+    private Collection<String>        header          = new ArrayList<String>();
 
-	public CauseType getCauseType() {
-		return CauseType.RULE;
-	}
+    private Collection<String>        lhsRows         = new ArrayList<String>();
 
-	public String getRuleAgendaGroup() {
-		return ruleAgendaGroup;
-	}
+    private Collection<String>        rhsRows         = new ArrayList<String>();
 
-	public void setRuleAgendaGroup(String agendaGroup) {
-		this.ruleAgendaGroup = agendaGroup;
-	}
+    private String                    description;
 
-	public String getRuleSalience() {
-		return ruleSalience;
-	}
+    private Map<String, String>       metadata        = new HashMap<String, String>();
 
-	public void setRuleSalience(String salience) {
-		this.ruleSalience = salience;
-	}
+    private Collection<String>        commentMetadata = new ArrayList<String>();
 
-	public Consequence getConsequence() {
-		return consequence;
-	}
+    private Map<String, List<String>> otherInfo       = new HashMap<String, List<String>>();
 
-	public void setConsequence(Consequence consequence) {
-		this.consequence = consequence;
-	}
+    private int                       offset          = 0;
 
-	public int getLineNumber() {
-		return lineNumber;
-	}
+    public VerifierRule(RulePackage rulePackage) {
+        super( rulePackage );
+    }
 
-	public void setLineNumber(int lineNumber) {
-		this.lineNumber = lineNumber;
-	}
+    @Override
+    public String getPath() {
+        return String.format( "%s.rule[name=%s]",
+                              getPackagePath(),
+                              getName() );
+    }
 
-	@Override
-	public String toString() {
-		return "Rule '" + ruleName + "'";
-	}
+    public int getOffset() {
+        offset++;
+        return offset % 2;
+    }
 
-	public int getPackageId() {
-		return packageId;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public void setPackageId(int packageId) {
-		this.packageId = packageId;
-	}
+    public String getName() {
+        return name;
+    }
+
+    public void setAttributes(Map<String, String> attributes) {
+        this.attributes = attributes;
+    }
+
+    public Map<String, String> getAttributes() {
+        return attributes;
+    }
+
+    public String getConsequencePath() {
+        return consequencePath;
+    }
+
+    public void setConsequencePath(String consequencePath) {
+        this.consequencePath = consequencePath;
+    }
+
+    public ConsequenceType getConsequenceType() {
+        return consequenceType;
+    }
+
+    public void setConsequenceType(ConsequenceType consequenceType) {
+        this.consequenceType = consequenceType;
+    }
+
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
+    @Override
+    public String toString() {
+        return "Rule '" + getName() + "'";
+    }
+
+    public int getPackageId() {
+        return packageId;
+    }
+
+    public void setPackageId(int packageId) {
+        this.packageId = packageId;
+    }
+
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.RULE;
+    }
+
+    public Collection<String> getHeader() {
+        return header;
+    }
+
+    public Collection<String> getLhsRows() {
+        return lhsRows;
+    }
+
+    public Collection<String> getRhsRows() {
+        return rhsRows;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    public Collection<String> getCommentMetadata() {
+        return commentMetadata;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public Map<String, List<String>> getOtherInfo() {
+        return otherInfo;
+    }
 }

@@ -5,7 +5,8 @@ import java.util.Date;
 
 import junit.framework.TestCase;
 
-import org.drools.util.DateUtils;
+import org.drools.core.util.DateUtils;
+import org.drools.type.DateFormatsImpl;
 
 public class MVELDateCoercionTest extends TestCase {
 
@@ -24,7 +25,8 @@ public class MVELDateCoercionTest extends TestCase {
         SimpleDateFormat df = new SimpleDateFormat("dd-MMM-yyyy");
 
         String dt = df.format(df.parse("10-Jul-1974"));
-        Date dt_ = DateUtils.parseDate( dt );
+        Date dt_ = DateUtils.parseDate( dt,
+                                        new DateFormatsImpl() );
         assertEquals(dt_, co.convertFrom( dt ));
     }
 

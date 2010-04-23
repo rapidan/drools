@@ -18,10 +18,10 @@ package org.drools.rule.builder.dialect.java;
 
 import java.util.Iterator;
 
+import org.drools.core.util.StringUtils;
 import org.drools.lang.descr.RuleDescr;
 import org.drools.rule.builder.RuleBuildContext;
 import org.drools.rule.builder.RuleClassBuilder;
-import org.drools.util.StringUtils;
 
 /**
  * @author etirelli
@@ -42,7 +42,7 @@ public class JavaRuleClassBuilder
         
         final String lineSeparator = System.getProperty( "line.separator" );
 
-        final StringBuffer buffer = new StringBuffer();
+        final StringBuilder buffer = new StringBuilder();
         buffer.append( "package " + context.getPkg().getName() + ";" + lineSeparator );
 
         for ( final Iterator it = context.getPkg().getImports().keySet().iterator(); it.hasNext(); ) {

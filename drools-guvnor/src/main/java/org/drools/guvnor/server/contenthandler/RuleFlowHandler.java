@@ -32,14 +32,15 @@ import org.drools.guvnor.server.builder.ContentPackageAssembler.ErrorLogger;
 import org.drools.repository.AssetItem;
 import org.drools.repository.PackageItem;
 import org.drools.ruleflow.core.RuleFlowProcess;
-import org.drools.xml.XmlProcessReader;
-import org.drools.xml.XmlRuleFlowProcessDumper;
+import org.drools.compiler.xml.XmlProcessReader;
+import org.drools.compiler.xml.XmlRuleFlowProcessDumper;
 
 import com.google.gwt.user.client.rpc.SerializableException;
 
 public class RuleFlowHandler extends ContentHandler
     implements
-    IRuleAsset {
+    ICompilable,
+    ICanHasAttachment {
 
     public void retrieveAssetContent(RuleAsset asset,
                                      PackageItem pkg,
@@ -128,7 +129,7 @@ public class RuleFlowHandler extends ContentHandler
      * 
      * @param item
      */
-    public void ruleFlowAttached(AssetItem item) {
+    public void onAttachmentAdded(AssetItem item) {
         String content = item.getContent();
 
         if ( content != null && !content.equals( "" ) ) {
@@ -152,10 +153,8 @@ public class RuleFlowHandler extends ContentHandler
         }
     }
 
-    public void assembleDRL(BRMSPackageBuilder builder,
-                            AssetItem asset,
-                            StringBuffer buf) {
-        // do nothing... as no change to source.
+    public void onAttachmentRemoved(AssetItem item) throws IOException {
+        // Nothing to do when this asset type is removed.
     }
 
     public void compile(BRMSPackageBuilder builder,
@@ -167,4 +166,5 @@ public class RuleFlowHandler extends ContentHandler
             builder.addRuleFlow( new InputStreamReader( asset.getBinaryContentAttachment() ) );
         }
     }
+
 }

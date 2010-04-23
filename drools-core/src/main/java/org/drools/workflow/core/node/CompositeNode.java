@@ -17,14 +17,15 @@ import org.drools.workflow.core.impl.NodeImpl;
  * 
  * @author <a href="mailto:kris_verlaenen@hotmail.com">Kris Verlaenen</a>
  */
-public class CompositeNode extends NodeImpl implements NodeContainer, EventNodeInterface {
+public class CompositeNode extends StateBasedNode implements NodeContainer, EventNodeInterface {
 
     private static final long serialVersionUID = 400L;
     
     private org.drools.workflow.core.NodeContainer nodeContainer;
     private Map<String, CompositeNode.NodeAndType> inConnectionMap = new HashMap<String, CompositeNode.NodeAndType>();
     private Map<String, CompositeNode.NodeAndType> outConnectionMap = new HashMap<String, CompositeNode.NodeAndType>();
-    
+	private boolean cancelRemainingInstances = true;
+	
     public CompositeNode() {
         this.nodeContainer = new NodeContainerImpl();
     }
@@ -321,9 +322,19 @@ public class CompositeNode extends NodeImpl implements NodeContainer, EventNodeI
         }
     }
     
+	public boolean isCancelRemainingInstances() {
+		return cancelRemainingInstances;
+	}
+
+	public void setCancelRemainingInstances(boolean cancelRemainingInstances) {
+		this.cancelRemainingInstances = cancelRemainingInstances;
+	}
+
     public class NodeAndType implements Serializable {
 
-        private long nodeId;
+		private static final long serialVersionUID = 1L;
+		
+		private long nodeId;
         private String type;
         private transient Node node;
         
@@ -408,15 +419,6 @@ public class CompositeNode extends NodeImpl implements NodeContainer, EventNodeI
         
         public String getInType() {
             return inType;
-        }
-        
-        public Connection getTo() {
-            final List<Connection> list =
-                getOutgoingConnections(org.drools.workflow.core.Node.CONNECTION_DEFAULT_TYPE);
-            if (list.size() > 0) {
-                return (Connection) list.get(0);
-            }
-            return null;
         }
         
     }

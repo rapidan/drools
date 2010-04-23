@@ -16,16 +16,25 @@ package org.drools.common;
  * limitations under the License.
  */
 
+import java.util.Arrays;
+
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlRootElement;
+
 import org.drools.FactHandle;
-import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 import org.drools.reteoo.LeftTuple;
 import org.drools.reteoo.RightTuple;
+import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 
 /**
  * Implementation of <code>FactHandle</code>.
  * @author <a href="mailto:mark.proctor@jboss.com">Mark Proctor</a>
  * @author <a href="mailto:bob@werken.com">bob mcwhirter </a>
  */
+@XmlRootElement(name="fact-handle")
+@XmlAccessorType(XmlAccessType.NONE)
 public class DefaultFactHandle
     implements
     InternalFactHandle {
@@ -43,8 +52,12 @@ public class DefaultFactHandle
     private Object                  object;
     private EqualityKey             key;
     private int                     objectHashCode;
-    private RightTuple              rightTuple;
-    private LeftTuple               leftTuple;
+    
+    public RightTuple              firstRightTuple;
+    public RightTuple              lastRightTuple;
+    
+    public LeftTuple                firstLeftTuple;
+    public LeftTuple                lastLeftTuple;
     private WorkingMemoryEntryPoint entryPoint;
 
     // ----------------------------------------------------------------------
@@ -134,6 +147,11 @@ public class DefaultFactHandle
         return "0:" + this.id + ":" + getIdentityHashCode() + ":" + getObjectHashCode() + ":" + getRecency();
     }
 
+    @XmlAttribute(name="external-form")
+    public String getExternalForm() {
+    	return toExternalForm();
+    }
+    
     /**
      * @see Object
      */
@@ -193,20 +211,36 @@ public class DefaultFactHandle
         return false;
     }
 
-    public RightTuple getRightTuple() {
-        return rightTuple;
+    public RightTuple getFirstRightTuple() {
+        return this.firstRightTuple;
     }
 
-    public void setRightTuple(RightTuple rightTuple) {
-        this.rightTuple = rightTuple;
+    public void setFirstRightTuple(RightTuple firstRightTuple) {
+        this.firstRightTuple = firstRightTuple;
+    }
+    
+    public RightTuple getLastRightTuple() {
+        return this.lastRightTuple;
     }
 
-    public void setLeftTuple(LeftTuple leftTuple) {
-        this.leftTuple = leftTuple;
+    public void setLastRightTuple(RightTuple lastRightTuple) {
+        this.lastRightTuple = lastRightTuple;
+    }    
+
+    public void setFirstLeftTuple(LeftTuple firstLeftTuple) {
+        this.firstLeftTuple = firstLeftTuple;
     }
 
-    public LeftTuple getLeftTuple() {
-        return this.leftTuple;
+    public LeftTuple getFirstLeftTuple() {
+        return this.firstLeftTuple;
+    }
+    
+    public void setLastLeftTuple(LeftTuple lastLeftTuple) {
+        this.lastLeftTuple = lastLeftTuple;
+    }
+
+    public LeftTuple getLastLeftTuple() {
+        return this.lastLeftTuple;
     }
 
     public WorkingMemoryEntryPoint getEntryPoint() {
@@ -221,9 +255,31 @@ public class DefaultFactHandle
         DefaultFactHandle clone =  new DefaultFactHandle(this.id, this.object, this.recency);
         clone.entryPoint = this.entryPoint;
         clone.key = this.key;
-        clone.leftTuple = this.leftTuple;
-        clone.rightTuple = this.rightTuple;
+        clone.firstLeftTuple = this.firstLeftTuple;
+        clone.lastLeftTuple = this.lastLeftTuple;
+        
+        clone.firstRightTuple = this.firstRightTuple;
+        clone.lastRightTuple = this.lastRightTuple;
+        
         clone.objectHashCode = this.objectHashCode;
         return clone;
+    }
+
+    public String toTupleTree(int indent) {
+        StringBuilder buf = new StringBuilder();
+        char[] spaces = new char[indent];
+        Arrays.fill( spaces, ' ' );
+        String istr = new String( spaces );
+        buf.append( istr );
+        buf.append( this.toExternalString() );
+        buf.append( "\n" );
+        for( LeftTuple leftTuple = this.firstLeftTuple; leftTuple != null; leftTuple = leftTuple.getLeftParentNext() ) {
+            buf.append( leftTuple.toTupleTree( indent+4 ) );
+        }
+        return buf.toString();
+    }
+
+    private Object toExternalString() {
+        return "[F:"+this.getId()+" first="+System.identityHashCode( firstLeftTuple )+" last="+System.identityHashCode( lastLeftTuple )+" ]";
     }
 }

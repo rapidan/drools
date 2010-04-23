@@ -32,6 +32,11 @@ public class ISingleFieldConstraint
     public static final int TYPE_RET_VALUE = 3;
 
     /**
+     * This is for a "expression builder" that calculates a value.
+     */
+    public static final int TYPE_EXPR_BUILDER = 6;
+
+    /**
      * This is not used yet. ENUMs are not suitable for business rules
      * until we can get data driven non code enums.
      */
@@ -41,6 +46,11 @@ public class ISingleFieldConstraint
      * The fieldName and fieldBinding is not used in the case of a predicate.
      */
     public static final int TYPE_PREDICATE = 5;
+    
+    /**
+     * This is for a field to be a placeholder for a template
+     */
+    public static final int TYPE_TEMPLATE = 7;
 
     public String           value;
     public int              constraintValueType;

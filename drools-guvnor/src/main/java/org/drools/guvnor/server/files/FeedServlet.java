@@ -3,10 +3,12 @@ package org.drools.guvnor.server.files;
 import org.drools.guvnor.server.security.PackageNameType;
 import org.drools.guvnor.server.security.RoleTypes;
 import org.drools.guvnor.server.security.CategoryPathType;
+import org.drools.guvnor.server.util.Discussion;
+import org.drools.guvnor.client.rpc.DiscussionRecord;
 import org.drools.repository.AssetItem;
 import org.drools.repository.PackageItem;
 import org.drools.repository.AssetPageList;
-import org.drools.util.StringUtils;
+import org.drools.core.util.StringUtils;
 import org.jboss.seam.contexts.Contexts;
 import org.jboss.seam.security.Identity;
 import org.jboss.seam.security.AuthorizationException;
@@ -25,6 +27,8 @@ import java.util.*;
  */
 public class FeedServlet extends RepositoryServlet {
 
+    private static final String VIEW_URL = "viewUrl";
+
     @Override
     protected void doGet(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
         try {
@@ -41,6 +45,12 @@ public class FeedServlet extends RepositoryServlet {
                         doCategoryFeed(request, response);
                     }
                 });
+            } else if (url.indexOf("feed/discussion")  > -1) {
+                doAuthorizedAction(request, response, new A() {
+                    public void a() throws Exception {
+                        doDiscussionFeed(request, response);
+                    }
+                });
             }
         } catch (AuthorizationException e) {
             response.setHeader("WWW-Authenticate", "BASIC realm=\"users\"");
@@ -49,6 +59,26 @@ public class FeedServlet extends RepositoryServlet {
 
     }
 
+    private void doDiscussionFeed(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String assetName = request.getParameter("assetName");
+        String packageName = request.getParameter("package");
+        AssetItem asset = getFileManager().getRepository().loadPackage(packageName).loadAsset(assetName);
+        checkPackageReadPermission(asset.getPackageName());
+
+        List<AtomFeed.AtomEntry> entries = new ArrayList<AtomFeed.AtomEntry>();
+        entries.add(new AtomFeed.AtomEntry(request,  asset));
+        List<DiscussionRecord> drs = new Discussion().fromString(asset.getStringProperty(Discussion.DISCUSSION_PROPERTY_KEY));
+        for (DiscussionRecord dr : drs) {
+            entries.add(new AtomFeed.AtomEntry(request, asset, dr));
+        }
+        AtomFeed feed = new AtomFeed("Discussion of: " + packageName + "/" + assetName,
+                Calendar.getInstance(),
+                request.getServerName() + "/" + packageName + "/" + assetName,
+                request.getParameter(VIEW_URL),
+                request.getRequestURL().toString(), entries, "A list of updated discussion content.");
+        response.setContentType("application/atom+xml");
+        response.getOutputStream().print(feed.getAtom());
+    }
 
 
     private void doCategoryFeed(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -59,7 +89,7 @@ public class FeedServlet extends RepositoryServlet {
         Iterator<AssetItem> it = pg.assets.iterator();
         List<AtomFeed.AtomEntry> entries = new ArrayList<AtomFeed.AtomEntry>();
         buildEntries(request, entries, it, status);
-        AtomFeed feed = new AtomFeed("Category: " + cat, Calendar.getInstance(), request.getServerName() + cat, request.getServletPath(), request.getRequestURI(), entries, "Guvnor category of items: " + cat);
+        AtomFeed feed = new AtomFeed("Category: " + cat, Calendar.getInstance(), request.getServerName() + cat, request.getParameter(VIEW_URL), request.getRequestURL().toString(), entries, "Guvnor category of items: " + cat);
         response.setContentType("application/atom+xml");
         response.getOutputStream().print(feed.getAtom());
     }
@@ -75,14 +105,13 @@ public class FeedServlet extends RepositoryServlet {
         String packageName = request.getParameter("name");
         checkPackageReadPermission(packageName);
 
-        System.err.println("Package name for feed: " + packageName);
         PackageItem pkg = getFileManager().getRepository().loadPackage(packageName);
 
         List<AtomFeed.AtomEntry> entries = new ArrayList<AtomFeed.AtomEntry>();
         Iterator<AssetItem> it = pkg.getAssets();
         buildEntries(request, entries, it, request.getParameter("status"));
 
-        AtomFeed feed = new AtomFeed("Knowledge package: " + pkg.getName(), pkg.getLastModified(), pkg.getUUID(), request.getServletPath(), request.getRequestURI(), entries, pkg.getDescription());
+        AtomFeed feed = new AtomFeed("Knowledge package: " + pkg.getName(), pkg.getLastModified(), pkg.getUUID(), request.getParameter(VIEW_URL), request.getRequestURL().toString(), entries, pkg.getDescription());
         response.setContentType("application/atom+xml");
         response.getOutputStream().print(feed.getAtom());
     }
@@ -176,17 +205,42 @@ public class FeedServlet extends RepositoryServlet {
             private String checkinComment;
             private String format;
 
+
+            /**
+             * We are creating an entry for each asset.
+             */
             public AtomEntry(HttpServletRequest req, AssetItem asset) {
                 this.name = asset.getName();
                 this.format = asset.getFormat();
-                this.webURL = req.getParameter("viewUrl") + "#asset=" + asset.getUUID() + "&nochrome";
-                this.id = asset.getUUID() + "&version=" + asset.getVersionNumber();
+                //Escape & with %26 to make generated XML safe. 
+                this.webURL = req.getParameter(VIEW_URL) + "#asset=" + asset.getUUID() + "%26nochrome";
+                //Each history version of asset has its unique UUID. &version is not needed here. Plus &version
+                //is not being parsed on the server side 
+                //this.id = asset.getUUID() + "&version=" + asset.getVersionNumber();
+                this.id = asset.getUUID();
                 this.updated = ISO8601.format(asset.getLastModified());
                 this.published = ISO8601.format(asset.getCreatedDate());
                 this.author = asset.getCreator();
                 this.contributor = asset.getLastContributor();
                 this.description = asset.getDescription();
                 this.checkinComment = asset.getCheckinComment();
+            }
+
+            /** We are creating entries for each discussion record */
+            public AtomEntry(HttpServletRequest req, AssetItem asset, DiscussionRecord discussionRec) {
+                this.name = asset.getName();
+                this.format = asset.getFormat();
+                this.webURL = req.getParameter(VIEW_URL) + "#asset=" + asset.getUUID() + "%26nochrome";
+                this.id = asset.getUUID() + "&discussion=" + discussionRec.timestamp + "&author=" + discussionRec.author;
+                Calendar c = Calendar.getInstance();
+                c.setTime(new Date(discussionRec.timestamp));
+                this.updated = ISO8601.format(c);
+                this.published = ISO8601.format(c);
+                this.author = discussionRec.author;
+                this.contributor = asset.getLastContributor();
+                this.description = "Discussion comment was added by: " + discussionRec.author;
+                this.checkinComment = discussionRec.note;
+
             }
 
             public String getName() {

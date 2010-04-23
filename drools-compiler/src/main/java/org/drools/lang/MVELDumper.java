@@ -19,6 +19,7 @@ package org.drools.lang;
 import java.util.Iterator;
 
 import org.drools.base.evaluators.Operator;
+import org.drools.core.util.ReflectiveVisitor;
 import org.drools.lang.descr.FieldBindingDescr;
 import org.drools.lang.descr.FieldConstraintDescr;
 import org.drools.lang.descr.LiteralRestrictionDescr;
@@ -27,7 +28,6 @@ import org.drools.lang.descr.QualifiedIdentifierRestrictionDescr;
 import org.drools.lang.descr.RestrictionConnectiveDescr;
 import org.drools.lang.descr.ReturnValueRestrictionDescr;
 import org.drools.lang.descr.VariableRestrictionDescr;
-import org.drools.util.ReflectiveVisitor;
 
 /**
  * 
@@ -36,7 +36,7 @@ import org.drools.util.ReflectiveVisitor;
  */
 public class MVELDumper extends ReflectiveVisitor {
 
-    private StringBuffer        mvelDump;
+    private StringBuilder        mvelDump;
     private boolean             isDateField;
     private static final String eol = System.getProperty( "line.separator" );
     private String              template;
@@ -47,7 +47,7 @@ public class MVELDumper extends ReflectiveVisitor {
     }
 
     public String dump(FieldConstraintDescr fieldConstr, boolean isDateField ) {
-        mvelDump = new StringBuffer();
+        mvelDump = new StringBuilder();
         this.isDateField = isDateField;
         this.visit( fieldConstr );
         return mvelDump.toString();

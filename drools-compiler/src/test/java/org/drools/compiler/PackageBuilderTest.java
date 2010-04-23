@@ -40,10 +40,12 @@ import org.drools.base.DefaultKnowledgeHelper;
 import org.drools.common.ActivationGroupNode;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.LogicalDependency;
-import org.drools.common.RuleFlowGroupNode;
+import org.drools.common.ActivationNode;
 import org.drools.commons.jci.compilers.EclipseJavaCompiler;
 import org.drools.commons.jci.compilers.JaninoJavaCompiler;
 import org.drools.commons.jci.compilers.JavaCompiler;
+import org.drools.core.util.DroolsStreamUtils;
+import org.drools.core.util.LinkedList;
 import org.drools.facttemplates.Fact;
 import org.drools.integrationtests.SerializationHelper;
 import org.drools.io.Resource;
@@ -74,7 +76,7 @@ import org.drools.process.core.Context;
 import org.drools.process.core.Process;
 import org.drools.reteoo.ReteooRuleBase;
 import org.drools.rule.Behavior;
-import org.drools.rule.CompositeClassLoader;
+import org.drools.rule.DroolsCompositeClassLoader;
 import org.drools.rule.Declaration;
 import org.drools.rule.EvalCondition;
 import org.drools.rule.GroupElement;
@@ -93,8 +95,6 @@ import org.drools.spi.AgendaGroup;
 import org.drools.spi.CompiledInvoker;
 import org.drools.spi.PropagationContext;
 import org.drools.spi.Tuple;
-import org.drools.util.DroolsStreamUtils;
-import org.drools.util.LinkedList;
 import org.drools.workflow.core.impl.WorkflowProcessImpl;
 
 public class PackageBuilderTest extends DroolsTestCase {
@@ -837,57 +837,6 @@ public class PackageBuilderTest extends DroolsTestCase {
                       builder.getErrors().getErrors() );
     }
 
-    public void testQuery() throws Exception {
-        final PackageBuilder builder = new PackageBuilder();
-
-        final PackageDescr packageDescr = new PackageDescr( "p1" );
-        final QueryDescr queryDescr = new QueryDescr( "query1" );
-        queryDescr.setParameters( new String[]{"$type"} );
-        queryDescr.setParameterTypes( new String[]{"String"} );
-
-        packageDescr.addRule( queryDescr );
-
-        final AndDescr lhs = new AndDescr();
-        queryDescr.setLhs( lhs );
-
-        final PatternDescr pattern = new PatternDescr( Cheese.class.getName(),
-                                                       "stilton" );
-        lhs.addDescr( pattern );
-
-        final FieldConstraintDescr literalDescr = new FieldConstraintDescr( "type" );
-        literalDescr.addRestriction( new VariableRestrictionDescr( "==",
-                                                                   "$type" ) );
-
-        pattern.addConstraint( literalDescr );
-
-        queryDescr.setConsequence( "update(stilton);" );
-
-        builder.addPackage( packageDescr );
-
-        assertLength( 0,
-                      builder.getErrors().getErrors() );
-
-        RuleBase ruleBase = RuleBaseFactory.newRuleBase();
-        ruleBase.addPackage( builder.getPackage() );
-
-        StatefulSession session = ruleBase.newStatefulSession();
-
-        session.insert( new Cheese( "stilton",
-                                    15 ) );
-
-        QueryResults results = session.getQueryResults( "query1",
-                                                        new Object[]{"stilton"} );
-        assertEquals( 1,
-                      results.size() );
-        Object object = results.get( 0 ).get( 0 );
-        assertEquals( new Cheese( "stilton",
-                                  15 ),
-                      object );
-
-        results = session.getQueryResults( "query1",
-                                           new Object[]{"cheddar"} );
-    }
-
     public void testDuplicateRuleNames() throws Exception {
 
         final PackageBuilder builder = new PackageBuilder();
@@ -1088,7 +1037,8 @@ public class PackageBuilderTest extends DroolsTestCase {
         assertFalse( builder.hasErrors() );
 
         Package bp = builder.getPackage();
-        CompositeClassLoader rootClassloader = new CompositeClassLoader( Thread.currentThread().getContextClassLoader() );
+        DroolsCompositeClassLoader rootClassloader = new DroolsCompositeClassLoader( Thread.currentThread().getContextClassLoader(),
+                                                                                     false );
         JavaDialectRuntimeData dialectData = (JavaDialectRuntimeData) bp.getDialectRuntimeRegistry().getDialectData( "java" );
         dialectData.onAdd( bp.getDialectRuntimeRegistry(),
                            rootClassloader );
@@ -1392,6 +1342,10 @@ public class PackageBuilderTest extends DroolsTestCase {
         final PackageBuilder builder = new PackageBuilder();
 
         final PackageDescr packageDescr = new PackageDescr( "p1" );
+        final TypeDeclarationDescr typeDeclDescr = new TypeDeclarationDescr( StockTick.class.getName() );
+        typeDeclDescr.addMetaAttribute( "role",
+                                        "event" );
+        packageDescr.addTypeDeclaration( typeDeclDescr );
         final RuleDescr ruleDescr = new RuleDescr( "rule-1" );
         packageDescr.addRule( ruleDescr );
 
@@ -1506,33 +1460,33 @@ public class PackageBuilderTest extends DroolsTestCase {
         public void setResource(Resource resource) {
         }
 
-		public String[] getGlobalNames() {
-			return null;
-		}
+        public String[] getGlobalNames() {
+            return null;
+        }
 
-		public Map<String, String> getGlobals() {
-			return null;
-		}
+        public Map<String, String> getGlobals() {
+            return null;
+        }
 
-		public List<String> getImports() {
-			return null;
-		}
+        public List<String> getImports() {
+            return null;
+        }
 
-		public void setGlobals(Map<String, String> globals) {
-		}
+        public void setGlobals(Map<String, String> globals) {
+        }
 
-		public void setImports(List<String> imports) {
-		}
+        public void setImports(List<String> imports) {
+        }
 
-		public List<String> getFunctionImports() {
-			// TODO Auto-generated method stub
-			return null;
-		}
+        public List<String> getFunctionImports() {
+            // TODO Auto-generated method stub
+            return null;
+        }
 
-		public void setFunctionImports(List<String> functionImports) {
-			// TODO Auto-generated method stub
-			
-		}
+        public void setFunctionImports(List<String> functionImports) {
+            // TODO Auto-generated method stub
+
+        }
 
     }
 
@@ -1610,12 +1564,12 @@ public class PackageBuilderTest extends DroolsTestCase {
             return null;
         }
 
-        public RuleFlowGroupNode getRuleFlowGroupNode() {
+        public ActivationNode getActivationNode() {
             // TODO Auto-generated method stub
             return null;
         }
 
-        public void setRuleFlowGroupNode(final RuleFlowGroupNode ruleFlowGroupNode) {
+        public void setActivationNode(final ActivationNode ruleFlowGroupNode) {
             // TODO Auto-generated method stub
 
         }

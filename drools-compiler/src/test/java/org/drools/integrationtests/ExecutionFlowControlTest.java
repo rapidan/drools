@@ -4,8 +4,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
@@ -43,10 +47,14 @@ import org.drools.io.ResourceFactory;
 import org.drools.lang.descr.PackageDescr;
 import org.drools.process.instance.ProcessInstance;
 import org.drools.rule.Package;
+import org.drools.runtime.KnowledgeSessionConfiguration;
 import org.drools.runtime.StatefulKnowledgeSession;
+import org.drools.runtime.conf.ClockTypeOption;
 import org.drools.spi.Activation;
 import org.drools.spi.ActivationGroup;
 import org.drools.spi.AgendaGroup;
+import org.drools.time.Calendar;
+import org.drools.time.impl.PseudoClockScheduler;
 
 public class ExecutionFlowControlTest extends TestCase {
     protected RuleBase getRuleBase() throws Exception {
@@ -147,7 +155,7 @@ public class ExecutionFlowControlTest extends TestCase {
         }
     }
 
-    public void testSalienceInteger() throws Exception {
+    public void testSalienceIntegerAndDepthCrs() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
         builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "test_salienceIntegerRule.drl" ) ) );
         final Package pkg = builder.getPackage();
@@ -167,15 +175,18 @@ public class ExecutionFlowControlTest extends TestCase {
 
         workingMemory.fireAllRules();
 
-        Assert.assertEquals( "Two rules should have been fired",
-                             2,
+        Assert.assertEquals( "Three rules should have been fired",
+                             3,
                              list.size() );
-        Assert.assertEquals( "Rule 3 should have been fired first",
-                             "Rule 3",
+        Assert.assertEquals( "Rule 4 should have been fired first",
+                             "Rule 4",
                              list.get( 0 ) );
         Assert.assertEquals( "Rule 2 should have been fired second",
                              "Rule 2",
-                             list.get( 1 ) );
+                             list.get( 1 ) );        
+        Assert.assertEquals( "Rule 3 should have been fired third",
+                             "Rule 3",
+                             list.get( 2 ) );        
     }
 
     public void testSalienceExpression() throws Exception {
@@ -524,9 +535,8 @@ public class ExecutionFlowControlTest extends TestCase {
                       session.getAgenda().getFocusName() );
 
         // on the fifth day God created the birds and sea creatures
-        session.modifyRetract( handles[0][0] );
         cells[0][0].setState( Cell.LIVE );
-        session.modifyInsert( handles[0][0],
+        session.update( handles[0][0],
                               cells[0][0] );
         session.setFocus( "birth" );
         session.setFocus( "calculate" );
@@ -541,9 +551,8 @@ public class ExecutionFlowControlTest extends TestCase {
                       session.getAgenda().getFocusName() );
 
         // on the sixth day God created the animals that walk over the land and the Man
-        session.modifyRetract( handles[1][1] );
         cells[1][1].setState( Cell.LIVE );
-        session.modifyInsert( handles[1][1],
+        session.update( handles[1][1],
                               cells[1][1] );
         session.setFocus( "calculate" );
         session.fireAllRules( 100 );
@@ -578,9 +587,8 @@ public class ExecutionFlowControlTest extends TestCase {
                       session.getAgenda().getFocusName() );
 
         // on the seventh day, while God rested, man start killing them all
-        session.modifyRetract( handles[0][0] );
         cells[0][0].setState( Cell.DEAD );
-        session.modifyInsert( handles[0][0],
+        session.update( handles[0][0],
                               cells[0][0] );
         session.setFocus( "calculate" );
         session.fireAllRules( 100 );
@@ -737,143 +745,17 @@ public class ExecutionFlowControlTest extends TestCase {
 
     }
 
-    public void testDuration() throws Exception {
-        final PackageBuilder builder = new PackageBuilder();
-        builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "test_Duration.drl" ) ) );
-        final Package pkg = builder.getPackage();
-
-        RuleBase ruleBase = getRuleBase();
-        ruleBase.addPackage( pkg );
-        ruleBase = SerializationHelper.serializeObject( ruleBase );
-        final WorkingMemory workingMemory = ruleBase.newStatefulSession();
-
-        final List list = new ArrayList();
-        workingMemory.setGlobal( "list",
-                                 list );
-
-        final Cheese brie = new Cheese( "brie",
-                                        12 );
-        final FactHandle brieHandle = workingMemory.insert( brie );
-
-        workingMemory.fireAllRules();
-
-        // now check for update
-        assertEquals( 0,
-                      list.size() );
-
-        // sleep for 300ms
-        Thread.sleep( 300 );
-
-        // now check for update
-        assertEquals( 1,
-                      list.size() );
-
-    }
-
     public void testInsertRetractNoloop() throws Exception {
         // read in the source
         final Reader reader = new InputStreamReader( getClass().getResourceAsStream( "test_Insert_Retract_Noloop.drl" ) );
         RuleBase ruleBase = loadRuleBase( reader );
-
+    
         ruleBase = SerializationHelper.serializeObject( ruleBase );
         final WorkingMemory wm = ruleBase.newStatefulSession();
         wm.insert( new Cheese( "stilton",
                                15 ) );
-
+    
         wm.fireAllRules();
-    }
-
-    public void testDurationWithNoLoop() throws Exception {
-        final PackageBuilder builder = new PackageBuilder();
-        builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "test_Duration_with_NoLoop.drl" ) ) );
-        final Package pkg = builder.getPackage();
-
-        RuleBase ruleBase = getRuleBase();
-        ruleBase.addPackage( pkg );
-        ruleBase = SerializationHelper.serializeObject( ruleBase );
-        final WorkingMemory workingMemory = ruleBase.newStatefulSession();
-
-        final List list = new ArrayList();
-        workingMemory.setGlobal( "list",
-                                 list );
-
-        final Cheese brie = new Cheese( "brie",
-                                        12 );
-        final FactHandle brieHandle = workingMemory.insert( brie );
-
-        workingMemory.fireAllRules();
-
-        // now check for update
-        assertEquals( 0,
-                      list.size() );
-
-        // sleep for 300ms
-        Thread.sleep( 300 );
-
-        // now check for update
-        assertEquals( 1,
-                      list.size() );
-    }
-
-    public void testDurationMemoryLeakonRepeatedUpdate() throws Exception {
-        String str = "package org.drools.test\n" + "import org.drools.Alarm\n" + "global java.util.List list;" + "rule \"COMPTEUR\"\n" + "  duration 50\n" + "  when\n" + "    $alarm : Alarm( number < 5 )\n" + "  then\n"
-                     + "    $alarm.incrementNumber();\n" + "    list.add( $alarm );\n" + "    update($alarm);\n" + "end\n";
-
-        PackageBuilder builder = new PackageBuilder();
-        builder.addPackageFromDrl( new StringReader( str ) );
-
-        RuleBase ruleBase = RuleBaseFactory.newRuleBase();
-        ruleBase.addPackage( builder.getPackage() );
-
-        StatefulSession session = ruleBase.newStatefulSession();
-        List list = new ArrayList();
-        session.setGlobal( "list",
-                           list );
-        session.insert( new Alarm() );
-
-        session.fireAllRules();
-
-        Thread.sleep( 1000 );
-
-        assertEquals( 5,
-                      list.size() );
-        assertEquals( 0,
-                      session.getAgenda().getScheduledActivations().length );
-    }
-
-    public void testFireRuleAfterDuration() throws Exception {
-        final PackageBuilder builder = new PackageBuilder();
-        builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "test_FireRuleAfterDuration.drl" ) ) );
-        final Package pkg = builder.getPackage();
-
-        RuleBase ruleBase = getRuleBase();
-        ruleBase.addPackage( pkg );
-        ruleBase = SerializationHelper.serializeObject( ruleBase );
-        final WorkingMemory workingMemory = ruleBase.newStatefulSession();
-
-        final List list = new ArrayList();
-        workingMemory.setGlobal( "list",
-                                 list );
-
-        final Cheese brie = new Cheese( "brie",
-                                        12 );
-        final FactHandle brieHandle = workingMemory.insert( brie );
-
-        workingMemory.fireAllRules();
-
-        // now check for update
-        assertEquals( 0,
-                      list.size() );
-
-        // sleep for 300ms
-        Thread.sleep( 300 );
-
-        workingMemory.fireAllRules();
-
-        // now check for update
-        assertEquals( 2,
-                      list.size() );
-
     }
 
     public void testUpdateNoLoop() throws Exception {
@@ -942,10 +824,10 @@ public class ExecutionFlowControlTest extends TestCase {
                    item.getRule(),
                    item );
 
-        // the two of the three tuples should re-activate
-        assertEquals( 5,
-                      created.size() );
+        // with true modify, no reactivations should be triggered
         assertEquals( 3,
+                      created.size() );
+        assertEquals( 0,
                       cancelled.size() );
     }
 

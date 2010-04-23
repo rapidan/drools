@@ -3,6 +3,7 @@ package org.drools.verifier.incompatibility
 
 #list any import classes here.
 import org.drools.verifier.components.LiteralRestriction;
+import org.drools.verifier.components.NumberRestriction;
 import org.drools.verifier.components.VariableRestriction;
 
 import org.drools.verifier.report.components.Incompatibility;
@@ -18,19 +19,19 @@ import org.drools.base.evaluators.Operator;
 #
 rule "Incompatible LiteralRestrictions with ranges in pattern possibility, impossible equality less or equal"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			operator == Operator.EQUAL
 		)
 
-		$r2 :LiteralRestriction(
+		$r2 :NumberRestriction(
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			( operator == Operator.LESS_OR_EQUAL || == Operator.LESS || == Operator.EQUAL ),
-			id != $r1.id
+			path != $r1.path,
+			value < $r1.value
 		)
 
-		eval( $r1.compareValues( $r2 ) == 1 )
 	then
 		insert( new Incompatibility( $r1, $r2 ) );
 end
@@ -43,19 +44,19 @@ end
 #
 rule "Incompatible LiteralRestrictions with ranges in pattern possibility, impossible equality greater"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			( operator == Operator.GREATER || == Operator.GREATER_OR_EQUAL )
 		)
 
-		$r2 :LiteralRestriction(
+		$r2 :NumberRestriction(
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			operator == Operator.EQUAL,
-			id != $r1.id
+			path != $r1.path,
+			value < $r1.value
 		)
 
-		eval( $r1.compareValues( $r2 ) == 1 )
 	then
 		insert( new Incompatibility( $r1, $r2 ) );
 end
@@ -74,13 +75,13 @@ rule "Incompatible LiteralRestrictions with ranges in pattern possibility, impos
 
 		$r2 :LiteralRestriction(
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			operator == Operator.GREATER,
-			id != $r1.id
+			path != $r1.path,
+			valueAsString == valueAsString
 		)
 
-		eval( $r1.compareValues( $r2 ) == 0 )
 	then
 		insert( new Incompatibility( $r1, $r2 ) );
 end
@@ -98,11 +99,11 @@ rule "Incoherent VariableRestrictions in pattern possibility, impossible range"
 		)
 
 		$r2 :VariableRestriction(
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			operator == Operator.GREATER,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
-			id != $r1.id
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
+			path != $r1.path
 		)
 	then
 		insert( new Incompatibility( $r1, $r2 ) );

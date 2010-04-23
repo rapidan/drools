@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.PriorityQueue;
 
 import org.drools.common.EventFactHandle;
+import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.PropagationContextImpl;
 import org.drools.common.WorkingMemoryAction;
@@ -47,7 +48,7 @@ public class SlidingTimeWindow
     Externalizable,
     Behavior {
 
-    private long size;
+    private long              size;
     // stateless job
     private final BehaviorJob job = new BehaviorJob();
 
@@ -109,9 +110,9 @@ public class SlidingTimeWindow
      *
      * @see org.drools.rule.Behavior#assertRightTuple(java.lang.Object, org.drools.reteoo.RightTuple, org.drools.common.InternalWorkingMemory)
      */
-    public void assertRightTuple(final Object context,
-                                 final RightTuple rightTuple,
-                                 final InternalWorkingMemory workingMemory) {
+    public boolean assertRightTuple(final Object context,
+                                    final RightTuple rightTuple,
+                                    final InternalWorkingMemory workingMemory) {
         SlidingTimeWindowContext queue = (SlidingTimeWindowContext) context;
         queue.queue.add( rightTuple );
         if ( queue.queue.peek() == rightTuple ) {
@@ -120,6 +121,7 @@ public class SlidingTimeWindow
                                   workingMemory,
                                   queue );
         }
+        return true;
     }
 
     /**
@@ -156,14 +158,18 @@ public class SlidingTimeWindow
                                             tuple ) ) {
             queue.expiringTuple = tuple;
             queue.queue.remove();
-            final PropagationContext propagationContext = new PropagationContextImpl( workingMemory.getNextPropagationIdCounter(),
-                                                                                      PropagationContext.EXPIRATION,
-                                                                                      null,
-                                                                                      null,
-                                                                                      tuple.getFactHandle() );
-            tuple.getRightTupleSink().retractRightTuple( tuple,
-                                                         propagationContext,
-                                                         workingMemory );
+            final InternalFactHandle handle = tuple.getFactHandle();
+            if( handle.isValid()) {
+                // if not expired yet, expire it
+                final PropagationContext propagationContext = new PropagationContextImpl( workingMemory.getNextPropagationIdCounter(),
+                                                                                          PropagationContext.EXPIRATION,
+                                                                                          null,
+                                                                                          null,
+                                                                                          handle );
+                tuple.getRightTupleSink().retractRightTuple( tuple,
+                                                             propagationContext,
+                                                             workingMemory );
+            }
             tuple.unlinkFromRightParent();
             queue.expiringTuple = null;
             tuple = queue.queue.peek();
@@ -195,9 +201,13 @@ public class SlidingTimeWindow
                                                         context );
             JobHandle handle = clock.scheduleJob( job,
                                                   jobctx,
-                                                  new PointInTimeTrigger( nextTimestamp ) );
+                                                  new PointInTimeTrigger( nextTimestamp, null, null ) );
             jobctx.setJobHandle( handle );
         }
+    }
+
+    public long getExpirationOffset() {
+        return this.size;
     }
 
     public String toString() {
@@ -247,7 +257,7 @@ public class SlidingTimeWindow
 
     private static class BehaviorJobContext
         implements
-        JobContext, 
+        JobContext,
         Externalizable {
         public InternalWorkingMemory workingMemory;
         public Behavior              behavior;
@@ -283,7 +293,7 @@ public class SlidingTimeWindow
 
         public void writeExternal(ObjectOutput out) throws IOException {
             // TODO Auto-generated method stub
-            
+
         }
 
     }
@@ -337,7 +347,5 @@ public class SlidingTimeWindow
             // TODO Auto-generated method stub
 
         }
-
     }
-
 }

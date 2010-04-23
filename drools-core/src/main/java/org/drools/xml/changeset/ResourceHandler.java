@@ -4,11 +4,11 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import org.drools.builder.ResourceType;
-import org.drools.io.InternalResource;
 import org.drools.io.Resource;
 import org.drools.io.impl.ClassPathResource;
 import org.drools.io.impl.KnowledgeResource;
 import org.drools.io.impl.UrlResource;
+import org.drools.io.internal.InternalResource;
 import org.drools.xml.BaseAbstractHandler;
 import org.drools.xml.ExtensibleXmlParser;
 import org.drools.xml.Handler;
@@ -44,6 +44,10 @@ public class ResourceHandler extends BaseAbstractHandler
         
         String src = attrs.getValue( "source" );
         String type = attrs.getValue( "type" );
+        String basicAuthentication = attrs.getValue( "basicAuthentication" );
+        String username = attrs.getValue( "username" );
+        String password = attrs.getValue( "password" );
+
         
         emptyAttributeCheck( localName,
                              "source",
@@ -57,9 +61,12 @@ public class ResourceHandler extends BaseAbstractHandler
         InternalResource resource = null;
         
         if ( src.trim().startsWith( "classpath:" ) ) {
-            resource = new ClassPathResource( src.substring( src.indexOf( ':' ) + 1 ), parser.getClassLoader() );
+            resource = new ClassPathResource( src.substring( src.indexOf( ':' ) + 1 ), ( Class ) parser.getMetaData().get( "clazz" ), parser.getClassLoader() );
         } else {
             resource = new UrlResource( src );
+            ((UrlResource)resource).setBasicAuthentication(basicAuthentication);
+            ((UrlResource)resource).setUsername(username);
+            ((UrlResource)resource).setPassword(password);           
         }
         
         resource.setResourceType( ResourceType.getResourceType( type ) );

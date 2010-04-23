@@ -1,5 +1,6 @@
 package org.drools.guvnor.client.explorer;
 
+import org.drools.guvnor.client.ruleeditor.MultiViewRow;
 import org.drools.guvnor.client.ruleeditor.NewAssetWizard;
 import org.drools.guvnor.client.rulelist.EditItemEvent;
 
@@ -56,21 +57,27 @@ public abstract class GenericPanel extends Panel {
         return menuTree;
     }
 
-    protected void launchWizard(String format, String title, boolean showCats, String currentlySelectedPackage) {
+    protected void launchWizard(String format, String title, boolean showCats) {
 
         NewAssetWizard pop = new NewAssetWizard(new EditItemEvent() {
             public void open(String key) {
                 centertabbedPanel.openAsset(key);
             }
-        }, showCats, format, title, currentlySelectedPackage);
+
+            public void open(MultiViewRow[] rows) {
+                for ( MultiViewRow row: rows) {
+                    centertabbedPanel.openAsset( row.uuid );
+                }
+            }
+        }, showCats, format, title);
 
         pop.show();
     }
 
 
-    public void launchWizard(String format, String title, boolean showCats) {
-        launchWizard(format, title, showCats, null);
-    }
+//    public void launchWizard(String format, String title, boolean showCats) {
+//        launchWizard(format, title, showCats);
+//    }
 
     /**
      * Add a widget to this panel.

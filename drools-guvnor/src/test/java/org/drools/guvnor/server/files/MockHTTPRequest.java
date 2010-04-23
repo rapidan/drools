@@ -24,6 +24,8 @@ public class MockHTTPRequest implements HttpServletRequest {
     Map<String, String> parameters;
     public String method;
 
+    public StringBuffer url = new StringBuffer("http://foo.com"); 
+
 
     public MockHTTPRequest(String uri, Map<String, String> headers) {
 		this.uri = uri;
@@ -110,8 +112,9 @@ public class MockHTTPRequest implements HttpServletRequest {
 	}
 
 	public StringBuffer getRequestURL() {
-		// TODO Auto-generated method stub
-		return null;
+
+        return url;
+
 	}
 
 	public String getRequestedSessionId() {

@@ -1,4 +1,5 @@
 package org.drools.guvnor.server.contenthandler;
+
 /*
  * Copyright 2005 JBoss Inc
  *
@@ -15,8 +16,6 @@ package org.drools.guvnor.server.contenthandler;
  * limitations under the License.
  */
 
-
-
 import java.io.IOException;
 import java.io.StringReader;
 
@@ -26,56 +25,77 @@ import org.drools.guvnor.client.rpc.RuleAsset;
 import org.drools.guvnor.server.builder.BRMSPackageBuilder;
 import org.drools.guvnor.server.builder.ContentPackageAssembler;
 import org.drools.guvnor.server.util.BRDRLPersistence;
+import org.drools.guvnor.server.util.BRLPersistence;
 import org.drools.guvnor.server.util.BRXMLPersistence;
 import org.drools.repository.AssetItem;
 import org.drools.repository.PackageItem;
 
 import com.google.gwt.user.client.rpc.SerializableException;
 
-public class BRLContentHandler extends ContentHandler implements IRuleAsset {
+public class BRLContentHandler extends ContentHandler
+		implements IRuleAsset {
 
-	public void retrieveAssetContent(RuleAsset asset, PackageItem pkg,
-			AssetItem item) throws SerializableException {
-		RuleModel model = BRXMLPersistence.getInstance().unmarshal(
-				item.getContent());
 
-		asset.content = model;
+	public void retrieveAssetContent(RuleAsset asset,
+                                     PackageItem pkg,
+                                     AssetItem item) throws SerializableException {
+        asset.content = getBrlXmlPersistence().unmarshal( item.getContent() );
+    }
 
+    public void storeAssetContent(RuleAsset asset,
+                                  AssetItem repoAsset) throws SerializableException {
+        RuleModel data = (RuleModel) asset.content;
+        if ( data.name == null ) {
+            data.name = repoAsset.getName();
+        }
+        repoAsset.updateContent( getBrlXmlPersistence().marshal( data ) );
+    }
+
+    public void compile(BRMSPackageBuilder builder,
+                        AssetItem asset,
+                        ContentPackageAssembler.ErrorLogger logger) throws DroolsParserException,
+                                                                   IOException {
+        builder.addPackageFromDrl( new StringReader( getSourceDRL( asset,
+                                                                   builder ) ) );
+    }
+
+    public void assembleDRL(BRMSPackageBuilder builder,
+                            AssetItem asset,
+                            StringBuffer buf) {
+        String drl = getSourceDRL( asset,
+                                   builder );
+        buf.append( drl );
+    }
+
+    private String getSourceDRL(AssetItem asset,
+                                BRMSPackageBuilder builder) {
+        RuleModel model = buildModelFromAsset(asset);
+
+        String drl = getBrlDrlPersistence().marshal( model );
+        if ( builder.hasDSL() && model.hasDSLSentences() ) {
+            drl = builder.getDSLExpander().expand( drl );
+        }
+        return drl;
+    }
+
+	protected RuleModel buildModelFromAsset(AssetItem asset) {
+		RuleModel model = getBrlXmlPersistence().unmarshal(asset.getContent());
+		model.name = asset.getName();
+		model.parentName = this.parentNameFromCategory(asset, model.parentName);
+		return model;
 	}
 
-	public void storeAssetContent(RuleAsset asset, AssetItem repoAsset)
-			throws SerializableException {
-		RuleModel data = (RuleModel) asset.content;
-		if (data.name == null) {
-			data.name = repoAsset.getName();
-		}
-		repoAsset.updateContent(BRXMLPersistence.getInstance().marshal(data));
+    public String getRawDRL(AssetItem asset) {
+        RuleModel model = getBrlXmlPersistence().unmarshal( asset.getContent() );
+
+        return getBrlDrlPersistence().marshal( model );
+    }
+    
+    protected BRLPersistence getBrlDrlPersistence() {
+		return BRDRLPersistence.getInstance();
 	}
 
-	public void compile(BRMSPackageBuilder builder, AssetItem asset,
-			ContentPackageAssembler.ErrorLogger logger)
-			throws DroolsParserException, IOException {
-		builder
-				.addPackageFromDrl(new StringReader(
-						getSourceDRL(asset, builder)));
-	}
-
-	public void assembleDRL(BRMSPackageBuilder builder, AssetItem asset,
-			StringBuffer buf) {
-		String drl = getSourceDRL(asset, builder);
-		buf.append(drl);
-	}
-
-	private String getSourceDRL(AssetItem asset, BRMSPackageBuilder builder) {
-		RuleModel model = BRXMLPersistence.getInstance().unmarshal(
-				asset.getContent());
-        model.name = asset.getName();
-        model.parentName = this.parentNameFromCategory(asset, model.parentName);  
-        
-		String drl = BRDRLPersistence.getInstance().marshal(model);
-		if (builder.hasDSL() && model.hasDSLSentences()) {
-			drl = builder.getDSLExpander().expand(drl);
-		}
-		return drl;
+    protected BRLPersistence getBrlXmlPersistence() {
+		return BRXMLPersistence.getInstance();
 	}
 }

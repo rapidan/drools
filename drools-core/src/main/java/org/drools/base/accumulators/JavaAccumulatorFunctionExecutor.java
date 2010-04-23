@@ -25,9 +25,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.drools.WorkingMemory;
 import org.drools.common.InternalFactHandle;
 import org.drools.rule.Declaration;
-import org.drools.WorkingMemory;
 import org.drools.spi.Accumulator;
 import org.drools.spi.CompiledInvoker;
 import org.drools.spi.ReturnValueExpression;
@@ -35,7 +35,7 @@ import org.drools.spi.Tuple;
 import org.drools.spi.Wireable;
 
 /**
- * An MVEL accumulator function executor implementation
+ * A Java accumulator function executor implementation
  *
  * @author etirelli
  */
@@ -81,7 +81,7 @@ public class JavaAccumulatorFunctionExecutor
         JavaAccumulatorFunctionContext context = new JavaAccumulatorFunctionContext();
         context.context = this.function.createContext();
         if ( this.function.supportsReverse() ) {
-            context.reverseSupport = new HashMap<Integer, Serializable>();
+            context.reverseSupport = new HashMap<Integer, Object>();
         }
         return context;
     }
@@ -107,7 +107,7 @@ public class JavaAccumulatorFunctionExecutor
                            Declaration[] declarations,
                            Declaration[] innerDeclarations,
                            WorkingMemory workingMemory) throws Exception {
-        final Serializable value = (Serializable) this.expression.evaluate( handle.getObject(),
+        final Object value = this.expression.evaluate( handle.getObject(),
                                                                             leftTuple,
                                                                             declarations,
                                                                             innerDeclarations,
@@ -170,15 +170,16 @@ public class JavaAccumulatorFunctionExecutor
         implements
         Externalizable {
         public Serializable               context;
-        public Map<Integer, Serializable> reverseSupport;
+        public Map<Integer, Object>       reverseSupport;
 
         public JavaAccumulatorFunctionContext() {
         }
 
+        @SuppressWarnings("unchecked")
         public void readExternal(ObjectInput in) throws IOException,
                                                 ClassNotFoundException {
             context = (Externalizable) in.readObject();
-            reverseSupport = (Map<Integer, Serializable>) in.readObject();
+            reverseSupport = (Map<Integer, Object>) in.readObject();
         }
 
         public void writeExternal(ObjectOutput out) throws IOException {

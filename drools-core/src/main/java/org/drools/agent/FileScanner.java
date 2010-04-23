@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.drools.core.util.DroolsStreamUtils;
 import org.drools.definitions.impl.KnowledgePackageImp;
 import org.drools.rule.Package;
-import org.drools.util.DroolsStreamUtils;
 
 /**
  * This will monitor a file to a binary package.
@@ -172,7 +172,7 @@ public class FileScanner extends PackageProvider {
     }
 
     public String toString() {
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         buf.append( "FileScanner scanning: " );
         for ( int i = 0; i < files.length; i++ ) {
             File f = files[i];

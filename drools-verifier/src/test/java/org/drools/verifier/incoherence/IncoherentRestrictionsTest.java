@@ -1,5 +1,6 @@
 package org.drools.verifier.incoherence;
 
+import java.io.StringReader;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -7,10 +8,17 @@ import java.util.Set;
 
 import org.drools.StatelessSession;
 import org.drools.base.RuleNameMatchesAgendaFilter;
+import org.drools.builder.ResourceType;
+import org.drools.io.ResourceFactory;
+import org.drools.verifier.DefaultVerifierConfiguration;
 import org.drools.verifier.TestBase;
+import org.drools.verifier.Verifier;
+import org.drools.verifier.VerifierConfiguration;
+import org.drools.verifier.builder.VerifierBuilder;
+import org.drools.verifier.builder.VerifierBuilderFactory;
 import org.drools.verifier.components.Pattern;
-import org.drools.verifier.dao.VerifierResult;
-import org.drools.verifier.dao.VerifierResultFactory;
+import org.drools.verifier.data.VerifierReport;
+import org.drools.verifier.data.VerifierReportFactory;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.VerifierMessageBase;
@@ -22,12 +30,58 @@ import org.drools.verifier.report.components.VerifierMessageBase;
  */
 public class IncoherentRestrictionsTest extends TestBase {
 
-    public void testIncoherentLiteralRestrictionsInPatternPossibility() throws Exception {
+    public void testApprovedTrueAndNotTrue() {
+        VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
+
+        // Check that the builder works.
+        assertFalse( vBuilder.hasErrors() );
+        assertEquals( 0,
+                      vBuilder.getErrors().size() );
+
+        String str = "";
+        str += "package mortgages\n";
+        str += "rule \"Bankruptcy history\"\n";
+        str += "salience 10\n";
+        str += "dialect \"mvel\"\n";
+        str += "when\n";
+        str += "Applicant( approved == \"true\" , approved != \"true\" )\n";
+        str += "then\n";
+        str += "end";
+
+        DefaultVerifierConfiguration conf = new DefaultVerifierConfiguration();
+        conf.getVerifyingScopes().clear();
+        conf.getVerifyingScopes().add( VerifierConfiguration.VERIFYING_SCOPE_KNOWLEDGE_PACKAGE );
+        conf.setAcceptRulesWithoutVerifiyingScope( true );
+        Verifier verifier = VerifierBuilderFactory.newVerifierBuilder().newVerifier( conf );
+        verifier.addResourcesToVerify( ResourceFactory.newReaderResource( new StringReader( str ) ),
+                                       ResourceType.DRL );
+
+        assertFalse( verifier.hasErrors() );
+        assertEquals( 0,
+                      verifier.getErrors().size() );
+
+        boolean works = verifier.fireAnalysis();
+
+        assertTrue( works );
+
+        VerifierReport result = verifier.getResult();
+        assertNotNull( result );
+
+        assertEquals( 3,
+                      result.getBySeverity( Severity.ERROR ).size() );
+        assertEquals( 1,
+                      result.getBySeverity( Severity.WARNING ).size() );
+        assertEquals( 0,
+                      result.getBySeverity( Severity.NOTE ).size() );
+
+    }
+
+    public void testIncoherentLiteralRestrictionsInSubPattern() throws Exception {
         StatelessSession session = getStatelessSession( getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent LiteralRestrictions in pattern possibility" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 
@@ -57,12 +111,12 @@ public class IncoherentRestrictionsTest extends TestBase {
         }
     }
 
-    public void testIncoherentLiteralRestrictionsInPatternPossibilityImpossibleRanges() throws Exception {
+    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleRanges() throws Exception {
         StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible ranges" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( this.getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 
@@ -91,12 +145,12 @@ public class IncoherentRestrictionsTest extends TestBase {
         }
     }
 
-    public void testIncoherentLiteralRestrictionsInPatternPossibilityImpossibleEqualityLess() throws Exception {
+    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleEqualityLess() throws Exception {
         StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible equality less or equal" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( this.getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 
@@ -126,12 +180,12 @@ public class IncoherentRestrictionsTest extends TestBase {
         }
     }
 
-    public void testIncoherentLiteralRestrictionsInPatternPossibilityImpossibleEqualityGreater() throws Exception {
+    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleEqualityGreater() throws Exception {
         StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible equality greater" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( this.getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 
@@ -160,12 +214,12 @@ public class IncoherentRestrictionsTest extends TestBase {
         }
     }
 
-    public void testIncoherentLiteralRestrictionsInPatternPossibilityImpossibleRange() throws Exception {
+    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleRange() throws Exception {
         StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible range" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( this.getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 
@@ -194,12 +248,12 @@ public class IncoherentRestrictionsTest extends TestBase {
         }
     }
 
-    public void testIncoherentVariableRestrictionsInPatternPossibility() throws Exception {
+    public void testIncoherentVariableRestrictionsInSubPattern() throws Exception {
         StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent VariableRestrictions in pattern possibility" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( this.getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 
@@ -230,12 +284,12 @@ public class IncoherentRestrictionsTest extends TestBase {
         }
     }
 
-    public void testIncoherentVariableRestrictionsInPatternPossibilityImpossibleRange() throws Exception {
+    public void testIncoherentVariableRestrictionsInSubPatternImpossibleRange() throws Exception {
         StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent VariableRestrictions in pattern possibility, impossible range" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection< ? extends Object> testData = getTestData( this.getClass().getResourceAsStream( "RestrictionsTest.drl" ),
                                                               result.getVerifierData() );
 

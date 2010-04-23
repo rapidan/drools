@@ -68,8 +68,12 @@ public interface Behavior extends RuleComponent, Cloneable {
      * @param context The behavior context object
      * @param tuple The new fact entering behavior's scope
      * @param workingMemory The working memory session reference
+     * 
+     * @return true if the propagation should continue, false otherwise. I.e., 
+     *         the behaviour has veto power over the fact propagation, and prevents
+     *         the propagation to continue if returns false on this method. 
      */
-    public void assertRightTuple(Object context,
+    public boolean assertRightTuple(Object context,
                                  RightTuple tuple,
                                  InternalWorkingMemory workingMemory);
 
@@ -92,5 +96,17 @@ public interface Behavior extends RuleComponent, Cloneable {
      */
     public void expireTuples(Object context, 
                              InternalWorkingMemory workingMemory);
+
+    /**
+     * Some behaviors might change the expiration offset for the 
+     * associated fact type. Example: time sliding windows. 
+     * 
+     * For these behaviors, this method must return the expiration
+     * offset associated to them.
+     * 
+     * @return the expiration offset for this behavior or -1 if 
+     *         they don't have a time based expiration offset.
+     */
+    public long getExpirationOffset();
     
 }

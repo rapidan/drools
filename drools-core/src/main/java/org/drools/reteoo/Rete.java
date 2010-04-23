@@ -137,6 +137,13 @@ public class Rete extends ObjectSource
                             typeConf,
                             workingMemory );
     }
+    
+    public void modifyObject(final InternalFactHandle factHandle,
+                             final ModifyPreviousTuples modifyPreviousTuples,
+                             final PropagationContext context,
+                             final InternalWorkingMemory workingMemory) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Adds the <code>ObjectSink</code> so that it may receive
@@ -147,7 +154,7 @@ public class Rete extends ObjectSource
      *            <code>Objects</code>. Rete only accepts <code>ObjectTypeNode</code>s
      *            as parameters to this method, though.
      */
-    protected void addObjectSink(final ObjectSink objectSink) {
+    public void addObjectSink(final ObjectSink objectSink) {
         final EntryPointNode node = (EntryPointNode) objectSink;
         this.entryPoints.put( node.getEntryPoint(),
                               node );
@@ -174,8 +181,7 @@ public class Rete extends ObjectSource
                             final ReteooBuilder builder,
                             final BaseNode node,
                             final InternalWorkingMemory[] workingMemories) {
-        final EntryPointNode entryPointNode = (EntryPointNode) node;
-        removeObjectSink( entryPointNode );
+        // for now, we don't remove EntryPointNodes because they might be referenced by external sources
     }
 
     public EntryPointNode getEntryPointNode(final EntryPoint entryPoint) {
@@ -234,6 +240,7 @@ public class Rete extends ObjectSource
         super.writeExternal( out );
     }
 
+    @SuppressWarnings("unchecked")
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
         entryPoints = (Map<EntryPoint, EntryPointNode>) in.readObject();

@@ -19,10 +19,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.eclipse.flow.common.view.property.EditBeanDialog;
 import org.drools.definition.process.Connection;
+import org.drools.eclipse.flow.common.view.property.EditBeanDialog;
 import org.drools.workflow.core.Constraint;
 import org.drools.workflow.core.WorkflowProcess;
+import org.drools.workflow.core.impl.ConnectionRef;
 import org.drools.workflow.core.node.Split;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -41,11 +42,11 @@ import org.eclipse.swt.widgets.Shell;
  * 
  * @author <a href="mailto:kris_verlaenen@hotmail.com">Kris Verlaenen</a>
  */
-public class ConstraintListDialog extends EditBeanDialog {
+public class ConstraintListDialog extends EditBeanDialog<Map<ConnectionRef, Constraint>> {
 
 	private WorkflowProcess process;
 	private Split split;
-	private Map<Split.ConnectionRef, Constraint> newMap;
+	private Map<ConnectionRef, Constraint> newMap;
 	private Map<Connection, Label> labels = new HashMap<Connection, Label>();
 
 	protected ConstraintListDialog(Shell parentShell, WorkflowProcess process,
@@ -74,7 +75,7 @@ public class ConstraintListDialog extends EditBeanDialog {
 			gridData.horizontalAlignment = GridData.FILL;
 			label2.setLayoutData(gridData);
 			Constraint constraint = newMap.get(
-		        new Split.ConnectionRef(outgoingConnection.getTo().getId(), outgoingConnection.getToType()));
+		        new ConnectionRef(outgoingConnection.getTo().getId(), outgoingConnection.getToType()));
 			if (constraint != null) {
 				label2.setText(constraint.getName());
 			}
@@ -87,12 +88,12 @@ public class ConstraintListDialog extends EditBeanDialog {
 		return composite;
 	}
 
-	public void setValue(Object value) {
+	public void setValue(Map<ConnectionRef, Constraint> value) {
 		super.setValue(value);
-		this.newMap = new HashMap<Split.ConnectionRef, Constraint>((Map<Split.ConnectionRef, Constraint>) value);
+		this.newMap = new HashMap<ConnectionRef, Constraint>(value);
 	}
 
-	protected Object updateValue(Object value) {
+	protected Map<ConnectionRef, Constraint> updateValue(Map<ConnectionRef, Constraint> value) {
 		return newMap;
 	}
 
@@ -103,7 +104,7 @@ public class ConstraintListDialog extends EditBeanDialog {
 				RuleFlowConstraintDialog dialog = new RuleFlowConstraintDialog(
 						getShell(), process);
 				dialog.create();
-				Split.ConnectionRef connectionRef = new Split.ConnectionRef(connection.getTo().getId(), connection.getToType());
+				ConnectionRef connectionRef = new ConnectionRef(connection.getTo().getId(), connection.getToType());
 				Constraint constraint = newMap.get(connectionRef);
 				dialog.setConstraint(constraint);
 				int code = dialog.open();

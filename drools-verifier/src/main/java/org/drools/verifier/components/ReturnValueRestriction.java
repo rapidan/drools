@@ -6,38 +6,45 @@ import org.drools.verifier.report.components.Cause;
  * 
  * @author Toni Rikkola
  */
-public class ReturnValueRestriction extends Restriction implements Cause {
+public class ReturnValueRestriction extends Restriction
+    implements
+    Cause {
 
-	private Object content;
-	private String[] declarations;
-	private String classMethodName;
+    private Object   content;
+    private String[] declarations;
+    private String   classMethodName;
 
-	@Override
-	public RestrictionType getRestrictionType() {
-		return RestrictionType.RETURN_VALUE_RESTRICTION;
-	}
+    public ReturnValueRestriction(Pattern pattern) {
+        super( pattern );
+    }
 
-	public String getClassMethodName() {
-		return classMethodName;
-	}
+    @Override
+    public RestrictionType getRestrictionType() {
+        return RestrictionType.RETURN_VALUE_RESTRICTION;
+    }
 
-	public void setClassMethodName(String classMethodName) {
-		this.classMethodName = classMethodName;
-	}
+    public String getClassMethodName() {
+        return classMethodName;
+    }
 
-	public Object getContent() {
-		return content;
-	}
+    public void setClassMethodName(String classMethodName) {
+        this.classMethodName = classMethodName;
+    }
 
-	public void setContent(Object content) {
-		this.content = content;
-	}
+    public Object getContent() {
+        return content;
+    }
 
-	public String[] getDeclarations() {
-		return declarations;
-	}
+    public void setContent(Object content) {
+        this.content = content;
+    }
 
-	public void setDeclarations(String[] declarations) {
-		this.declarations = declarations;
-	}
+    public String[] getDeclarations() {
+        return declarations;
+    }
+
+    public void setDeclarations(String[] declarations) {
+        this.declarations = declarations;
+    }
+
 }

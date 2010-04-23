@@ -4,6 +4,7 @@ import org.drools.KnowledgeBase;
 import org.drools.event.KnowledgeRuntimeEventManager;
 import org.drools.runtime.process.ProcessRuntime;
 import org.drools.runtime.rule.WorkingMemory;
+import org.drools.time.SessionClock;
 
 public interface KnowledgeRuntime
     extends
@@ -11,6 +12,12 @@ public interface KnowledgeRuntime
     ProcessRuntime,
     KnowledgeRuntimeEventManager {
 
+    /**
+     * Returns the session clock instance assigned to this session
+     * @return
+     */
+    public <T extends SessionClock> T getSessionClock();
+    
     /**
      * Sets a global value on the internal collection
      * @param identifer the global identifier
@@ -20,9 +27,11 @@ public interface KnowledgeRuntime
                    Object object);
 
     Object getGlobal(String identifier);
-    
+
     Globals getGlobals();
     
+    Calendars getCalendars();
+
     Environment getEnvironment();
 
     /**
@@ -36,4 +45,5 @@ public interface KnowledgeRuntime
                            ExitPoint exitPoint);
 
     void unregisterExitPoint(String name);
+
 }

@@ -2,6 +2,7 @@ package org.drools.guvnor.server.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringTokenizer;
 
 import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
 import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
@@ -79,11 +80,12 @@ public class GuidedDTDRLPersistence {
 			if (validCell(cell)) {
 				if (c instanceof ActionInsertFactCol) {
 					ActionInsertFactCol ac = (ActionInsertFactCol)c;
-					LabelledAction a = find(actions, ac.boundName);
+					LabelledAction a = findByLabelledAction(actions, ac.boundName);
 					if (a == null) {
 						a = new LabelledAction();
 						a.boundName  = ac.boundName;
 						ActionInsertFact ins = new ActionInsertFact(ac.factType);
+						ins.setBoundName( ac.boundName );
 						a.action = ins;
 						actions.add(a);
 					}
@@ -92,7 +94,7 @@ public class GuidedDTDRLPersistence {
 					ins.addFieldValue(val);
 				} else if (c instanceof ActionRetractFactCol) {
 					ActionRetractFactCol rf = (ActionRetractFactCol)c;
-					LabelledAction a = find(actions, rf.boundName);
+					LabelledAction a = findByLabelledAction(actions, rf.boundName);
 					if (a == null) {
 						a = new LabelledAction();
 						a.action = new ActionRetractFact(rf.boundName);
@@ -101,7 +103,7 @@ public class GuidedDTDRLPersistence {
 					}
 				} else if (c instanceof ActionSetFieldCol) {
 					ActionSetFieldCol sf = (ActionSetFieldCol)c;
-					LabelledAction a = find(actions, sf.boundName);
+					LabelledAction a = findByLabelledAction(actions, sf.boundName);
 					if (a == null) {
 						a = new LabelledAction();
 						a.boundName = sf.boundName;
@@ -131,7 +133,7 @@ public class GuidedDTDRLPersistence {
 		}
 	}
 
-	private LabelledAction find(List<LabelledAction> actions, String boundName) {
+	private LabelledAction findByLabelledAction(List<LabelledAction> actions, String boundName) {
 		for (LabelledAction labelledAction : actions) {
 			if (labelledAction.boundName.equals(boundName)) {
 				return labelledAction;
@@ -156,7 +158,7 @@ public class GuidedDTDRLPersistence {
 			if (validCell(cell)) {
 
 				//get or create the pattern it belongs too
-				FactPattern fp = find(patterns, c.boundName);
+				FactPattern fp = findByFactPattern(patterns, c.boundName);
 				if (fp == null) {
 					fp = new FactPattern(c.factType);
 					fp.boundName = c.boundName;
@@ -181,7 +183,12 @@ public class GuidedDTDRLPersistence {
 							}
 						} else {
 							sfc.operator = c.operator;
-							sfc.value = cell;
+                            if (c.operator.equals("in")) {
+                                sfc.value = makeInList(cell);
+                            } else {
+                                sfc.value = cell;
+                            }
+
 						}
 						sfc.constraintValueType = c.constraintValueType;
 						fp.addConstraint(sfc);
@@ -189,7 +196,12 @@ public class GuidedDTDRLPersistence {
 					case ISingleFieldConstraint.TYPE_PREDICATE:
 						SingleFieldConstraint pred = new SingleFieldConstraint();
 						pred.constraintValueType = c.constraintValueType;
-						pred.value = cell;
+                        if (c.factField != null && c.factField.indexOf("$param") > -1) {
+                            //handle interpolation
+                            pred.value = c.factField.replace("$param", cell);  
+                        } else {
+						    pred.value = cell;
+                        }
 						fp.addConstraint(pred);
 						break;
 				default:
@@ -200,13 +212,31 @@ public class GuidedDTDRLPersistence {
 		rm.lhs = patterns.toArray(new IPattern[patterns.size()]);
 	}
 
+    /**
+     * take a CSV list and turn it into DRL syntax
+     */
+    String makeInList(String cell) {
+        if (cell.startsWith("(")) return cell;
+        String res = "";
+        StringTokenizer st = new StringTokenizer(cell, ",");
+        while (st.hasMoreTokens()) {
+            String t = st.nextToken().trim();
+            if (t.startsWith("\"")) {
+                res += t;
+            } else {
+                res += "\"" + t + "\"";
+            }
+            if (st.hasMoreTokens()) res += ", ";
+        }
+        return "(" + res + ")";
+    }
 
 
-	private boolean no(String operator) {
+    private boolean no(String operator) {
 		return operator == null || "".equals(operator);
 	}
 
-	private FactPattern find(List<FactPattern> patterns, String boundName) {
+	private FactPattern findByFactPattern(List<FactPattern> patterns, String boundName) {
 		for (FactPattern factPattern : patterns) {
 			if (factPattern.boundName.equals(boundName)) {
 				return factPattern;

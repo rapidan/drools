@@ -24,14 +24,15 @@ import org.drools.guvnor.client.common.FormStyleLayout;
 import org.drools.guvnor.client.common.GenericCallback;
 import org.drools.guvnor.client.common.LoadingPopup;
 import org.drools.guvnor.client.common.PrettyFormLayout;
-import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
-import org.drools.guvnor.client.rpc.TableDataResult;
-import org.drools.guvnor.client.rpc.TableDataRow;
+import org.drools.guvnor.client.rpc.*;
 import org.drools.guvnor.client.messages.Constants;
+import org.drools.guvnor.client.ruleeditor.EditorLauncher;
+import org.drools.guvnor.client.packages.SuggestionCompletionCache;
 
 import com.google.gwt.user.client.ui.*;
 import com.google.gwt.user.client.ui.SuggestOracle.Callback;
 import com.google.gwt.user.client.ui.SuggestOracle.Request;
+import com.google.gwt.user.client.Command;
 import com.google.gwt.core.client.GWT;
 
 /**
@@ -45,7 +46,7 @@ public class QuickFindWidget extends Composite {
     private final FlexTable listPanel;
     private SuggestBox searchBox;
     private CheckBox archiveBox;
-    private EditItemEvent editEvent;
+    private final EditItemEvent openItem;
     private Constants constants = ((Constants) GWT.create(Constants.class));
 
 
@@ -59,25 +60,39 @@ public class QuickFindWidget extends Composite {
 			}
         });
 
+        final SimplePanel resultsP = new SimplePanel();
 
-
-
-        this.editEvent = editEvent;
+        this.openItem = editEvent;
         HorizontalPanel srch = new HorizontalPanel();
         Button go = new Button(constants.Search());
-        go.addClickListener( new ClickListener() {
+        final ClickListener cl = new ClickListener() {        
             public void onClick(Widget w) {
-               updateList();
+               //updateList();
+                resultsP.clear();
+                AssetItemGrid grid = new AssetItemGrid( openItem,
+                                                        "searchresults",
+                                                        new AssetItemGridDataLoader() { //NON-NLS
+                                                            public void loadData(int startRow,
+                                                                                 int numberOfRows,
+                                                                                 GenericCallback<TableDataResult> cb) {
+                                                                RepositoryServiceFactory.getService().quickFindAsset(searchBox.getText(),
+                                                                                                                     archiveBox.isChecked(),
+                                                                                                                     startRow,
+                                                                                                                     numberOfRows,
+                                                                                                                     cb );
+                                                             }
+                                                        } );
+                resultsP.add( grid );
 
             }
-        } );
-
-
+        } ;
+        go.addClickListener(cl);
+       
         searchBox.addKeyboardListener(new KeyboardListenerAdapter() {
             @Override
             public void onKeyUp(Widget sender, char keyCode, int modifiers) {
                 if (keyCode == KeyboardListener.KEY_ENTER) {
-                    updateList();
+                    cl.onClick( sender );
                 }
             }
         });
@@ -98,23 +113,81 @@ public class QuickFindWidget extends Composite {
         PrettyFormLayout pfl = new PrettyFormLayout();
         pfl.startSection();
         pfl.addRow(listPanel);
-
-
-
+        pfl.addRow( resultsP );
 
         pfl.endSection();
         layout.addRow(pfl);
 
+        /*
+
+        Button b = new Button("Do a request");
+        b.addClickListener(new ClickListener() {
+            public void onClick(Widget sender) {
+                RequestBuilder rb = new RequestBuilder(RequestBuilder.GET, GWT.getModuleBaseURL() + "");
+            }
+        });
+
+        */
 
         initWidget( layout );
+    }
+
+    void scrollyRuleLoaderExample() {
+        final VerticalPanel vp = new VerticalPanel();
+        final ScrollPanel panel = new ScrollPanel(vp);
+        panel.setHeight("10em");
+
+        String cat = "Home Mortgage/Eligibility rules";
+
+        RepositoryServiceFactory.getService().loadRuleListForCategories(cat, 0, 10, AssetItemGrid.RULE_LIST_TABLE_ID, new GenericCallback<TableDataResult>() {
+            public void onSuccess(TableDataResult result) {
+                final List<String> ids = new ArrayList<String>();
+                for (TableDataRow aData : result.data) {
+                    ids.add(aData.id);
+                }
+
+                RepositoryServiceFactory.getService().loadRuleAsset(ids.get(0), new GenericCallback<RuleAsset>() {
+                    public void onSuccess(final RuleAsset result) {
+                        SuggestionCompletionCache.getInstance().doAction(result.metaData.packageName, new Command() {
+                            public void execute() {
+                                final Widget last = EditorLauncher.getEditorViewer(result, null);
+                                vp.add(last);
+                                panel.addScrollListener(new ScrollListener() {
+                                    int i = 0;
+                                    Widget end = last;
+                                    public void onScroll(Widget widget, int scrollLeft, int scrollTop) {
+                                        //System.err.println("final pos: " + (f.getAbsoluteTop() + f.getOffsetHeight() + " Panel pos: " + (panel.getAbsoluteTop() + panel.getOffsetHeight()))) ;
+                                        int finalPos = end.getAbsoluteTop() + end.getOffsetHeight();
+                                        int panelPos = panel.getAbsoluteTop() + panel.getOffsetHeight();
+                                        System.err.println(panelPos + " " + finalPos);
+                                        if (finalPos == panelPos) {
+                                            i++;
+                                            if (i < ids.size() -1) {
+                                                RepositoryServiceFactory.getService().loadRuleAsset(ids.get(i), new GenericCallback<RuleAsset>() {
+                                                    public void onSuccess(RuleAsset result) {
+                                                        end = EditorLauncher.getEditorViewer(result, null);
+                                                        vp.add(end);
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        });
+
+                    }
+                });
+
+            }
+        });
     }
 
     /**
      * This will load a list of items as they are typing.
      */
     protected void loadShortList(String match, final Request r, final Callback cb) {
-        RepositoryServiceFactory.getService().quickFindAsset( match, 5, archiveBox.isChecked() ,new GenericCallback<TableDataResult>() {
-
+        RepositoryServiceFactory.getService().quickFindAsset( match, archiveBox.isChecked() ,0, 5, new GenericCallback<TableDataResult>() {
 
             public void onSuccess(TableDataResult result) {
                 List items = new ArrayList();
@@ -141,57 +214,5 @@ public class QuickFindWidget extends Composite {
         });
 
     }
-
-    protected void updateList() {
-       
-        LoadingPopup.showMessage(constants.SearchingDotDotDot());
-        RepositoryServiceFactory.getService().quickFindAsset( searchBox.getText(), 15, archiveBox.isChecked() , new GenericCallback<TableDataResult>() {
-            public void onSuccess(TableDataResult result) {
-                populateList(result);
-            }
-        });
-
-
-    }
-
-    protected void populateList(TableDataResult result) {
-
-
-        FlexTable data = new FlexTable();
-
-        //if its only one, just open it...
-        if (result.data.length == 1) {
-            editEvent.open( result.data[0].id );
-        }
-
-        for ( int i = 0; i < result.data.length; i++ ) {
-
-            final TableDataRow row = result.data[i];
-            if (row.id.equals( "MORE" )) {  //NON-NLS
-                data.setWidget( i, 0, new HTML("<i>" + constants.ThereAreMoreItemsTryNarrowingTheSearchTerms() + "</i>") );
-                data.getFlexCellFormatter().setColSpan( i, 0, 3 );
-            } else {
-                data.setWidget( i, 0, new Label(row.values[0]) );
-                data.setWidget( i, 1, new Label(row.values[1]) );
-                Button open = new Button(constants.Open());
-                open.addClickListener( new ClickListener() {
-                    public void onClick(Widget w) {
-                        editEvent.open( row.id );
-                    }
-                } );
-
-                data.setWidget( i, 2, open );
-            }
-
-
-        }
-
-        //data.setWidth( "100%" );
-        listPanel.setWidget( 0, 0, data);
-
-        LoadingPopup.close();
-
-    }
-
 
 }

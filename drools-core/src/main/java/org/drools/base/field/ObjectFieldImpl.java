@@ -26,6 +26,8 @@ import java.math.BigInteger;
 import java.util.Collection;
 
 import org.drools.RuntimeDroolsException;
+import org.drools.common.DroolsObjectInputStream;
+import org.drools.core.util.MathUtils;
 import org.drools.spi.FieldValue;
 
 public class ObjectFieldImpl
@@ -67,7 +69,7 @@ public class ObjectFieldImpl
         if ( !isEnum || enumName == null || fieldName == null ) {
             value = (Serializable) in.readObject();
         } else {
-            resolveEnumValue();
+            resolveEnumValue( (DroolsObjectInputStream) in );
         }
         setBooleans();
     }
@@ -81,9 +83,11 @@ public class ObjectFieldImpl
         }
     }
 
-    private void resolveEnumValue() {
+    private void resolveEnumValue( DroolsObjectInputStream in ) {
         try {
-            final Class<?> staticClass = Class.forName( enumName );
+            final ClassLoader loader = in.getClassLoader();
+            final Class<?> staticClass = Class.forName( enumName, true, loader );
+            //final Class<?> staticClass = Class.forName( enumName );
             value = (Serializable) staticClass.getField( fieldName ).get( null );
         } catch ( final Exception e ) {
             throw new RuntimeDroolsException("Error deserializing enum value "+enumName+"."+fieldName+" : "+e.getMessage());
@@ -230,25 +234,11 @@ public class ObjectFieldImpl
     }
 
 	public BigDecimal getBigDecimalValue() {
-		if (this.value instanceof BigDecimal) return (BigDecimal) this.value;
-		if (this.isNumber) {
-			return new BigDecimal(((Number) value).doubleValue());
-		} else if (this.isString) {
-			return new BigDecimal((String) value);
-		}
-		if (this.value == null) return null;
-        throw new RuntimeDroolsException( "Conversion to BigDecimal not supported for type: " + this.value.getClass() );
+	    return MathUtils.getBigDecimal( this.value );
 	}
 
 	public BigInteger getBigIntegerValue() {
-		if (this.value instanceof BigInteger) return (BigInteger) this.value;
-		if (this.isNumber) {
-			return BigInteger.valueOf(((Number) value).longValue());
-		} else if (this.isString) {
-			return new BigInteger((String) value);
-		}
-		if (this.value == null) return null;
-        throw new RuntimeDroolsException( "Conversion to BigInteger not supported for type: " + this.value.getClass() );
+        return MathUtils.getBigInteger( this.value );
 	}
 
     public boolean isEnum() {

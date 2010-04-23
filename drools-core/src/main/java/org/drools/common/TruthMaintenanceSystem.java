@@ -24,12 +24,12 @@ import java.util.Iterator;
 import java.util.Set;
 
 import org.drools.FactException;
+import org.drools.core.util.ObjectHashMap;
 import org.drools.marshalling.impl.MarshallerReaderContext;
 import org.drools.marshalling.impl.MarshallerWriteContext;
 import org.drools.rule.Rule;
 import org.drools.spi.Activation;
 import org.drools.spi.PropagationContext;
-import org.drools.util.ObjectHashMap;
 
 /**
  * The Truth Maintenance System is responsible for tracking two things. Firstly
@@ -171,23 +171,30 @@ public class TruthMaintenanceSystem {
     public void removeLogicalDependencies(final Activation activation,
                                           final PropagationContext context,
                                           final Rule rule) throws FactException {
-        final org.drools.util.LinkedList list = activation.getLogicalDependencies();
+        final org.drools.core.util.LinkedList list = activation.getLogicalDependencies();
         if ( list == null || list.isEmpty() ) {
             return;
         }
+        
         for ( LogicalDependency node = (LogicalDependency) list.getFirst(); node != null; node = (LogicalDependency) node.getNext() ) {
-            final InternalFactHandle handle = (InternalFactHandle) node.getFactHandle();
-            final Set set = (Set) this.justifiedMap.get( handle.getId() );
-            if ( set != null ) {
-                set.remove( node );
-                WorkingMemoryAction action = new LogicalRetractCallback( this,
-                                                                         node,
-                                                                         set,
-                                                                         handle,
-                                                                         context,
-                                                                         activation );
-                workingMemory.queueWorkingMemoryAction( action );
-            }
+            removeLogicalDependency( activation, node, context );
+        }
+    }
+    
+    public void removeLogicalDependency(final Activation activation,
+                                        final LogicalDependency node,
+                                        final PropagationContext context) {
+        final InternalFactHandle handle = (InternalFactHandle) node.getFactHandle();
+        final Set set = (Set) this.justifiedMap.get( handle.getId() );
+        if ( set != null ) {
+            set.remove( node );
+            WorkingMemoryAction action = new LogicalRetractCallback( this,
+                                                                     node,
+                                                                     set,
+                                                                     handle,
+                                                                     context,
+                                                                     activation );
+            workingMemory.queueWorkingMemoryAction( action );
         }
     }
 

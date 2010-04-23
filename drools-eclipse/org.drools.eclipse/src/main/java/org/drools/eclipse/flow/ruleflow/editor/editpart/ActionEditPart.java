@@ -45,7 +45,16 @@ public class ActionEditPart extends ElementEditPart {
     
     protected IFigure createFigure() {
     	SkinProvider skinProvider = SkinManager.getInstance().getSkinProvider(SKIN);
-    	return skinProvider.createActionNodeFigure();
+    	IFigure result = skinProvider.createActionNodeFigure();
+    	Rectangle constraint = getElementWrapper().getConstraint();
+    	if (constraint.width == -1) {
+    		constraint.width = result.getSize().width;
+    	}
+    	if (constraint.height == -1) {
+    		constraint.height = result.getSize().height;
+    	}
+    	getElementWrapper().setConstraint(constraint);
+    	return result;
     }
     
     public void refreshVisuals() {

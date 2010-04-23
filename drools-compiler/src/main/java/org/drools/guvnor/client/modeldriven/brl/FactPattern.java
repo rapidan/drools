@@ -44,11 +44,7 @@ public class FactPattern
      * Returns true if there is a variable bound to this fact.
      */
     public boolean isBound() {
-        if ( this.boundName != null && !"".equals( this.boundName ) ) {
-            return true;
-        } else {
-            return false;
-        }
+        return this.boundName != null && !"".equals( this.boundName ) ;
     }
 
     /**
@@ -61,9 +57,8 @@ public class FactPattern
     public FieldConstraint[] getFieldConstraints() {
         if (this.constraintList == null) {
             return new FieldConstraint[0];
-        } else {
-            return this.constraintList.constraints;
-        }
+        } 
+        return this.constraintList.constraints;
     }
 
     public void setFieldConstraints(final List sortedConstraints) {

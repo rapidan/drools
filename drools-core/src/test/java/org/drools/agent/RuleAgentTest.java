@@ -636,6 +636,25 @@ public class RuleAgentTest extends TestCase {
         assertEqualsIgnoreWhitespace( "/foo/bar.pkg /wee/waa.pkg /wee/waa2.pkg",
                                       props.getProperty( RuleAgent.FILES ) );
     }
+    
+    public void testLoadBasicAuthenticationSampleConfig() {
+        RuleAgent ag = new RuleAgent( new RuleBaseConfiguration() );
+        Properties props = ag.loadFromProperties( "/basic-authentication-sample-agent-config.properties" );
+        assertEquals( "30",
+                      props.getProperty( RuleAgent.POLL_INTERVAL ) );
+        assertEquals( "http://localhost:8080/drools-guvnor/org.drools.guvnor.Guvnor/package/defaultPackage/LATEST",
+                props.getProperty( RuleAgent.URLS ) );
+        assertEquals( "d:/drools",
+                      props.getProperty( RuleAgent.LOCAL_URL_CACHE ) );
+        assertEquals( "true",
+                      props.getProperty( RuleAgent.NEW_INSTANCE ) );
+        assertEquals( "true",
+                props.getProperty( RuleAgent.ENABLE_BASIC_AUTHENTICATION ) );
+        assertEquals( "admin",
+                props.getProperty( RuleAgent.USER_NAME ) );
+        assertEquals( "admin",
+                props.getProperty( RuleAgent.PASSWORD ) );
+    }
 
     private void assertEqualsIgnoreWhitespace(final String expected,
                                               final String actual) {

@@ -1,6 +1,7 @@
 package org.drools.eclipse.core.ui;
 
 import org.drools.eclipse.core.DroolsElement;
+import org.drools.eclipse.core.Rule;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.Viewer;
 
@@ -12,6 +13,13 @@ import org.eclipse.jface.viewers.Viewer;
 public class DroolsContentProvider implements ITreeContentProvider {
 
 	public Object[] getChildren(Object parentElement) {
+		if (parentElement instanceof Rule) {
+			Rule rule = (Rule) parentElement;
+			if (rule.getGroup()==null) {
+				return new Object[]{};
+			}
+			return new Object[]{rule.getGroup()};
+		}
 		if (parentElement instanceof DroolsElement) {
 			return ((DroolsElement) parentElement).getChildren();
 		}

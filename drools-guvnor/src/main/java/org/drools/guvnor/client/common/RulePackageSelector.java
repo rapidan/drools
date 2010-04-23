@@ -24,6 +24,8 @@ import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DeferredCommand;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.ListBox;
+import com.google.gwt.user.client.ui.ChangeListener;
+import com.google.gwt.user.client.ui.Widget;
 
 /**
  * A rule package selector widget.
@@ -31,8 +33,12 @@ import com.google.gwt.user.client.ui.ListBox;
  */
 public class RulePackageSelector extends Composite {
 
+    /** Used to remember what the "current package" we are working in is...
+     * Should be the one the user has most recently dealt with... */
+    public static String currentlySelectedPackage;
+
     private ListBox packageList;
-    private String currentlySelectedPackage;
+
 
     public RulePackageSelector() {
         packageList = new ListBox();
@@ -43,7 +49,6 @@ public class RulePackageSelector extends Composite {
 			}
         });
 
-
         initWidget( packageList );
     }
 
@@ -52,15 +57,18 @@ public class RulePackageSelector extends Composite {
 
             public void onSuccess(PackageConfigData[] list) {
                 for ( int i = 0; i < list.length; i++ ) {
-                    packageList.addItem( list[i].name );
+                    packageList.addItem( list[i].name, list[i].uuid );
                     if (currentlySelectedPackage != null &&
                             list[i].name.equals( currentlySelectedPackage )) {
                         packageList.setSelectedIndex( i );
                     }
                 }
-
+                packageList.addChangeListener(new ChangeListener() {
+                    public void onChange(Widget sender) {
+                         currentlySelectedPackage = getSelectedPackage();                       
+                    }
+                });
             }
-
         });
 	}
 
@@ -71,8 +79,10 @@ public class RulePackageSelector extends Composite {
         return packageList.getItemText( packageList.getSelectedIndex() );
     }
 
-    public void selectPackage(String currentlySelectedPackage) {
-        this.currentlySelectedPackage = currentlySelectedPackage;
+    /**
+     * Returns the selected package.
+     */
+    public String getSelectedPackageUUID() {
+        return packageList.getValue( packageList.getSelectedIndex() );
     }
-
 }

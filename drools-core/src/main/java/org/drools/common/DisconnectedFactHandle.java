@@ -1,17 +1,35 @@
 package org.drools.common;
 
+import java.io.Serializable;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
+
 import org.drools.reteoo.LeftTuple;
 import org.drools.reteoo.RightTuple;
 import org.drools.runtime.rule.WorkingMemoryEntryPoint;
 
+@XmlAccessorType(XmlAccessType.NONE)
 public class DisconnectedFactHandle
     implements
     InternalFactHandle {
 
     private int  id;
-    private int  identityHashCode;
+	private int  identityHashCode;
     private int  objectHashCode;
     private long recency;
+    private Object object;
+
+	protected DisconnectedFactHandle() {}
+	
+    public DisconnectedFactHandle(int id,
+                                  int identityHashCode,
+                                  int objectHashCode,
+                                  long recency,
+                                  Object object) {
+        this( id, identityHashCode, objectHashCode, recency );
+        this.object = object;
+    }    
 
     public DisconnectedFactHandle(int id,
                                   int identityHashCode,
@@ -51,11 +69,14 @@ public class DisconnectedFactHandle
         return this.recency;
     }
 
-    public LeftTuple getLeftTuple() {
+    public LeftTuple getLastLeftTuple() {
         throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
     }
 
     public Object getObject() {
+        if ( this.object != null ) {
+            return this.object;
+        }
         throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
     }
 
@@ -91,7 +112,7 @@ public class DisconnectedFactHandle
         throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
     }
 
-    public void setLeftTuple(LeftTuple leftTuple) {
+    public void setFirstLeftTuple(LeftTuple leftTuple) {
         throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
     }
 
@@ -113,6 +134,45 @@ public class DisconnectedFactHandle
 
     public String toExternalForm() {
         return "0:" + this.id + ":" + this.identityHashCode + ":" + this.objectHashCode + ":" + this.recency;
+    }
+    
+    @XmlAttribute(name="external-form")
+    public String getExternalForm() {
+    	return toExternalForm();
+    }
+
+    
+    public LeftTuple getFirstLeftTuple() {
+        throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
+    }
+
+    
+    public RightTuple getFirstRightTuple() {
+        throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
+    }
+
+    
+    public RightTuple getLastRightTuple() {
+        throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
+    }
+
+    
+    public void setFirstRightTuple(RightTuple rightTuple) {
+        throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
+    }
+
+    
+    public void setLastLeftTuple(LeftTuple leftTuple) {
+        throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
+    }
+
+    
+    public void setLastRightTuple(RightTuple rightTuple) {
+        throw new UnsupportedOperationException( "DisonnectedFactHandle does not support this method" );
+    }
+
+    public String toTupleTree(int indent) {
+        return null;
     }
 
 }

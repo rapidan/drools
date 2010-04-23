@@ -13,6 +13,7 @@ import org.drools.process.instance.impl.DefaultWorkItemManager;
 import org.drools.process.instance.impl.WorkItemImpl;
 import org.drools.runtime.process.WorkItemManager;
 import org.drools.util.ChainedProperties;
+import org.drools.util.ClassLoaderUtil;
 import org.subethamail.wiser.Wiser;
 import org.subethamail.wiser.WiserMessage;
 
@@ -24,7 +25,7 @@ public class EmailWorkItemHandlerTest extends TestCase {
     
     @Override
     protected void setUp() throws Exception {
-        ChainedProperties props = new ChainedProperties( "email.conf" );
+        ChainedProperties props = new ChainedProperties( "email.conf", ClassLoaderUtil.getClassLoader( null, getClass(), false ));
         emailHost = props.getProperty( "host", "localhost" );
         emailPort = props.getProperty( "port", "2345" );
         

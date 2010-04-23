@@ -1,12 +1,14 @@
 package org.drools.guvnor.client.modeldriven;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.guvnor.client.modeldriven.ModelField.FIELD_CLASS_TYPE;
 import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
 import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
 import org.drools.guvnor.client.modeldriven.brl.FactPattern;
@@ -20,9 +22,7 @@ import org.drools.guvnor.client.modeldriven.brl.SingleFieldConstraint;
  * 
  * @author Michael Neale
  */
-public class SuggestionCompletionEngine
-    implements
-    PortableObject {
+public class SuggestionCompletionEngine implements PortableObject {
 
     /** These are the explicit types supported */
     public static final String            TYPE_COLLECTION        = "Collection";
@@ -50,43 +50,33 @@ public class SuggestionCompletionEngine
     /** The top level conditional elements (first order logic) */
     private static final String[]         CONDITIONAL_ELEMENTS   = new String[]{"not", "exists", "or"};
 
+   
     /**
-     * A list of fact types (never fully qualified).
-     */
-    public String[]                       factTypes;
-
-    /**
-     * A map of types to the fields. key is type, value is (String[] of fields)
-     * 
-     */
-    public Map<String, String[]>          fieldsForType;
-
-    /**
-     * A map of the Fields to their types, needed for operator completions, as
-     * well as other things like rendering strings, dates etc. This is in the
-     * format of: { 'Type.field' => 'typename' }. Should not be the exact type,
-     * perhaps just a high level interface, eg "Comparable".
-     * 
-     */
-    public Map<String, String>            fieldTypes;
+    * A map of the field that contains the parametrized type of a collection
+    * List<String> name
+    * key = "name"
+    * value = "String"
+    *
+    */
+    private Map<String, String>            fieldParametersType    = new HashMap<String, String>();
 
     /**
      * Contains a map of globals (name is key) and their type (value).
      */
-    public Map<String, String>            globalTypes            = new HashMap();
+    private Map<String, String>            globalTypes            = new HashMap<String, String>();
 
     /**
      * A map of types to the modifying methods they expose. key is type, value
      * is (Sting[] of modifying methods)
      * 
      **/
-    public Map<String, String>            modifiers;
+    private Map<String, String[]>            modifiers;
 
     /**
      * Contains a map of { TypeName.field : String[] } - where a list is valid
      * values to display in a drop down for a given Type.field combination.
      */
-    public Map<String, String[]>          dataEnumLists          = new HashMap();                                                                                              // TODO this is
+    private Map<String, String[]>          dataEnumLists          = new HashMap<String, String[]>();                                                                            // TODO this is
     // a PROBLEM as
     // its not
     // always
@@ -95,7 +85,7 @@ public class SuggestionCompletionEngine
     /**
      * This will show the names of globals that are a collection type.
      */
-    public String[]                       globalCollections;
+    private String[]                       globalCollections;
 
     /** Operators (from the grammar):
          *      op=(    '=='
@@ -123,7 +113,7 @@ public class SuggestionCompletionEngine
      * This is used to calculate what fields an enum list may depend on.
      * Optional.
      */
-    private transient Map                 dataEnumLookupFields;
+    private transient Map<String, Object>                 dataEnumLookupFields;
 
     // /**
     // * For bulk loading up the data (from a previous rule save)
@@ -161,6 +151,13 @@ public class SuggestionCompletionEngine
 
     private Map<String, List<MethodInfo>> methodInfos            = new HashMap<String, List<MethodInfo>>();
 
+    private Map<String, ModelField[]> modelFields = new HashMap<String, ModelField[]>();
+    private Map<String, ModelField[]> filterModelFields = null;
+
+    private Map<String, FieldAccessorsAndMutators> accessorsAndMutators = new HashMap<String, FieldAccessorsAndMutators>();
+	private FactTypeFilter factFilter = null;
+	private boolean filteringFacts = true;
+    
     public SuggestionCompletionEngine() {
 
     }
@@ -179,7 +176,7 @@ public class SuggestionCompletionEngine
 
     public String[] getConnectiveOperatorCompletions(final String factType,
                                                      final String fieldName) {
-        final String type = (String) this.fieldTypes.get( factType + "." + fieldName );
+        final String type = this.getFieldType( factType + "." + fieldName );
         if ( type == null ) {
             return STANDARD_CONNECTIVES;
         } else if ( type.equals( TYPE_STRING ) ) {
@@ -194,18 +191,19 @@ public class SuggestionCompletionEngine
 
     }
 
-    public String[] getFactTypes() {
-        return this.factTypes;
-    }
-
     public String[] getFieldCompletions(final String factType) {
-        return (String[]) this.fieldsForType.get( factType );
-
+        return this.getModelFields( factType );
     }
 
+    public String[] getFieldCompletions(FieldAccessorsAndMutators accessorOrMutator,
+                                        String factType) {
+        return this.getModelFields( accessorOrMutator,
+                                    factType );
+    }
+    
     public String[] getOperatorCompletions(final String factType,
                                            final String fieldName) {
-        final String type = (String) this.fieldTypes.get( factType + "." + fieldName );
+        final String type = this.getFieldType( factType, fieldName );
         if ( type == null ) {
             return STANDARD_OPERATORS;
         } else if ( type.equals( TYPE_STRING ) ) {
@@ -220,45 +218,23 @@ public class SuggestionCompletionEngine
 
     }
 
-    /**
-     * A map of the Fields to their types, needed for operator completions, as
-     * well as other things like rendering strings, dates etc. This is in the
-     * format of: { 'Type.field' => 'typename' }. Should not be the exact type,
-     * perhaps just a high level interface, eg "Comparable", "Numeric",
-     * "String".
-     * 
-     */
-    public String getFieldType(final String factType,
-                               final String fieldName) {
-        return (String) this.fieldTypes.get( factType + "." + fieldName );
-    }
-
-    public boolean isGlobalVariable(final String variable) {
-        return this.globalTypes.containsKey( variable );
-    }
-
     public String[] getFieldCompletionsForGlobalVariable(final String varName) {
-        final String type = (String) this.globalTypes.get( varName );
-        return (String[]) this.fieldsForType.get( type );
+        final String type = this.getGlobalVariable( varName );
+        return this.getModelFields(type);
     }
 
     public List<MethodInfo> getMethodInfosForGlobalVariable(final String varName) {
-        final String type = (String) this.globalTypes.get( varName );
+        final String type = this.getGlobalVariable( varName );
         return this.methodInfos.get( type );
     }
 
-    private String[] toStringArray(final Set set) {
+    private String[] toStringArray(final Set<?> set) {
         final String[] f = new String[set.size()];
         int i = 0;
-        for ( final Iterator iter = set.iterator(); iter.hasNext(); ) {
-            f[i] = (String) iter.next();
-            i++;
+        for ( final Iterator<?> iter = set.iterator(); iter.hasNext(); i++) {
+            f[i] = iter.next().toString();
         }
         return f;
-    }
-
-    public String[] getGlobalVariables() {
-        return toStringArray( this.globalTypes.keySet() );
     }
 
     /**
@@ -271,29 +247,58 @@ public class SuggestionCompletionEngine
     public DropDownData getEnums(FactPattern pat,
                                  String field) {
 
-        Map dataEnumLookupFields = loadDataEnumLookupFields();
+        Map<String, Object> dataEnumLookupFields = loadDataEnumLookupFields();
 
         if ( pat.constraintList != null && pat.constraintList.constraints != null ) {
             // we may need to check for data dependent enums
-            Object _typeField = dataEnumLookupFields.get( pat.factType + "." + field );
-            if ( _typeField instanceof String ) {
-                String typeField = (String) _typeField;
+            Object _typeFields = dataEnumLookupFields.get( pat.factType + "." + field );
+
+            if ( _typeFields instanceof String ) {
+                String typeFields = (String) _typeFields;
                 FieldConstraint[] cons = pat.constraintList.constraints;
-                for ( int i = 0; i < cons.length; i++ ) {
-                    FieldConstraint con = cons[i];
-                    if ( con instanceof SingleFieldConstraint ) {
-                        SingleFieldConstraint sfc = (SingleFieldConstraint) con;
-                        if ( sfc.fieldName.equals( typeField ) ) {
-                            String key = pat.factType + "." + field + "[" + typeField + "=" + sfc.value + "]";
-                            return DropDownData.create( (String[]) this.dataEnumLists.get( key ) );
+
+                String key = pat.factType + "." + field;
+
+                boolean addOpeninColumn = true;
+                String[] splitTypeFields = typeFields.split( "," );
+                for ( int j = 0; j < splitTypeFields.length; j++ ) {
+                    String typeField = splitTypeFields[j];
+
+                    for ( int i = 0; i < cons.length; i++ ) {
+                        FieldConstraint con = cons[i];
+                        if ( con instanceof SingleFieldConstraint ) {
+                            SingleFieldConstraint sfc = (SingleFieldConstraint) con;
+
+                            if ( sfc.fieldName.trim().equals( typeField.trim() ) ) {
+                                if ( addOpeninColumn ) {
+                                    key += "[";
+                                    addOpeninColumn = false;
+                                }
+                                key += typeField + "=" + sfc.value;
+
+                                if ( j != (splitTypeFields.length - 1) ) {
+                                    key += ",";
+                                }
+                            }
                         }
                     }
                 }
-            } else if ( _typeField != null ) {
+
+                if ( !addOpeninColumn ) {
+                    key += "]";
+                }
+
+                DropDownData data = DropDownData.create( this.dataEnumLists.get( key ) );
+                if ( data != null ) {
+                    return DropDownData.create( this.dataEnumLists.get( key ) );
+                }
+            } else if ( _typeFields != null ) {
                 // these enums are calculated on demand, server side...
-                String[] fieldsNeeded = (String[]) _typeField;
+                String[] fieldsNeeded = (String[]) _typeFields;
+
                 String queryString = getQueryString( pat.factType,
                                                      field,
+                                                     fieldsNeeded,
                                                      this.dataEnumLists );
 
                 String[] valuePairs = new String[fieldsNeeded.length];
@@ -311,8 +316,11 @@ public class SuggestionCompletionEngine
                         }
                     }
                 }
-                return DropDownData.create( queryString,
-                                            valuePairs );
+
+                if ( valuePairs.length > 0 && valuePairs[0] != null ) {
+                    return DropDownData.create( queryString,
+                                                valuePairs );
+                }
             }
         }
         return DropDownData.create( getEnumValues( pat.factType,
@@ -327,7 +335,7 @@ public class SuggestionCompletionEngine
                                  String field) {
 
         if ( currentValues != null ) {
-            Map dataEnumLookupFields = loadDataEnumLookupFields();
+            Map<String, Object> dataEnumLookupFields = loadDataEnumLookupFields();
             Object _typeField = dataEnumLookupFields.get( type + "." + field );
 
             if ( _typeField instanceof String ) {
@@ -336,13 +344,14 @@ public class SuggestionCompletionEngine
                     ActionFieldValue val = currentValues[i];
                     if ( val.field.equals( typeField ) ) {
                         String key = type + "." + field + "[" + typeField + "=" + val.value + "]";
-                        return DropDownData.create( (String[]) this.dataEnumLists.get( key ) );
+                        return DropDownData.create( this.getDataEnumList( key ) );
                     }
                 }
             } else if ( _typeField != null ) {
                 String[] fieldsNeeded = (String[]) _typeField;
                 String queryString = getQueryString( type,
                                                      field,
+                                                     fieldsNeeded,
                                                      this.dataEnumLists );
                 String[] valuePairs = new String[fieldsNeeded.length];
 
@@ -362,7 +371,7 @@ public class SuggestionCompletionEngine
             }
         }
 
-        String[] vals = (String[]) this.dataEnumLists.get( type + "." + field );
+        String[] vals = this.getDataEnumList( type + "." + field );
         return DropDownData.create( vals );
 
     }
@@ -371,14 +380,40 @@ public class SuggestionCompletionEngine
      * Get the query string for a fact.field It will ignore any specified field,
      * and just look for the string - as there should only be one Fact.field of
      * this type (it is all determined server side).
+     * @param fieldsNeeded 
      */
     String getQueryString(String factType,
                           String field,
-                          Map dataEnumLists) {
-        for ( Iterator iterator = dataEnumLists.keySet().iterator(); iterator.hasNext(); ) {
-            String key = (String) iterator.next();
-            if ( key.startsWith( factType + "." + field ) ) {
-                String[] qry = (String[]) dataEnumLists.get( key );
+                          String[] fieldsNeeded,
+                          Map<String, String[]> dataEnumLists) {
+        for ( Iterator<String> iterator = dataEnumLists.keySet().iterator(); iterator.hasNext(); ) {
+            String key = iterator.next();
+            if ( key.startsWith( factType + "." + field ) && fieldsNeeded != null && key.contains( "[" ) ) {
+
+                String[] values = key.substring( key.indexOf( '[' ) + 1,
+                                                 key.lastIndexOf( ']' ) ).split( "," );
+
+                if ( values.length != fieldsNeeded.length ) {
+                    continue;
+                }
+
+                boolean fail = false;
+                for ( int i = 0; i < values.length; i++ ) {
+                    String a = values[i].trim();
+                    String b = fieldsNeeded[i].trim();
+                    if ( !a.equals( b ) ) {
+                        fail = true;
+                        break;
+                    }
+                }
+                if ( fail ) {
+                    continue;
+                }
+
+                String[] qry = getDataEnumList( key );
+                return qry[0];
+            } else if ( key.startsWith( factType + "." + field ) && (fieldsNeeded == null || fieldsNeeded.length == 0) ) {
+                String[] qry = getDataEnumList( key );
                 return qry[0];
             }
         }
@@ -390,19 +425,19 @@ public class SuggestionCompletionEngine
      */
     public String[] getEnumValues(String factType,
                                   String field) {
-        return (String[]) this.dataEnumLists.get( factType + "." + field );
+        return this.getDataEnumList( factType + "." + field );
     }
 
     /**
      * This is only used by enums that are like Fact.field[something=X] and so
      * on.
      */
-    Map loadDataEnumLookupFields() {
+    Map<String, Object> loadDataEnumLookupFields() {
         if ( this.dataEnumLookupFields == null ) {
-            this.dataEnumLookupFields = new HashMap();
-            Set keys = this.dataEnumLists.keySet();
-            for ( Iterator iter = keys.iterator(); iter.hasNext(); ) {
-                String key = (String) iter.next();
+            this.dataEnumLookupFields = new HashMap<String, Object>();
+            Set<String> keys = this.dataEnumLists.keySet();
+            for ( Iterator<String> iter = keys.iterator(); iter.hasNext(); ) {
+                String key = iter.next();
                 if ( key.indexOf( '[' ) != -1 ) {
                     int ix = key.indexOf( '[' );
                     String factField = key.substring( 0,
@@ -410,8 +445,18 @@ public class SuggestionCompletionEngine
                     String predicate = key.substring( ix + 1,
                                                       key.indexOf( ']' ) );
                     if ( predicate.indexOf( '=' ) > -1 ) {
-                        String typeField = predicate.substring( 0,
-                                                                predicate.indexOf( '=' ) );
+
+                        String[] bits = predicate.split( "," );
+                        String typeField = "";
+
+                        for ( int i = 0; i < bits.length; i++ ) {
+                            typeField += bits[i].substring( 0,
+                                                            bits[i].indexOf( '=' ) );
+                            if ( i != (bits.length - 1) ) {
+                                typeField += ",";
+                            }
+                        }
+
                         dataEnumLookupFields.put( factField,
                                                   typeField );
                     } else {
@@ -434,8 +479,8 @@ public class SuggestionCompletionEngine
         this.methodInfos.put( factName,
                               methodInfos );
     }
-
-    public List<String> getMethodFields(String factName,
+    
+    public List<String> getMethodParams(String factName,
                                         String methodNameWithParams) {
         if ( methodInfos.get( factName ) != null ) {
             List<MethodInfo> infos = methodInfos.get( factName );
@@ -452,14 +497,334 @@ public class SuggestionCompletionEngine
 
     public List<String> getMethodNames(String factName) {
         List<MethodInfo> infos = methodInfos.get( factName );
-        List<String> methodList = new ArrayList<String>();;
+        List<String> methodList = new ArrayList<String>();
 
         if ( infos != null ) {
             for ( MethodInfo info : infos ) {
                 methodList.add( info.getName() );
             }
-        } 
+        }
 
         return methodList;
     }
+
+    public MethodInfo getMethodinfo(String factName, String methodFullName) {
+    	List<MethodInfo> infos = methodInfos.get( factName );
+
+        if ( infos != null ) {
+            for ( MethodInfo info : infos ) {
+                if (info.getNameWithParameters().equals(methodFullName)) {
+                	return info;
+                }
+            }
+        }
+
+        return null;
+    }
+    
+    public String getMethodClassType(String factName, String methodFullName) {
+    	List<MethodInfo> infos = methodInfos.get( factName );
+
+        if ( infos != null ) {
+            for ( MethodInfo info : infos ) {
+                if (info.getNameWithParameters().equals(methodFullName)) {
+                	return info.getReturnClassType();
+                }
+            }
+        }
+
+        return null;
+    }
+    
+    public List<String> getMethodFullNames(String factName) {
+        return getMethodFullNames(factName, -1);
+    }    
+
+    public List<String> getMethodFullNames(String factName, int paramCount) {
+        List<MethodInfo> infos = methodInfos.get( factName );
+        List<String> methodList = new ArrayList<String>();
+
+        if ( infos != null ) {
+			for (MethodInfo info : infos) {
+				if (paramCount == -1 || info.getParams().size() <= paramCount) {
+					methodList.add(info.getNameWithParameters());
+				}
+			}
+        }
+
+        return methodList;
+    }
+    
+    /**
+     * Returns fact's name from class type
+     *  
+     * @param type
+     * @return
+     */
+    public String getFactNameFromType(String type) {
+    	if (type == null) {
+    		return null;
+    	}
+    	if (getModelFields().containsKey(type)) {
+    		return type;
+    	} 
+    	for (Map.Entry<String, ModelField[]> entry : getModelFields().entrySet()) {
+			for (ModelField mf : entry.getValue()) {
+				if ("this".equals(mf.getName()) && type.equals(mf.getClassName())) {
+					return entry.getKey();
+				}
+			}
+		}
+    	return null;
+    }
+    
+    /**
+     * returns the type of parametric class
+     * List<String> a in a class called Toto
+     * key =   "Toto.a"
+     * value = "String"
+     */
+    public String getParametricFieldType(final String factType,
+                                         final String fieldName) {
+        return this.getParametricFieldType( factType + "." + fieldName );
+    }
+
+    public String getParametricFieldType(String fieldName){
+        return this.fieldParametersType.get(fieldName);
+    }
+
+    public void putParametricFieldType(String fieldName, String type){
+        this.fieldParametersType.put(fieldName, type);
+    }
+    
+    public String getGlobalVariable(String name){
+        return this.globalTypes.get(name);
+    }
+
+    public boolean isGlobalVariable(String name){
+        return this.globalTypes.containsKey(name);
+    }
+
+    public void setGlobalVariables(Map<String, String> globalTypes){
+         this.globalTypes = globalTypes;
+    }
+
+    public String[] getGlobalVariables() {
+        return toStringArray( this.globalTypes.keySet() );
+    }
+
+    public void setModifiers(Map<String,String[]> map){
+        this.modifiers = map;
+    }
+
+    public String[] getModifiers(String name){
+        return this.modifiers.get(name);
+    }
+
+    public void setGlobalCollections(String[] globalCollections){
+        this.globalCollections = globalCollections;
+    }
+
+    public String[] getGlobalCollections() {
+        return this.globalCollections;
+    }
+
+    public String[] getDataEnumList(String type){
+        return this.dataEnumLists.get(type);
+    }
+
+    public void setDataEnumLists(Map<String,String[]> data){
+        this.dataEnumLists = data;
+    }
+
+    public void putDataEnumList(String name,String[] value){
+        this.dataEnumLists.put(name, value);
+    }
+
+    public void putAllDataEnumLists(Map<String,String[]> value){
+        this.dataEnumLists.putAll(value);
+    }
+
+    public int getDataEnumListsSize(){
+        return this.dataEnumLists.size();
+    }
+
+    public boolean hasDataEnumLists(){
+        return this.dataEnumLists != null && this.dataEnumLists.size() > 0;
+    }
+
+
+    ////
+
+    public void setFactTypes(String[] factTypes) {
+        for (String factType : factTypes) {
+            //adds the fact type with no fields.
+            this.getModelFields().put(factType, new ModelField[0]);
+        }
+    }
+
+    public void setFactTypeFilter(FactTypeFilter filter){
+    	this.factFilter = filter;
+    	filterModelFields();
+    }
+
+    public void setFieldsForTypes(Map<String,ModelField[]> fieldsForType){
+    	this.getModelFields().clear();
+        this.getModelFields().putAll(fieldsForType);
+    }
+
+    /**
+     * Returns all the fact types.
+     * @return
+     */
+    public String[] getFactTypes() {
+        String[] types = this.getModelFields().keySet().toArray(new String[this.getModelFields().size()]);
+        Arrays.sort(types);
+		return types;
+    }
+
+    public boolean containsFactType(String modelClassName){
+        if (modelClassName.contains(".")){
+            modelClassName = modelClassName.substring(modelClassName.lastIndexOf(".")+1);
+        }
+        return this.getModelFields().containsKey(modelClassName);
+    }
+
+    private ModelField getField(String modelClassName, String fieldName){
+
+        String shortName = this.getFactNameFromType(modelClassName );
+
+        ModelField[] fields = this.getModelFields().get(shortName);
+
+        if (fields == null){
+            return null;
+        }
+
+        for (ModelField modelField : fields) {
+            if (modelField.getName().equals(fieldName)){
+                return modelField;
+            }
+        }
+
+        return null;
+    }
+
+    public String[] getModelFields(FieldAccessorsAndMutators accessorOrMutator,
+                                   String modelClassName) {
+
+        String shortName = this.getFactNameFromType(modelClassName );
+
+        if ( !this.getModelFields().containsKey( shortName) ) {
+            return new String[0];
+        }
+
+        ModelField[] fields = this.getModelFields().get( shortName );
+
+        List<String> fieldNames = new ArrayList<String>();
+        fieldNames.add( "this" );
+
+        for ( int i = 0; i < fields.length; i++ ) {
+            String fieldName = fields[i].getName();
+            if ( fields[i].getClassType() == FIELD_CLASS_TYPE.TYPE_DECLARATION_CLASS ) {
+                fieldNames.add( fieldName );
+            } else if ( FieldAccessorsAndMutators.compare( accessorOrMutator,
+                                                           this.accessorsAndMutators.get( shortName + "." + fieldName ) ) ) {
+                fieldNames.add( fieldName );
+            }
+        }
+
+        return fieldNames.toArray( new String[fieldNames.size()] );
+    }
+
+    public String[] getModelFields(String modelClassName){
+
+        String shortName = this.getFactNameFromType(modelClassName );
+
+        if (!this.getModelFields().containsKey(shortName)){
+            return new String[0];
+        }
+
+        ModelField[] fields = this.getModelFields().get(shortName);
+
+        String[] fieldNames = new String[fields.length];
+
+        for (int i=0;i<fields.length; i++) {
+            fieldNames[i] = fields[i].getName();
+        }
+
+        return fieldNames;
+    }
+
+    /**
+     *
+     * @param propertyName of the type class.field
+     * @return
+     */
+    public String getFieldClassName(String propertyName){
+        String[] split = propertyName.split("\\.");
+        if (split.length!=2){
+            throw new IllegalArgumentException("Invalid format '"+propertyName+"'. It must be of type className.propertyName");
+        }
+        return this.getFieldClassName(split[0], split[1]);
+    }
+
+    public String getFieldClassName(String modelClassName, String fieldName){
+        ModelField field = this.getField(modelClassName, fieldName);
+        return field==null?null:field.getClassName();
+    }
+
+    public ModelField.FIELD_CLASS_TYPE getFieldClassType(String modelClassName, String fieldName){
+        ModelField field = this.getField(modelClassName, fieldName);
+        return field==null?null:field.getClassType();
+    }
+
+    public String getFieldType(String propertyName){
+        String[] split = propertyName.split("\\.", 3);
+        if (split.length!=2){
+            throw new IllegalArgumentException("Invalid format '"+propertyName+"'. It must be of type className.propertyName");
+        }
+        return this.getFieldType(split[0], split[1]);
+    }
+
+    public String getFieldType(String modelClassName, String fieldName){
+        ModelField field = this.getField(modelClassName, fieldName);
+        return field==null?null:field.getType();
+    }
+
+    public void setAccessorsAndMutators(Map<String, FieldAccessorsAndMutators> accessorsAndMutators) {
+        this.accessorsAndMutators=accessorsAndMutators;
+    }
+
+    
+    
+	public void setModelFields(Map<String, ModelField[]> modelFields) {
+		this.modelFields = modelFields;
+		filterModelFields();
+	}
+
+	private void filterModelFields() {
+		if (factFilter != null) {
+			filterModelFields = new HashMap<String, ModelField[]>();
+			for (Map.Entry<String, ModelField[]> entry : modelFields.entrySet()) {
+				if (!factFilter.filter(entry.getKey())) {
+					filterModelFields.put(entry.getKey(), entry.getValue());
+				}
+			}
+		}
+	}
+	
+	public Map<String, ModelField[]> getModelFields() {
+		if (factFilter != null && isFilteringFacts()) {
+			return filterModelFields;
+		}
+		return modelFields;
+	}
+
+	public boolean isFilteringFacts() {
+		return filteringFacts;
+	}
+
+	public void setFilteringFacts(boolean filterFacts) {
+		this.filteringFacts = filterFacts;
+	}
 }

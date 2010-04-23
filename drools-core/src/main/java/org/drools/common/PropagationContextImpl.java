@@ -20,13 +20,13 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
+import org.drools.core.util.ObjectHashMap;
 import org.drools.reteoo.LeftTuple;
 import org.drools.rule.EntryPoint;
 import org.drools.rule.Rule;
 import org.drools.FactHandle;
 import org.drools.spi.Activation;
 import org.drools.spi.PropagationContext;
-import org.drools.util.ObjectHashMap;
 
 public class PropagationContextImpl
     implements
@@ -47,8 +47,6 @@ public class PropagationContextImpl
     public int                 activeActivations;
 
     public int                 dormantActivations;
-
-    public ObjectHashMap       retracted;
 
     private EntryPoint         entryPoint;
 
@@ -97,7 +95,6 @@ public class PropagationContextImpl
         this.propagationNumber = in.readLong();
         this.rule = (Rule) in.readObject();
         this.leftTuple = (LeftTuple) in.readObject();
-        this.retracted = (ObjectHashMap) in.readObject();
         this.entryPoint = (EntryPoint) in.readObject();
     }
 
@@ -108,7 +105,6 @@ public class PropagationContextImpl
         out.writeLong( this.propagationNumber );
         out.writeObject( this.rule );
         out.writeObject( this.leftTuple );
-        out.writeObject( this.retracted );
         out.writeObject( this.entryPoint );
     }
 
@@ -158,45 +154,8 @@ public class PropagationContextImpl
         return this.dormantActivations;
     }
 
-    public void addRetractedTuple(final Rule rule,
-                                  final Activation activation) {
-        if ( this.retracted == null ) {
-            this.retracted = new ObjectHashMap();
-        }
-
-        LeftTuple tuple = (LeftTuple) activation.getTuple();
-
-        ObjectHashMap tuples = (ObjectHashMap) this.retracted.get( rule );
-        if ( tuples == null ) {
-            tuples = new ObjectHashMap();
-            this.retracted.put( rule,
-                                tuples );
-        }
-        tuples.put( tuple,
-                    activation );
-    }
-
-    public Activation removeRetractedTuple(final Rule rule,
-                                           final LeftTuple tuple) {
-        if ( this.retracted == null ) {
-            return null;
-        }
-
-        final ObjectHashMap tuples = (ObjectHashMap) this.retracted.get( rule );
-        if ( tuples != null ) {
-            return (Activation) tuples.remove( tuple );
-        } else {
-            return null;
-        }
-    }
-
-    public void clearRetractedTuples() {
-        this.retracted = null;
-    }
-
     public void releaseResources() {
         this.leftTuple = null;
-        this.retracted = null;
         this.rule = null;
     }
 

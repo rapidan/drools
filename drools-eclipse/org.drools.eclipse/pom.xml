@@ -4,7 +4,7 @@
   <parent>
     <artifactId>drools-eclipse</artifactId>
     <groupId>org.drools</groupId>
-    <version>5.0.1.SNAPSHOT</version>
+    <version>5.1.0.SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
@@ -96,8 +96,8 @@
       <artifactId>drools-jsr94</artifactId>
       <exclusions>
         <exclusion>
-          <groupId>org.eclipse.jdt</groupId>
-          <artifactId>core</artifactId>
+         <groupId>org.apache.jasper.springsource</groupId>
+         <artifactId>com.springsource.org.apache.jasper.org.eclipse.jdt.springsource</artifactId>
         </exclusion>
 
         <exclusion>
@@ -115,6 +115,11 @@
           <artifactId>jsr94-tck</artifactId>
         </exclusion>
 
+        <exclusion>
+         <groupId>org.antlr</groupId>
+         <artifactId>gunit</artifactId>
+        </exclusion>
+
       </exclusions>
     </dependency>
 
@@ -123,21 +128,49 @@
       <artifactId>drools-decisiontables</artifactId>
       <exclusions>
         <exclusion>
-          <groupId>org.eclipse.jdt</groupId>
-          <artifactId>core</artifactId>
+         <groupId>org.apache.jasper.springsource</groupId>
+         <artifactId>com.springsource.org.apache.jasper.org.eclipse.jdt.springsource</artifactId>
         </exclusion>
 
         <exclusion>
           <groupId>janino</groupId>
           <artifactId>janino</artifactId>
         </exclusion>
+
+        <exclusion>
+         <groupId>org.antlr</groupId>
+         <artifactId>gunit</artifactId>
+        </exclusion>
+
       </exclusions>
     </dependency>
     
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-bpmn2</artifactId>
+      <exclusions>
+        <exclusion>
+         <groupId>org.apache.jasper.springsource</groupId>
+         <artifactId>com.springsource.org.apache.jasper.org.eclipse.jdt.springsource</artifactId>
+        </exclusion>
+
+        <exclusion>
+          <groupId>janino</groupId>
+          <artifactId>janino</artifactId>
+        </exclusion>
+
+        <exclusion>
+         <groupId>org.antlr</groupId>
+         <artifactId>gunit</artifactId>
+        </exclusion>
+
+      </exclusions>
+    </dependency>
+
     <!--dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-docs-expert</artifactId>
-      <version>5.0.1.SNAPSHOT</version>
+      <version>5.1.0.SNAPSHOT</version>
       <classifier>eclipse</classifier>
       <type>war</type>
     </dependency>      
@@ -145,7 +178,7 @@
     <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-docs-fusion</artifactId>
-      <version>5.0.1.SNAPSHOT</version>
+      <version>5.1.0.SNAPSHOT</version>
       <classifier>eclipse</classifier>
       <type>war</type>
     </dependency-->    
@@ -154,13 +187,7 @@
       <groupId>com.thoughtworks.xstream</groupId>
       <artifactId>xstream</artifactId>
     </dependency>
-    <dependency>
-      <!-- TODO remove this dependency and change MANIFEST.MF to use xpp3_min.jar (non-optional dep of xstream) -->
-      <groupId>xpp3</groupId>
-      <artifactId>xpp3</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-    
+
 </dependencies>
 
 </project>

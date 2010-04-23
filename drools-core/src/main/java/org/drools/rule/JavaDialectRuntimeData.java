@@ -35,8 +35,9 @@ import java.util.Map.Entry;
 
 import org.drools.RuntimeDroolsException;
 import org.drools.common.DroolsObjectInput;
+import org.drools.core.util.DroolsClassLoader;
+import org.drools.core.util.StringUtils;
 import org.drools.spi.Wireable;
-import org.drools.util.StringUtils;
 
 public class JavaDialectRuntimeData
     implements
@@ -46,23 +47,23 @@ public class JavaDialectRuntimeData
     /**
      *
      */
-    private static final long              serialVersionUID = 400L;
+    private static final long                    serialVersionUID = 400L;
 
-    private static final ProtectionDomain  PROTECTION_DOMAIN;
+    private static final ProtectionDomain        PROTECTION_DOMAIN;
 
-    private Map                            invokerLookups;
+    private Map                                  invokerLookups;
 
-    private Map                            store;
+    private Map                                  store;
 
-    private DialectRuntimeRegistry         registry;
+    private DialectRuntimeRegistry               registry;
 
-    private transient PackageClassLoader   classLoader;
+    private transient PackageClassLoader         classLoader;
 
-    private transient CompositeClassLoader rootClassLoader;
+    private transient DroolsCompositeClassLoader rootClassLoader;
 
-    private boolean                        dirty;
+    private boolean                              dirty;
 
-    private List<String>                   wireList         = Collections.<String> emptyList();
+    private List<String>                         wireList         = Collections.<String> emptyList();
 
     static {
         PROTECTION_DOMAIN = (ProtectionDomain) AccessController.doPrivileged( new PrivilegedAction() {
@@ -121,14 +122,14 @@ public class JavaDialectRuntimeData
     }
 
     public void onAdd(DialectRuntimeRegistry registry,
-                      CompositeClassLoader rootClassLoader) {
+                      DroolsCompositeClassLoader rootClassLoader) {
         this.registry = registry;
         this.rootClassLoader = rootClassLoader;
         this.classLoader = new PackageClassLoader( this,
                                                    this.rootClassLoader );
         this.rootClassLoader.addClassLoader( this.classLoader );
     }
-    
+
     public void onRemove() {
         this.rootClassLoader.removeClassLoader( this.classLoader );
     }
@@ -152,7 +153,7 @@ public class JavaDialectRuntimeData
     }
 
     public DialectRuntimeData clone(DialectRuntimeRegistry registry,
-                                    CompositeClassLoader rootClassLoader) {
+                                    DroolsCompositeClassLoader rootClassLoader) {
         DialectRuntimeData cloneOne = new JavaDialectRuntimeData();
         cloneOne.merge( registry,
                         this );
@@ -221,8 +222,9 @@ public class JavaDialectRuntimeData
             removeClasses( rule.getLhs() );
 
             // Now remove the rule class - the name is a subset of the consequence name
+            String sufix = StringUtils.ucFirst( rule.getConsequence().getName() ) + "ConsequenceInvoker";
             remove( consequenceName.substring( 0,
-                                               consequenceName.indexOf( "ConsequenceInvoker" ) ) );
+                                               consequenceName.indexOf( sufix ) ) );
         }
     }
 
@@ -294,7 +296,7 @@ public class JavaDialectRuntimeData
                                             IllegalAccessException {
         final Object invoker = getInvokers().get( className );
         if ( invoker != null ) {
-            wire( className,        
+            wire( className,
                   invoker );
         }
     }
@@ -381,8 +383,8 @@ public class JavaDialectRuntimeData
             throw new RuntimeDroolsException( e );
         } catch ( final InstantiationException e ) {
             throw new RuntimeDroolsException( e );
-        } 
-        
+        }
+
         this.dirty = false;
     }
 
@@ -422,21 +424,38 @@ public class JavaDialectRuntimeData
         implements
         DroolsClassLoader {
         private JavaDialectRuntimeData store;
-        CompositeClassLoader           rootClassLoader;
+        DroolsCompositeClassLoader     rootClassLoader;
+
+        private Map<String, Object>    cache           = new HashMap<String, Object>();
+        private long                   successfulCalls = 0;
+        private long                   failedCalls     = 0;
+        private long                   cacheHits       = 0;
 
         public PackageClassLoader(JavaDialectRuntimeData store,
-                                  CompositeClassLoader rootClassLoader) {
+                                  DroolsCompositeClassLoader rootClassLoader) {
             super( rootClassLoader );
             this.rootClassLoader = rootClassLoader;
             this.store = store;
         }
 
-        public Class fastFindClass(final String name) {
-            Class cls = findLoadedClass( name );
+        public Class< ? > fastFindClass(final String name) {
+            Class< ? > cls = findLoadedClass( name );
 
             if ( cls == null ) {
                 final byte[] clazzBytes = this.store.read( convertClassToResourcePath( name ) );
                 if ( clazzBytes != null ) {
+                    String pkgName = name.substring( 0,
+                                                     name.lastIndexOf( '.' ) );
+                    if ( getPackage( pkgName ) == null ) {
+                        definePackage( pkgName,
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       null );
+                    }
                     cls = defineClass( name,
                                        clazzBytes,
                                        0,
@@ -448,27 +467,45 @@ public class JavaDialectRuntimeData
             return cls;
         }
 
-        public synchronized Class loadClass(final String name,
-                                            final boolean resolve) throws ClassNotFoundException {
-            Class cls = fastFindClass( name );
-
-            if ( cls == null ) {
-                final ClassLoader parent = getParent();
-                if ( parent != null ) {
-                    cls = Class.forName( name,
-                                         true,
-                                         parent );
+        public Class< ? > loadClass(final String name,
+                                    final boolean resolve) throws ClassNotFoundException {
+            try {
+                if( cache.containsKey( name ) ) {
+                    this.cacheHits++;
+                    Object result = cache.get( name );
+                    if( result instanceof ClassNotFoundException ) {
+                        throw (ClassNotFoundException) result;
+                    } else {
+                        return (Class<?>) result;
+                    }
                 }
+                Class< ? > cls = fastFindClass( name );
+                if ( cls == null ) {
+                    final ClassLoader parent = getParent();
+                    if ( parent != null ) {
+                        cls = Class.forName( name,
+                                             true,
+                                             parent );
+                    }
+                }
+                if ( resolve && cls != null ) {
+                    resolveClass( cls );
+                }
+                if ( cls != null ) {
+                    this.successfulCalls++;
+                } else {
+                    this.failedCalls++;
+                }
+                cache.put( name, cls );
+                return cls;
+            } catch ( ClassNotFoundException e ) {
+                this.failedCalls++;
+                cache.put( name, e );
+                throw e;
             }
-
-            if ( resolve && cls != null ) {
-                resolveClass( cls );
-            }
-
-            return cls;
         }
 
-        protected Class findClass(final String name) throws ClassNotFoundException {
+        protected Class< ? > findClass(final String name) throws ClassNotFoundException {
             return fastFindClass( name );
         }
 
@@ -478,6 +515,16 @@ public class JavaDialectRuntimeData
                 return new ByteArrayInputStream( clsBytes );
             }
             return null;
+        }
+        
+        public void reset() {
+            this.cacheHits = this.failedCalls = this.successfulCalls = 0;
+            this.cache.clear();
+        }
+
+        public void printStats() {
+            System.out.println( "CacheHits = " + this.cacheHits + "\nSuccessful=" + this.successfulCalls + "\nFailed=" + this.failedCalls + "\n" );
+
         }
     }
 

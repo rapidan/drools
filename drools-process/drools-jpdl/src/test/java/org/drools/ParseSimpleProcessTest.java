@@ -2,6 +2,7 @@ package org.drools;
 
 import junit.framework.TestCase;
 
+import org.drools.jpdl.EpdlWriter;
 import org.drools.jpdl.JpdlParser;
 import org.drools.jpdl.core.JpdlProcess;
 import org.drools.process.core.validation.ProcessValidationError;
@@ -70,5 +71,68 @@ public class ParseSimpleProcessTest extends TestCase {
             return workItemId;
         }
     }
-    
+
+      public void testWriteEPDLStateNodes() throws Exception {
+        JpdlParser parser = new JpdlParser();
+        JpdlProcess process = parser.loadJpdlProcess("simple2states/processdefinition.xml");
+        ProcessValidationError[] errors = parser.getErrors();
+        
+        EpdlWriter.write(process);
+        
+      }
+       public void testWriteEPDLDecisionNodes() throws Exception {
+        JpdlParser parser = new JpdlParser();
+        JpdlProcess process = parser.loadJpdlProcess("simple2decision/processdefinition.xml");
+        ProcessValidationError[] errors = parser.getErrors();
+
+        EpdlWriter.write(process);
+
+      }
+       public void testWriteEPDLSuggestJoinNode() throws Exception {
+        JpdlParser parser = new JpdlParser();
+        JpdlProcess process = parser.loadJpdlProcess("simple2suggestJoinComplex/processdefinition.xml");
+        ProcessValidationError[] errors = parser.getErrors();
+
+        EpdlWriter.write(process);
+
+      }
+       public void testWriteEPDLSuggestSplitNode() throws Exception {
+        JpdlParser parser = new JpdlParser();
+        JpdlProcess process = parser.loadJpdlProcess("simple2suggestSplitInActionNode/processdefinition.xml");
+        ProcessValidationError[] errors = parser.getErrors();
+
+        EpdlWriter.write(process);
+
+      }
+      public void testWriteEPDLSuperState() throws Exception {
+        JpdlParser parser = new JpdlParser();
+        JpdlProcess process = parser.loadJpdlProcess("simple2superState/processdefinition.xml");
+        ProcessValidationError[] errors = parser.getErrors();
+
+        EpdlWriter.write(process);
+
+      }
+       public void testWriteEPDLNestedForksWithSuperState() throws Exception {
+        JpdlParser parser = new JpdlParser();
+        JpdlProcess process = parser.loadJpdlProcess("simpleNestedForkWithSuperState/processdefinition.xml");
+        ProcessValidationError[] errors = parser.getErrors();
+
+        EpdlWriter.write(process);
+        
+        for (ProcessValidationError error: errors) {
+            System.err.println(error);
+        }
+        assertEquals(0, errors.length);
+
+        RuleBase ruleBase = RuleBaseFactory.newRuleBase();
+        Package p = new Package("com.sample");
+        p.addProcess(process);
+        ruleBase.addPackage( p );
+
+        WorkingMemory workingMemory = ruleBase.newStatefulSession();
+        ProcessInstance processInstance = workingMemory.startProcess("simple");
+
+      }
+
+
 }

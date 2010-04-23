@@ -35,8 +35,14 @@ public interface SkinProvider {
 
 	IFigure createSubFlowFigure();
 
+	IFigure createStateFigure();
+
 	WorkItemFigureInterface createWorkItemFigure();
 
 	IFigure createCompositeNodeFigure();
+
+	IFigure createForEachNodeFigure();
+	
+	String getWorkItemsName();
 
 }

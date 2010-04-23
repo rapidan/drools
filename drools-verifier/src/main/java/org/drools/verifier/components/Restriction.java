@@ -2,101 +2,84 @@ package org.drools.verifier.components;
 
 import org.drools.base.evaluators.Operator;
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 
 /**
  * 
  * @author Toni Rikkola
  */
-public abstract class Restriction extends VerifierComponent implements Cause {
+public abstract class Restriction extends PatternComponent
+    implements
+    Cause {
 
-	public static class RestrictionType {
-		public static final RestrictionType LITERAL = new RestrictionType(0);
-		public static final RestrictionType VARIABLE = new RestrictionType(1);
-		public static final RestrictionType QUALIFIED_IDENTIFIER = new RestrictionType(
-				2);
-		public static final RestrictionType RETURN_VALUE_RESTRICTION = new RestrictionType(
-				3);
-		public static final RestrictionType ENUM = new RestrictionType(4);
+    public static class RestrictionType {
+        public static final RestrictionType LITERAL                  = new RestrictionType( "LITERAL" );
+        public static final RestrictionType VARIABLE                 = new RestrictionType( "VARIABLE" );
+        public static final RestrictionType QUALIFIED_IDENTIFIER     = new RestrictionType( "QUALIFIED_IDENTIFIER" );
+        public static final RestrictionType RETURN_VALUE_RESTRICTION = new RestrictionType( "RETURN_VALUE_RESTRICTION" );
+        public static final RestrictionType ENUM                     = new RestrictionType( "ENUM" );
 
-		private final int index;
+        protected final String              type;
 
-		private RestrictionType(int i) {
-			index = i;
-		}
-	}
+        private RestrictionType(String t) {
+            type = t;
+        }
+    }
 
-	private static int index = 0;
+    private boolean    patternIsNot;
+    private String     constraintPath;
 
-	private int patternId;
-	private boolean patternIsNot;
-	private int constraintId;
+    // Id of the field that this restriction is related to.
+    private String     fieldPath;
 
-	// Id of the field that this restriction is related to.
-	private int fieldId;
+    protected Operator operator;
 
-	protected Operator operator;
+    public abstract RestrictionType getRestrictionType();
 
-	public Restriction() {
-		super(index++);
-	}
+    public Restriction(Pattern pattern) {
+        super( pattern );
+    }
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.RESTRICTION;
-	}
+    @Override
+    public String getPath() {
+        return String.format( "%s.restriction[%s]",
+                              getParentPath(),
+                              getOrderNumber() );
+    }
 
-	public CauseType getCauseType() {
-		return CauseType.RESTRICTION;
-	}
+    @Override
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.RESTRICTION;
+    }
 
-	public abstract RestrictionType getRestrictionType();
+    public Operator getOperator() {
+        return operator;
+    }
 
-	public Operator getOperator() {
-		return operator;
-	}
+    public void setOperator(Operator operator) {
+        this.operator = operator;
+    }
 
-	public void setOperator(Operator operator) {
-		this.operator = operator;
-	}
+    public String getConstraintPath() {
+        return constraintPath;
+    }
 
-	public int getConstraintId() {
-		return constraintId;
-	}
+    public void setConstraintPath(String constraintPath) {
+        this.constraintPath = constraintPath;
+    }
 
-	public void setConstraintId(int constraintId) {
-		this.constraintId = constraintId;
-	}
+    public String getFieldPath() {
+        return fieldPath;
+    }
 
-	public int getRuleId() {
-		return ruleId;
-	}
+    public void setFieldPath(String path) {
+        this.fieldPath = path;
+    }
 
-	public void setRuleId(int ruleId) {
-		this.ruleId = ruleId;
-	}
+    public boolean isPatternIsNot() {
+        return patternIsNot;
+    }
 
-	public int getPatternId() {
-		return patternId;
-	}
-
-	public void setPatternId(int patternId) {
-		this.patternId = patternId;
-	}
-
-	public int getFieldId() {
-		return fieldId;
-	}
-
-	public void setFieldId(int fieldId) {
-		this.fieldId = fieldId;
-	}
-
-	public boolean isPatternIsNot() {
-		return patternIsNot;
-	}
-
-	public void setPatternIsNot(boolean patternIsNot) {
-		this.patternIsNot = patternIsNot;
-	}
+    public void setPatternIsNot(boolean patternIsNot) {
+        this.patternIsNot = patternIsNot;
+    }
 }

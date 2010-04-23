@@ -10,6 +10,7 @@ import org.drools.base.ClassTypeResolver;
 import org.drools.base.TypeResolver;
 import org.drools.common.InternalRuleBase;
 import org.drools.common.InternalWorkingMemory;
+import org.drools.guvnor.client.modeldriven.testing.ActivateRuleFlowGroup;
 import org.drools.guvnor.client.modeldriven.testing.ExecutionTrace;
 import org.drools.guvnor.client.modeldriven.testing.Expectation;
 import org.drools.guvnor.client.modeldriven.testing.FactData;
@@ -24,6 +25,9 @@ import org.drools.guvnor.server.util.ScenarioXMLPersistence;
 import org.drools.rule.Package;
 import org.drools.rule.TimeMachine;
 import org.mvel2.MVEL;
+import org.mvel2.ParserContext;
+import org.mvel2.compiler.CompiledExpression;
+import org.mvel2.compiler.ExpressionCompiler;
 
 
 /**
@@ -142,7 +146,9 @@ public class ScenarioRunner {
 				RetractFact f = (RetractFact)fx;
 				this.workingMemory.retract(this.factHandles.get(f.name));
 				this.populatedData.remove(f.name);
-			} else if (fx instanceof ExecutionTrace) {
+			} else if ( fx instanceof ActivateRuleFlowGroup ) {
+                workingMemory.getAgenda().activateRuleFlowGroup( ((ActivateRuleFlowGroup) fx).name );
+            } else if ( fx instanceof ExecutionTrace ) {
                 doPopulate(toPopulate);
 				ExecutionTrace executionTrace = (ExecutionTrace)fx;
 				//create the listener to trace rules
@@ -289,13 +295,30 @@ public class ScenarioRunner {
 					expectedVal = eval(fld.expected.substring(1), this.populatedData);
 				}
 				st.put("__expected__", expectedVal);
+				
+				
+				ParserContext ctx = new ParserContext();
+                for ( Map.Entry<String, Object> entry : st.entrySet() ) {
+                    ctx.addInput( entry.getKey(),
+                                  entry.getValue().getClass() );
+                }
+                CompiledExpression expr = new ExpressionCompiler( "__fact__." + fld.fieldName
+                                                                  + " " + fld.operator  + " __expected__" ).compile( ctx );
 
-				fld.successResult = (Boolean) eval("__fact__." + fld.fieldName
-						+ " " + fld.operator  + " __expected__", st);
+                fld.successResult = (Boolean) MVEL.executeExpression( expr,
+                                                                      st );
+				
+//				fld.successResult = (Boolean) eval("__fact__." + fld.fieldName
+//						+ " " + fld.operator  + " __expected__", st);
 
 
 				if (!fld.successResult) {
-					Object actual = eval("__fact__." + fld.fieldName, st);
+//					Object actual = eval("__fact__." + fld.fieldName, st);
+
+				    Object actual = MVEL.executeExpression( new ExpressionCompiler( "__fact__." + fld.fieldName ).compile( ctx ),
+                                                            st );
+					
+					
 					fld.actualResult = (actual != null) ? actual.toString() : "";
 
 					if (fld.operator.equals("==")) {

@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.guvnor.server.rules.ClassToGenericClassConverter;
+
 import junit.framework.TestCase;
 
 /**
@@ -32,60 +34,83 @@ import junit.framework.TestCase;
 public class ClassMethodInspectorTest extends TestCase {
 
     public void testSimpleMethods() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( SimpleMethods.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( SimpleMethods.class, new Converter() );
 
-        assertEquals( 3,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
     }
 
     public void testMoreThanOneMethodWithTheSameName() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( MoreThanOneMethodWithTheSameName.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( MoreThanOneMethodWithTheSameName.class, new Converter() );
 
-        assertEquals( 5,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
 
     }
 
     public void testCollection() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( Collection.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( Collection.class, new Converter() );
 
-        assertEquals( 6,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
     }
 
     public void testArrayList() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( ArrayList.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( ArrayList.class, new Converter() );
 
-        assertEquals( 12,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
     }
 
     public void testList() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( List.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( List.class, new Converter() );
 
-        assertEquals( 11,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
     }
 
     public void testSet() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( Set.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( Set.class, new Converter() );
 
-        assertEquals( 6,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
     }
 
     public void testMap() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( Map.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( Map.class, new Converter() );
 
-        assertEquals( 4,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
     }
 
     public void testMyMap() throws Exception {
-        final ClassMethodInspector ext = new ClassMethodInspector( MyMap.class );
+        final ClassMethodInspector ext = new ClassMethodInspector( MyMap.class, new Converter() );
 
-        assertEquals( 5,
-                      ext.getMethodNames().size() );
+        for ( String s : ext.getMethodNames() ) {
+            assertFalse( "Method " + s + " is not allowed.",
+                         allowedMethod( s ) );
+        }
+    }
+
+    private boolean allowedMethod(String methodName) {
+        return ("hashCode".equals( methodName ) || "equals".equals( methodName ) || "listIterator".equals( methodName ) || "lastIndexOf".equals( methodName ) || "indexOf".equals( methodName ) || "subList".equals( methodName )
+                || "get".equals( methodName ) || "isEmpty".equals( methodName ) || "containsKey".equals( methodName ) || "values".equals( methodName ) || "entrySet".equals( methodName ) || "containsValue".equals( methodName )
+                || "keySet".equals( methodName ) || "size".equals( methodName ) || "toArray".equals( methodName ) || "iterator".equals( methodName ) || "contains".equals( methodName ) || "isEmpty".equals( methodName )
+                || "containsAll".equals( methodName ) || "size".equals( methodName ));
     }
 
     public static class SimpleMethods {
@@ -182,5 +207,13 @@ public class ClassMethodInspectorTest extends TestCase {
             return null;
         }
 
+    }
+    
+    private static class Converter implements ClassToGenericClassConverter {
+
+		public String translateClassToGenericType(Class<?> type) {
+			return null;
+		}
+    	
     }
 }

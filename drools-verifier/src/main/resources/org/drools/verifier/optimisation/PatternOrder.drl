@@ -7,18 +7,23 @@ import java.util.ArrayList;
 
 import org.drools.verifier.components.Pattern;
 import org.drools.verifier.components.VerifierRule;
-import org.drools.verifier.components.OperatorDescr;
-import org.drools.verifier.components.VerifierEvalDescr;
-import org.drools.verifier.components.VerifierComponent;
+import org.drools.verifier.components.PatternOperatorDescr;
+import org.drools.verifier.components.Eval;
+import org.drools.verifier.components.SubRule;
+import org.drools.verifier.components.SubPattern;
+import org.drools.verifier.components.RuleComponent;
+import org.drools.verifier.data.VerifierComponent;
 import org.drools.verifier.components.VerifierComponentType;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
 
+import java.util.Map;
+import java.util.HashMap;
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 
 
@@ -34,33 +39,34 @@ global VerifierResult result;
 #
 rule "Optimise evals inside pattern"
 	when
-		$operator :OperatorDescr()
-
-		$eval :VerifierEvalDescr(
-			parent == $operator
+		$subRule : SubRule()
+		
+		$eval :Eval(
+			this memberOf $subRule.items
 		)
 
-		# Any other VerifierComponent that is not predicate or operator
-		$other :VerifierComponent(
-			parent == $operator,
-			orderNumber > $eval.orderNumber,
-			( componentType != VerifierComponentType.OPERATOR && != VerifierComponentType.EVAL )
+		$subPattern : SubPattern(
+			this memberOf $subRule.items,
+			patternPath == $subPattern.patternPath,
+			pattern.orderNumber > $eval.orderNumber,
+			$pattern : pattern
 		)
-
-		$rule :VerifierRule(
-			id == $eval.ruleId
-		)
-	then
+	then	
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put(  $subRule.getRule().getPath(), 
+							$subRule.getRule().getName());
+	
 		Collection list = new ArrayList();
 		list.add( $eval );
-		list.add( $other );
+		list.add( $pattern );
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.NOTE,
 								MessageType.OPTIMISATION,
-								$rule,
-								"Rule \"" + $eval.getRuleName() +
+								$subRule.getRule(),
+								"Rule \"" + $subRule.getRuleName() +
 								"\" would be more effective if the less expensive component, (" +
-								$other +
+								$pattern +
 								"), could be before (" +
 								$eval + ").",
 								list ) );

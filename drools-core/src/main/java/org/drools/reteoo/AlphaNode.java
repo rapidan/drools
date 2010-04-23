@@ -20,9 +20,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import org.drools.FactException;
 import org.drools.RuleBaseConfiguration;
-import org.drools.common.BaseNode;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.NodeMemory;
@@ -57,8 +55,8 @@ public class AlphaNode extends ObjectSource
     /** The <code>FieldConstraint</code> */
     private AlphaNodeFieldConstraint constraint;
 
-    private ObjectSinkNode      previousRightTupleSinkNode;
-    private ObjectSinkNode      nextRightTupleSinkNode;
+    private ObjectSinkNode           previousRightTupleSinkNode;
+    private ObjectSinkNode           nextRightTupleSinkNode;
 
     public AlphaNode() {
 
@@ -138,7 +136,7 @@ public class AlphaNode extends ObjectSource
 
     public void assertObject(final InternalFactHandle factHandle,
                              final PropagationContext context,
-                             final InternalWorkingMemory workingMemory) throws FactException {
+                             final InternalWorkingMemory workingMemory) {
         final AlphaMemory memory = (AlphaMemory) workingMemory.getNodeMemory( this );
         if ( this.constraint.isAllowed( factHandle,
                                         workingMemory,
@@ -150,11 +148,27 @@ public class AlphaNode extends ObjectSource
         }
     }
 
+    public void modifyObject(final InternalFactHandle factHandle,
+                             final ModifyPreviousTuples modifyPreviousTuples,
+                             final PropagationContext context,
+                             final InternalWorkingMemory workingMemory) {
+        final AlphaMemory memory = (AlphaMemory) workingMemory.getNodeMemory( this );
+        if ( this.constraint.isAllowed( factHandle,
+                                        workingMemory,
+                                        memory.context ) ) {
+
+            this.sink.propagateModifyObject( factHandle,
+                                             modifyPreviousTuples,
+                                             context,
+                                             workingMemory );
+        }
+    }
+
     public void updateSink(final ObjectSink sink,
                            final PropagationContext context,
                            final InternalWorkingMemory workingMemory) {
         final AlphaMemory memory = (AlphaMemory) workingMemory.getNodeMemory( this );
-        
+
         // get the objects from the parent
         ObjectSinkUpdateAdapter adapter = new ObjectSinkUpdateAdapter( sink,
                                                                        this.constraint,
@@ -162,24 +176,6 @@ public class AlphaNode extends ObjectSource
         this.source.updateSink( adapter,
                                 context,
                                 workingMemory );
-    }
-
-    protected void doRemove(final RuleRemovalContext context,
-                            final ReteooBuilder builder,
-                            final BaseNode node,
-                            final InternalWorkingMemory[] workingMemories) {
-        if ( !node.isInUse() ) {
-            removeObjectSink( (ObjectSink) node );
-        }
-        if ( !this.isInUse() ) {
-            for ( int i = 0, length = workingMemories.length; i < length; i++ ) {
-                workingMemories[i].clearNodeMemory( this );
-            }
-        }
-        this.source.remove( context,
-                            builder,
-                            this,
-                            workingMemories );
     }
 
     /**
@@ -282,10 +278,10 @@ public class AlphaNode extends ObjectSource
         ObjectSink {
         private final ObjectSink               sink;
         private final AlphaNodeFieldConstraint constraint;
-        private final ContextEntry contextEntry;
+        private final ContextEntry             contextEntry;
 
         public ObjectSinkUpdateAdapter(final ObjectSink sink,
-                                       final AlphaNodeFieldConstraint constraint, 
+                                       final AlphaNodeFieldConstraint constraint,
                                        final ContextEntry contextEntry) {
             this.sink = sink;
             this.constraint = constraint;
@@ -293,8 +289,8 @@ public class AlphaNode extends ObjectSource
         }
 
         public void assertObject(final InternalFactHandle handle,
-                               final PropagationContext propagationContext,
-                               final InternalWorkingMemory workingMemory ) {
+                                 final PropagationContext propagationContext,
+                                 final InternalWorkingMemory workingMemory) {
 
             if ( this.constraint.isAllowed( handle,
                                             workingMemory,
@@ -313,14 +309,21 @@ public class AlphaNode extends ObjectSource
             return this.sink.getPartitionId();
         }
 
-        public void writeExternal( ObjectOutput out ) throws IOException {
+        public void writeExternal(ObjectOutput out) throws IOException {
             // this is a short living adapter class, so no need for serialization
         }
 
-        public void readExternal( ObjectInput in ) throws IOException, ClassNotFoundException {
+        public void readExternal(ObjectInput in) throws IOException,
+                                                ClassNotFoundException {
             // this is a short living adapter class, so no need for serialization
         }
 
+        public void modifyObject(final InternalFactHandle factHandle,
+                                 final ModifyPreviousTuples modifyPreviousTuples,
+                                 final PropagationContext context,
+                                 final InternalWorkingMemory workingMemory) {
+            throw new UnsupportedOperationException( "This method should NEVER EVER be called" );
+        }
 
     }
 }

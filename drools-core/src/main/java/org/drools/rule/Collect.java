@@ -19,10 +19,13 @@ package org.drools.rule;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.drools.RuntimeDroolsException;
 import org.drools.base.ClassObjectType;
@@ -37,12 +40,12 @@ public class Collect extends ConditionalElement
     implements
     PatternSource {
 
-    private static final long serialVersionUID = 400L;
+    private static final long      serialVersionUID = 400L;
 
-    private Pattern           sourcePattern;
-    private Pattern           resultPattern;
-    
-    private Class             cls;
+    private Pattern                sourcePattern;
+    private Pattern                resultPattern;
+
+    private Class<Collection< Object >> cls;
 
     public Collect() {
     }
@@ -54,14 +57,15 @@ public class Collect extends ConditionalElement
         this.resultPattern = resultPattern;
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        sourcePattern   = (Pattern)in.readObject();
-        resultPattern   = (Pattern)in.readObject();
+    public void readExternal(ObjectInput in) throws IOException,
+                                            ClassNotFoundException {
+        sourcePattern = (Pattern) in.readObject();
+        resultPattern = (Pattern) in.readObject();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeObject(sourcePattern);
-        out.writeObject(resultPattern);
+        out.writeObject( sourcePattern );
+        out.writeObject( resultPattern );
     }
 
     public Object clone() {
@@ -77,15 +81,17 @@ public class Collect extends ConditionalElement
         return this.sourcePattern;
     }
 
-    public Collection instantiateResultObject(InternalWorkingMemory wm) throws RuntimeDroolsException {
+    @SuppressWarnings("unchecked")
+    public Collection< Object > instantiateResultObject(InternalWorkingMemory wm) throws RuntimeDroolsException {
         try {
             // Collect can only be used with a Collection implementation, so
             // FactTemplateObject type is not allowed
             if ( this.cls == null ) {
                 ClassObjectType objType = ((ClassObjectType) this.resultPattern.getObjectType());
-                this.cls = ((InternalRuleBase)wm.getRuleBase()).getRootClassLoader().loadClass( objType.getClassName() );
+                String className = determineResultClassName( objType );
+                this.cls = (Class<Collection<Object>>) Class.forName( className, true, ((InternalRuleBase) wm.getRuleBase()).getRootClassLoader() );
             }
-            return (Collection) this.cls.newInstance();
+            return this.cls.newInstance();
         } catch ( final ClassCastException cce ) {
             throw new RuntimeDroolsException( "Collect CE requires a Collection implementation as return type",
                                               cce );
@@ -95,10 +101,33 @@ public class Collect extends ConditionalElement
         } catch ( final IllegalAccessException e ) {
             throw new RuntimeDroolsException( "Collect CE requires an accessible constructor for the return type",
                                               e );
-        } catch ( final ClassNotFoundException  e) {
+        } catch ( final ClassNotFoundException e ) {
             throw new RuntimeDroolsException( "Collect CE could not resolve return result class '" + ((ClassObjectType) this.resultPattern.getObjectType()).getClassName() + "'",
-                                              e );            
+                                              e );
         }
+    }
+
+    /**
+     * If the user uses an interface as a result type, use a default
+     * concrete class.
+     * 
+     * List -> ArrayList
+     * Collection -> ArrayList
+     * Set -> HashSet
+     * 
+     * @param objType
+     * @return
+     */
+    private String determineResultClassName(ClassObjectType objType) {
+        String className = objType.getClassName();
+        if ( List.class.getName().equals( className ) ) {
+            className = ArrayList.class.getName();
+        } else if ( Set.class.getName().equals( className ) ) {
+            className = HashSet.class.getName();
+        } else if ( Collection.class.getName().equals( className ) ) {
+            className = ArrayList.class.getName();
+        }
+        return className;
     }
 
     public Map getInnerDeclarations() {

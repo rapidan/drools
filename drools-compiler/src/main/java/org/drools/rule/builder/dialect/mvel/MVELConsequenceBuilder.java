@@ -7,6 +7,7 @@ import org.drools.base.mvel.MVELCompilationUnit;
 import org.drools.base.mvel.MVELConsequence;
 import org.drools.compiler.DescrBuildError;
 import org.drools.compiler.Dialect;
+import org.drools.lang.descr.RuleDescr;
 import org.drools.rule.Declaration;
 import org.drools.rule.MVELDialectRuntimeData;
 import org.drools.rule.builder.ConsequenceBuilder;
@@ -72,14 +73,19 @@ public class MVELConsequenceBuilder
 
     }
 
-    public void build(final RuleBuildContext context) {
+    public void build(final RuleBuildContext context, String consequenceName) {
+    	 
         // pushing consequence LHS into the stack for variable resolution
         context.getBuildStack().push( context.getRule().getLhs() );
 
         try {
             MVELDialect dialect = (MVELDialect) context.getDialect( context.getDialect().getId() );
+            
+            final RuleDescr ruleDescr = context.getRuleDescr();
+            
+            String text = ( "default".equals( consequenceName ) ) ? (String) ruleDescr.getConsequence() : (String) ruleDescr.getNamedConsequences().get( consequenceName );
 
-            String text = processMacros( (String) context.getRuleDescr().getConsequence() );
+            text = processMacros( text );
 
             Dialect.AnalysisResult analysis = dialect.analyzeBlock( context,
                                                                     context.getRuleDescr(),
@@ -98,7 +104,12 @@ public class MVELConsequenceBuilder
 
             MVELConsequence expr = new MVELConsequence( unit,
                                                         dialect.getId() );
-            context.getRule().setConsequence( expr );
+            
+            if ( "default".equals( consequenceName ) ) {
+            	context.getRule().setConsequence( expr );
+            } else {
+            	context.getRule().getNamedConsequences().put(consequenceName, expr);
+            }
             
             MVELDialectRuntimeData data = (MVELDialectRuntimeData) context.getPkg().getDialectRuntimeRegistry().getDialectData( context.getDialect().getId() );            
             data.addCompileable( context.getRule(),
@@ -106,7 +117,6 @@ public class MVELConsequenceBuilder
             
             expr.compile( context.getPackageBuilder().getRootClassLoader() );
         } catch ( final Exception e ) {
-        	e.printStackTrace();
             context.getErrors().add( new DescrBuildError( context.getParentDescr(),
                                                           context.getRuleDescr(),
                                                           null,
@@ -129,7 +139,7 @@ public class MVELConsequenceBuilder
      */
     public static String delimitExpressions(String s) {
 
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
         char[] cs = s.toCharArray();
         int brace = 0;
         int sqre = 0;
@@ -138,6 +148,41 @@ public class MVELConsequenceBuilder
         for ( int i = 0; i < cs.length; i++ ) {
             char c = cs[i];
             switch ( c ) {
+                case '/' :
+                    if( i < cs.length-1 && cs[i+1] == '*' ) {
+                        // multi-line comment
+                        int start = i;
+                        i+=2; // skip the /*
+                        for( ; i < cs.length; i++ ) {
+                            if( cs[i] == '*' && i < cs.length-1 && cs[i+1] == '/' ) {
+                                i++; // skip the */
+                                break;
+                            } else if( cs[i] == '\n' || cs[i] == '\r' ) {
+                                lastNonWhite = checkAndAddSemiColon( result,
+                                                                     brace,
+                                                                     sqre,
+                                                                     crly,
+                                                                     lastNonWhite );
+                            }
+                        }
+                        result.append( cs, start, i-start );
+                        break;
+                    } else if( i < cs.length-1 && cs[i+1] != '/' ) {
+                        // not a line comment
+                        break;
+                    }
+                    // otherwise handle it in the same way as #
+                case '#' :
+                    // line comment
+                    lastNonWhite = checkAndAddSemiColon( result,
+                                                         brace,
+                                                         sqre,
+                                                         crly,
+                                                         lastNonWhite );
+                    i = processLineComment( cs,
+                                            i,
+                                            result);
+                    continue;
                 case '(' :
                     brace++;
                     break;
@@ -159,7 +204,8 @@ public class MVELConsequenceBuilder
                 default :
                     break;
             }
-            if ( (brace == 0 && sqre == 0 && crly == 0) && (c == '\n' || c == '\r') ) {
+            if ( brace == 0 && sqre == 0 && crly == 0 && ( c == '\n' || c == '\r' ) ){
+                // line break 
                 if ( lastNonWhite != ';' ) {
                     result.append( ';' );
                     lastNonWhite = ';';
@@ -168,9 +214,34 @@ public class MVELConsequenceBuilder
                 lastNonWhite = c;
             }
             result.append( c );
-
         }
         return result.toString();
+    }
+
+    private static int processLineComment(char[] cs,
+                                          int i,
+                                          StringBuilder result) {
+        for( ; i < cs.length; i++ ) {
+            result.append( cs[i] );
+            if( cs[i] == '\n' || cs[i] == '\r' ) {
+                break;
+            }
+        }
+        return i;
+    }
+
+    private static char checkAndAddSemiColon(StringBuilder result,
+                                             int brace,
+                                             int sqre,
+                                             int crly,
+                                             char lastNonWhite) {
+        if ( brace == 0 && sqre == 0 && crly == 0 ){
+            if ( lastNonWhite != ';' ) {
+                result.append( ';' );
+                lastNonWhite = ';';
+            }
+        }
+        return lastNonWhite;
     }
 
 }

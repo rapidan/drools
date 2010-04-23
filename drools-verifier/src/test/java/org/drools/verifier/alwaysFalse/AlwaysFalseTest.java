@@ -7,15 +7,16 @@ import java.util.Iterator;
 import org.drools.StatelessSession;
 import org.drools.base.RuleNameMatchesAgendaFilter;
 import org.drools.verifier.TestBase;
+import org.drools.verifier.VerifierComponentMockFactory;
 import org.drools.verifier.components.LiteralRestriction;
 import org.drools.verifier.components.Pattern;
-import org.drools.verifier.components.PatternPossibility;
+import org.drools.verifier.components.SubPattern;
 import org.drools.verifier.components.Restriction;
-import org.drools.verifier.components.RulePossibility;
+import org.drools.verifier.components.SubRule;
 import org.drools.verifier.components.VariableRestriction;
 import org.drools.verifier.components.VerifierRule;
-import org.drools.verifier.dao.VerifierResult;
-import org.drools.verifier.dao.VerifierResultFactory;
+import org.drools.verifier.data.VerifierReport;
+import org.drools.verifier.data.VerifierReportFactory;
 import org.drools.verifier.report.components.Incompatibility;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.VerifierMessage;
@@ -33,56 +34,57 @@ public class AlwaysFalseTest extends TestBase {
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Pattern that is always false" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<Object> data = new ArrayList<Object>();
 
         session.setGlobal( "result",
                            result );
 
         // This pattern has an error.
-        VerifierRule rule1 = new VerifierRule();
-        Pattern pattern1 = new Pattern();
-        pattern1.setRuleId( rule1.getId() );
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
 
-        Restriction r1 = new LiteralRestriction();
-        Restriction r2 = new LiteralRestriction();
+        Restriction r1 = LiteralRestriction.createRestriction( pattern1,
+                                                               "" );
+        Restriction r2 = LiteralRestriction.createRestriction( pattern1,
+                                                               "" );
         Incompatibility i1 = new Incompatibility( r1,
                                                   r2 );
-        PatternPossibility pp1 = new PatternPossibility();
-        pp1.setPatternId( pattern1.getId() );
+        SubPattern pp1 = new SubPattern( pattern1,
+                                         0 );
         pp1.add( r1 );
         pp1.add( r2 );
 
-        Restriction r3 = new VariableRestriction();
-        Restriction r4 = new VariableRestriction();
+        Restriction r3 = new VariableRestriction( pattern1 );
+        Restriction r4 = new VariableRestriction( pattern1 );
         Incompatibility i2 = new Incompatibility( r1,
                                                   r2 );
-        PatternPossibility pp2 = new PatternPossibility();
-        pp2.setPatternId( pattern1.getId() );
+        SubPattern pp2 = new SubPattern( pattern1,
+                                         1 );
         pp2.add( r1 );
         pp2.add( r2 );
 
         // This pattern does not have an error.
-        Pattern pattern2 = new Pattern();
-        pattern2.setRuleId( rule1.getId() );
+        Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
-        Restriction r5 = new LiteralRestriction();
-        Restriction r6 = new LiteralRestriction();
-        PatternPossibility pp3 = new PatternPossibility();
-        pp3.setPatternId( pattern2.getId() );
+        Restriction r5 = LiteralRestriction.createRestriction( pattern2,
+                                                               "" );
+        Restriction r6 = LiteralRestriction.createRestriction( pattern2,
+                                                               "" );
+        SubPattern pp3 = new SubPattern( pattern2,
+                                         0 );
         pp3.add( r5 );
         pp3.add( r6 );
 
-        Restriction r7 = new VariableRestriction();
-        Restriction r8 = new VariableRestriction();
+        Restriction r7 = new VariableRestriction( pattern2 );
+        Restriction r8 = new VariableRestriction( pattern2 );
         Incompatibility i4 = new Incompatibility( r7,
                                                   r8 );
-        PatternPossibility pp4 = new PatternPossibility();
-        pp4.setPatternId( pattern2.getId() );
+        SubPattern pp4 = new SubPattern( pattern2,
+                                         1 );
         pp4.add( r7 );
         pp4.add( r8 );
 
-        data.add( rule1 );
+        data.add( VerifierComponentMockFactory.createRule1() );
 
         data.add( pattern1 );
         data.add( r1 );
@@ -147,16 +149,15 @@ public class AlwaysFalseTest extends TestBase {
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Pattern that is always false" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<Object> data = new ArrayList<Object>();
 
         session.setGlobal( "result",
                            result );
 
         // This pattern has an error.
-        VerifierRule rule1 = new VerifierRule();
-        Pattern pattern1 = new Pattern();
-        pattern1.setRuleId( rule1.getId() );
+        VerifierRule rule1 = VerifierComponentMockFactory.createRule1();
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
 
         data.add( rule1 );
         data.add( pattern1 );
@@ -176,49 +177,59 @@ public class AlwaysFalseTest extends TestBase {
 
         session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Rule that is always false" ) );
 
-        VerifierResult result = VerifierResultFactory.createVerifierResult();
+        VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<Object> data = new ArrayList<Object>();
 
         session.setGlobal( "result",
                            result );
 
         // This rule has an error.
-        VerifierRule rule1 = new VerifierRule();
+        VerifierRule rule1 = VerifierComponentMockFactory.createRule1();
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
 
-        PatternPossibility pp1 = new PatternPossibility();
-        PatternPossibility pp2 = new PatternPossibility();
+        SubPattern pp1 = new SubPattern( pattern1,
+                                         0 );
+        SubPattern pp2 = new SubPattern( pattern1,
+                                         1 );
         Incompatibility i1 = new Incompatibility( pp1,
                                                   pp2 );
-        RulePossibility rp1 = new RulePossibility();
-        rp1.setRuleId( rule1.getId() );
+        SubRule rp1 = new SubRule( rule1,
+                                   0 );
         rp1.add( pp1 );
         rp1.add( pp2 );
 
-        PatternPossibility pp3 = new PatternPossibility();
-        PatternPossibility pp4 = new PatternPossibility();
+        SubPattern pp3 = new SubPattern( pattern1,
+                                         2 );
+        SubPattern pp4 = new SubPattern( pattern1,
+                                         3 );
         Incompatibility i2 = new Incompatibility( pp1,
                                                   pp2 );
-        RulePossibility rp2 = new RulePossibility();
-        rp2.setRuleId( rule1.getId() );
+        SubRule rp2 = new SubRule( rule1,
+                                   1 );
         rp2.add( pp1 );
         rp2.add( pp2 );
 
         // This pattern does not have an error.
-        VerifierRule rule2 = new VerifierRule();
+        VerifierRule rule2 = VerifierComponentMockFactory.createRule2();
+        Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
-        PatternPossibility pp5 = new PatternPossibility();
-        PatternPossibility pp6 = new PatternPossibility();
-        RulePossibility rp3 = new RulePossibility();
-        rp3.setRuleId( rule2.getId() );
+        SubPattern pp5 = new SubPattern( pattern2,
+                                         0 );
+        SubPattern pp6 = new SubPattern( pattern2,
+                                         1 );
+        SubRule rp3 = new SubRule( rule2,
+                                   2 );
         rp3.add( pp5 );
         rp3.add( pp6 );
 
-        PatternPossibility pp7 = new PatternPossibility();
-        PatternPossibility pp8 = new PatternPossibility();
+        SubPattern pp7 = new SubPattern( pattern2,
+                                         2 );
+        SubPattern pp8 = new SubPattern( pattern2,
+                                         3 );
         Incompatibility i4 = new Incompatibility( pp7,
                                                   pp8 );
-        RulePossibility rp4 = new RulePossibility();
-        rp4.setRuleId( rule2.getId() );
+        SubRule rp4 = new SubRule( rule2,
+                                   3 );
         rp4.add( pp7 );
         rp4.add( pp8 );
 

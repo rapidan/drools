@@ -7,15 +7,24 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import javax.jcr.*;
+import javax.jcr.ItemExistsException;
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.PathNotFoundException;
+import javax.jcr.Property;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.Workspace;
+import javax.jcr.nodetype.NodeType;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryResult;
-import javax.jcr.query.RowIterator;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A PackageItem object aggregates a set of assets (for example, rules). This is advantageous for systems using the JBoss Rules
@@ -28,7 +37,7 @@ import org.apache.log4j.Logger;
  * @author btruitt
  */
 public class PackageItem extends VersionableItem {
-    private static Logger      log                              = Logger.getLogger( PackageItem.class );
+	private static final Logger log = LoggerFactory.getLogger(PackageItem.class);
 
     /**
      * This is the name of the rules "subfolder" where rules are kept
@@ -123,7 +132,7 @@ public class PackageItem extends VersionableItem {
     		node.checkout();
 			node.setProperty("drools:binaryUpToDate", status);
 		} catch (RepositoryException e) {
-			log.error(e);
+			log.error("fail to update drools:binaryUpToDate of " + getName(), e);
 		}
     }
 
@@ -139,7 +148,7 @@ public class PackageItem extends VersionableItem {
 				return false;
 			}
 		} catch (RepositoryException e) {
-			log.error(e);
+			log.error("fail to get drools:binaryUpToDate of " + getName(), e);
 			throw new RulesRepositoryException(e);
 		}
     }
@@ -160,8 +169,7 @@ public class PackageItem extends VersionableItem {
     public AssetItem addAsset(String assetName, String description) {
         return addAsset(assetName, description, null, null);
     }
-
-
+    
     /**
      * This adds a rule to the current physical package (you can move it later).
      * With the given category.
@@ -224,8 +232,60 @@ public class PackageItem extends VersionableItem {
         }
 
     }
+   
+    /**
+     * This adds a rule which is imported from global area. 
+     *
+     * This will NOT check the asset in, just create the basic record.
+     * @param sharedAssetName The name of the imported asset
+     */
+    public AssetItem addAssetImportedFromGlobalArea(String sharedAssetName) {
+        try {
+        	//assetName = assetName.trim();
+            Node rulesFolder = this.node.getNode( ASSET_FOLDER_NAME );
+            
+    		Session session = rulesRepository.getSession();
+    		Workspace workspace = session.getWorkspace();
+            PackageItem globalArea = rulesRepository.loadGlobalArea();
+            AssetItem globalAssetItem = globalArea.loadAsset(sharedAssetName);
+ 			if (!hasMixin(globalAssetItem.getNode())) {
+				globalAssetItem.checkout();
+				globalAssetItem.getNode().addMixin("mix:shareable");
+				globalAssetItem.checkin("add mix:shareable");
+			}
+    		
+       		String path = rulesFolder.getPath() + "/" + globalAssetItem.getName();
+       	 	workspace.clone(workspace.getName(), globalAssetItem.getNode().getPath(), path, false);	
+    		
+       	    Node ruleNode = rulesFolder.getNode(globalAssetItem.getName());
+            AssetItem rule = new AssetItem( this.rulesRepository, ruleNode );         
 
+            return rule;
+         } catch ( RepositoryException e ) {
+            if ( e instanceof ItemExistsException ) {
+                throw new RulesRepositoryException( "A rule of that name already exists in that package.",
+                                                    e );
+            } else {
+                throw new RulesRepositoryException( e );
+            }
+        }
 
+    }
+    
+    private boolean hasMixin(Node node) {
+    	try {
+			NodeType[] nodeTypes = node.getMixinNodeTypes();
+			for (NodeType nodeType : nodeTypes) {
+				if (nodeType.isNodeType("mix:shareable")) {
+					return true;
+				}
+			}
+		} catch (RepositoryException e) {
+
+		}
+		
+		return false;
+    }
 
     /**
      * This will permanently delete this package.
@@ -233,6 +293,7 @@ public class PackageItem extends VersionableItem {
     public void remove() {
     	checkIsUpdateable();
     	try {
+            log.info( "USER:" + getCurrentUserName() + " REMOVEING package [" + getName() + "]" );
 			this.node.remove();
 		} catch (RepositoryException e) {
 			throw new RulesRepositoryException("Was not able to delete package.", e);
@@ -430,15 +491,20 @@ public class PackageItem extends VersionableItem {
 
             //sql = "SELECT * FROM drools:assetNodeType ORDER BY drools:title";
             sql += " ORDER BY " + AssetItem.TITLE_PROPERTY_NAME;
-            log.debug("SQL is " + sql);
+
             Query q = node.getSession().getWorkspace().getQueryManager().createQuery( sql, Query.SQL );
 
 
             long time = System.currentTimeMillis();
             QueryResult res = q.execute();
-            log.debug("QueryExec time is: " + (System.currentTimeMillis() - time));
+
             NodeIterator it = res.getNodes();
-            log.debug(it.getClass().getName());
+            long taken = System.currentTimeMillis() - time;
+            if (taken > 2000) {
+                log.debug("QueryExec time is: " + (System.currentTimeMillis() - time));
+                log.debug("SQL is " + sql);
+                log.debug(it.getClass().getName());
+            }
             return new AssetItemIterator(it, this.rulesRepository);
         } catch ( RepositoryException e ) {
             throw new RulesRepositoryException(e);
@@ -457,15 +523,17 @@ public class PackageItem extends VersionableItem {
     /**
      * This will load an iterator for assets of the given format type.
      */
-    public AssetItemIterator listAssetsByFormat(String[] formats) {
+    public AssetItemIterator listAssetsByFormat(String... formats) {
 
         if (formats.length == 1) {
-            return queryAssets( "drools:format='" + formats[0] + "'" );
+            return queryAssets( FORMAT_PROPERTY_NAME + "='" + formats[0] + "'" );
         } else {
             String predicate = " ( ";
             for ( int i = 0; i < formats.length; i++ ) {
-                predicate = predicate + "drools:format='" + formats[i] + "'";
-                if (!(i == formats.length -1 )) { predicate =  predicate + " OR "; }
+                predicate = predicate + FORMAT_PROPERTY_NAME + "='" + formats[i] + "'";
+                if (i != formats.length -1) { 
+                	predicate =  predicate + " OR "; 
+                }
             }
             predicate = predicate + " ) ";
             return queryAssets( predicate );
@@ -538,34 +606,32 @@ public class PackageItem extends VersionableItem {
         }
     }
 
-    public VersionableItem getPrecedingVersion() throws RulesRepositoryException {
-        try {
-            Node precedingVersionNode = this.getPrecedingVersionNode();
-            if ( precedingVersionNode != null ) {
-                return new PackageItem( this.rulesRepository,
-                                            precedingVersionNode );
-            } else {
-                return null;
-            }
-        } catch ( Exception e ) {
-            log.error( "Caught exception",
-                       e );
-            throw new RulesRepositoryException( e );
-        }
-    }
+	@Override
+	public PackageItem getPrecedingVersion() throws RulesRepositoryException {
+		try {
+			Node precedingVersionNode = this.getPrecedingVersionNode();
+			if (precedingVersionNode != null) {
+				return new PackageItem(this.rulesRepository, precedingVersionNode);
+			} else {
+				return null;
+			}
+		} catch (Exception e) {
+			log.error("Caught exception", e);
+			throw new RulesRepositoryException(e);
+		}
+	}
 
-    public VersionableItem getSucceedingVersion() throws RulesRepositoryException {
+    @Override
+    public PackageItem getSucceedingVersion() throws RulesRepositoryException {
         try {
             Node succeedingVersionNode = this.getSucceedingVersionNode();
             if ( succeedingVersionNode != null ) {
-                return new PackageItem( this.rulesRepository,
-                                            succeedingVersionNode );
+				return new PackageItem(this.rulesRepository, succeedingVersionNode);
             } else {
                 return null;
             }
         } catch ( Exception e ) {
-            log.error( "Caught exception",
-                       e );
+			log.error("Caught exception", e);
             throw new RulesRepositoryException( e );
         }
     }
@@ -587,11 +653,9 @@ public class PackageItem extends VersionableItem {
      *  @param ignoreState The statuses to not include in the results (it will look
      *  at the status of the latest one).
      */
-    public Iterator getAssetsWithStatus(final StateItem state, final StateItem ignoreState) {
-        final Iterator rules = getAssets();
-
-        List result = new ArrayList();
-        while(rules.hasNext()) {
+    public Iterator<AssetItem> getAssetsWithStatus(final StateItem state, final StateItem ignoreState) {
+        List<AssetItem> result = new LinkedList<AssetItem>();
+        for (Iterator<AssetItem> rules = getAssets(); rules.hasNext();) {
             AssetItem head = (AssetItem) rules.next();
             if (head.sameState( state )) {
                 result.add( head );
@@ -599,20 +663,18 @@ public class PackageItem extends VersionableItem {
                 //ignore this one
             }
             else {
-                List fullHistory = new ArrayList();
-                for ( Iterator iter = head.getHistory(); iter.hasNext(); ) {
-                    AssetItem element = (AssetItem) iter.next();
+                List<AssetItem> fullHistory = new LinkedList<AssetItem>();
+                for ( Iterator<AssetItem> iter = head.getHistory(); iter.hasNext(); ) {
+                    AssetItem element = iter.next();
                     if (!(element.getVersionNumber() == 0)) {
                         fullHistory.add( element );
                     }
                 }
 
                 sortHistoryByVersionNumber( fullHistory );
-
-
-                Iterator prev = fullHistory.iterator();
-                while (prev.hasNext()) {
-                    AssetItem prevRule = (AssetItem) prev.next();
+                
+                for (Iterator<AssetItem> prev = fullHistory.iterator(); prev.hasNext(); ) {
+                    AssetItem prevRule = prev.next();
                     if (prevRule.sameState( state )) {
                         result.add( prevRule );
                         break;
@@ -624,21 +686,13 @@ public class PackageItem extends VersionableItem {
     }
 
 
-    void sortHistoryByVersionNumber(List fullHistory) {
-        Collections.sort( fullHistory, new Comparator() {
-
-            public int compare(Object o1,
-                               Object o2) {
-                AssetItem a1 = (AssetItem) o1;
-                AssetItem a2 = (AssetItem) o2;
+    void sortHistoryByVersionNumber(List<AssetItem> fullHistory) {
+        Collections.sort( fullHistory, new Comparator<AssetItem>() {
+            public int compare(AssetItem a1, AssetItem a2) {
                 long la1 = a1.getVersionNumber();
                 long la2 = a2.getVersionNumber();
-                if (la1 == la2) return 0;
-                else if (la1 < la2) return 1;
-                else return -1;
-
+                return la1 == la2 ? 0 : (la1 < la2 ? 1 : -1); 
             }
-
         });
     }
 
@@ -652,7 +706,7 @@ public class PackageItem extends VersionableItem {
      * version with the appropriate state, and can't find one,
      * that asset is not included in the result.
      */
-    public Iterator getAssetsWithStatus(final StateItem state) {
+    public Iterator<AssetItem> getAssetsWithStatus(final StateItem state) {
         return getAssetsWithStatus( state, null );
     }
 
@@ -692,20 +746,20 @@ public class PackageItem extends VersionableItem {
             this.updateStringProperty(values,CATEGORY_RULE_VALUES_PROPERTY_NAME);
             
         } catch ( Exception e ) {
-            log.error( "Caught Exception",
-                       e );
+			log.error("Caught Exception", e);
             throw new RulesRepositoryException( e );
         }
     }
     
-    private static HashMap convertFromObjectGraphs(final String[] keys, final String[] values){
-		HashMap hash = new HashMap();
+    private static HashMap<String, String> convertFromObjectGraphs(final String[] keys, final String[] values){
+		HashMap<String, String> hash = new HashMap<String, String>();
 		
 		for(int i=0; i < keys.length; i++){
 			hash.put(keys[i], values[i]);
 		}
 		return hash;
     }
+    
     public String[] convertStringToArray(String tagName){
     		//System.out.println("(convertStringToArray) Tags: " + tagName);
             List<String> list = new ArrayList<String>();
@@ -746,9 +800,8 @@ public class PackageItem extends VersionableItem {
     public void changeStatus(String newState) {
         StateItem stateItem = rulesRepository.getState( newState );
         updateState( stateItem );
-        for ( Iterator iter = getAssets(); iter.hasNext(); ) {
-            AssetItem element = (AssetItem) iter.next();
-            element.updateState( stateItem );
+        for ( Iterator<AssetItem> iter = getAssets(); iter.hasNext(); ) {
+            iter.next().updateState( stateItem );
         }
     }
 
@@ -803,7 +856,7 @@ public class PackageItem extends VersionableItem {
                 return null;
             }
         } catch ( Exception e ) {
-            log.error( e );
+            log.error( e.getMessage(), e );
             if (e instanceof RuntimeException) throw (RuntimeException) e;
             throw new RulesRepositoryException( e );
         }
@@ -812,26 +865,48 @@ public class PackageItem extends VersionableItem {
     /**
      * Creates a nested package.
      */
-	public PackageItem createPackage(String subPackageName) throws RepositoryException {
+	public PackageItem createSubPackage(String subPackageName) throws RepositoryException {
 
 		node.checkout();
-        Node rulePackageNode = node.addNode( subPackageName, PackageItem.RULE_PACKAGE_TYPE_NAME );
+        log.info( "USER: {} CREATEING subpackage [{}] under [{}]", new Object[] {getCurrentUserName(), subPackageName, getName() });
+		Node subPkgsNode;
+        try {
+			subPkgsNode = node.getNode(RulesRepository.RULE_PACKAGE_AREA);
+		} catch (PathNotFoundException e) {
+			subPkgsNode = node.addNode(RulesRepository.RULE_PACKAGE_AREA, "nt:folder");
+		}
+//		subPkgsNode.checkout();
+        Node ruleSubPackageNode = subPkgsNode.addNode( subPackageName, PackageItem.RULE_PACKAGE_TYPE_NAME );
 
-        rulePackageNode.addNode( PackageItem.ASSET_FOLDER_NAME, "drools:versionableAssetFolder" );
+        ruleSubPackageNode.addNode( PackageItem.ASSET_FOLDER_NAME, "drools:versionableAssetFolder" );
 
-        rulePackageNode.setProperty( PackageItem.TITLE_PROPERTY_NAME, subPackageName );
+        ruleSubPackageNode.setProperty( PackageItem.TITLE_PROPERTY_NAME, subPackageName );
 
-        rulePackageNode.setProperty( AssetItem.DESCRIPTION_PROPERTY_NAME, "" );
-        rulePackageNode.setProperty( AssetItem.FORMAT_PROPERTY_NAME, PackageItem.PACKAGE_FORMAT );
-        rulePackageNode.setProperty( PackageItem.CREATOR_PROPERTY_NAME, this.rulesRepository.getSession().getUserID() );
+        ruleSubPackageNode.setProperty( AssetItem.DESCRIPTION_PROPERTY_NAME, "" );
+        ruleSubPackageNode.setProperty( AssetItem.FORMAT_PROPERTY_NAME, PackageItem.PACKAGE_FORMAT );
+        ruleSubPackageNode.setProperty( PackageItem.CREATOR_PROPERTY_NAME, this.rulesRepository.getSession().getUserID() );
         Calendar lastModified = Calendar.getInstance();
-        rulePackageNode.setProperty( PackageItem.LAST_MODIFIED_PROPERTY_NAME, lastModified );
+        ruleSubPackageNode.setProperty( PackageItem.LAST_MODIFIED_PROPERTY_NAME, lastModified );
+        ruleSubPackageNode.setProperty( PackageItem.CONTENT_PROPERTY_ARCHIVE_FLAG, false );
 
-
-		return new PackageItem(this.rulesRepository, rulePackageNode);
+		return new PackageItem(this.rulesRepository, ruleSubPackageNode);
 	}
 
-
-
-
+	/**
+	 * Returns a {@link PackageIterator} of its children
+	 * @return a {@link PackageIterator} of its children
+	 */
+	public PackageIterator listSubPackages() {
+		try {
+			return new PackageIterator(getRulesRepository(), node.getNode(RulesRepository.RULE_PACKAGE_AREA).getNodes());
+		} catch (PathNotFoundException e) {
+			return new PackageIterator();
+		} catch (RepositoryException e) {
+			throw new RulesRepositoryException(e);
+		}
+	}
+	
+    private String getCurrentUserName() {
+        return this.rulesRepository.getSession().getUserID();
+    }
 }

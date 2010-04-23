@@ -31,9 +31,10 @@ import org.drools.compiler.PackageBuilder.ProcessInvokerErrorHandler;
 import org.drools.compiler.PackageBuilder.RuleErrorHandler;
 import org.drools.compiler.PackageBuilder.RuleInvokerErrorHandler;
 import org.drools.compiler.PackageBuilder.SrcErrorHandler;
+import org.drools.core.util.StringUtils;
 import org.drools.definition.process.Process;
-import org.drools.io.InternalResource;
 import org.drools.io.Resource;
+import org.drools.io.internal.InternalResource;
 import org.drools.lang.descr.AccumulateDescr;
 import org.drools.lang.descr.AndDescr;
 import org.drools.lang.descr.BaseDescr;
@@ -80,7 +81,6 @@ import org.drools.rule.builder.SalienceBuilder;
 import org.drools.rule.builder.dialect.mvel.MVELEnabledBuilder;
 import org.drools.rule.builder.dialect.mvel.MVELFromBuilder;
 import org.drools.rule.builder.dialect.mvel.MVELSalienceBuilder;
-import org.drools.util.StringUtils;
 
 public class JavaDialect
     implements
@@ -156,10 +156,11 @@ public class JavaDialect
 
         // initialie the dialect runtime data if it doesn't already exist
         if ( pkg.getDialectRuntimeRegistry().getDialectData( ID ) == null ) {
-            data = new JavaDialectRuntimeData( );
+            data = new JavaDialectRuntimeData();
             this.pkg.getDialectRuntimeRegistry().setDialectData( ID,
                                                                  data );
-            data.onAdd(  this.pkg.getDialectRuntimeRegistry(), this.packageBuilder.getRootClassLoader() );
+            data.onAdd( this.pkg.getDialectRuntimeRegistry(),
+                        this.packageBuilder.getRootClassLoader() );
         }
 
         this.packageStoreWrapper = new PackageStore( data,
@@ -243,7 +244,7 @@ public class JavaDialect
     public AnalysisResult analyzeExpression(final PackageBuildContext context,
                                             final BaseDescr descr,
                                             final Object content,
-                                            final Map<String,Class<?>>[] availableIdentifiers) {
+                                            final Map<String, Class< ? >>[] availableIdentifiers) {
         JavaAnalysisResult result = null;
         try {
             result = this.analyzer.analyzeExpression( (String) content,
@@ -260,7 +261,7 @@ public class JavaDialect
     public AnalysisResult analyzeBlock(final PackageBuildContext context,
                                        final BaseDescr descr,
                                        final String text,
-                                       final Map<String,Class<?>>[] availableIdentifiers) {
+                                       final Map<String, Class< ? >>[] availableIdentifiers) {
         JavaAnalysisResult result = null;
         try {
             result = this.analyzer.analyzeBlock( text,
@@ -405,14 +406,7 @@ public class JavaDialect
             for ( final Iterator iter = errors.iterator(); iter.hasNext(); ) {
                 final ErrorHandler handler = (ErrorHandler) iter.next();
                 if ( handler.isInError() ) {
-                    if ( !(handler instanceof RuleInvokerErrorHandler) ) {
-                        this.results.add( handler.getError() );
-                    } else {
-                        //we don't really want to report invoker errors.
-                        //mostly as they can happen when there is a syntax error in the RHS
-                        //and otherwise, it is a programmatic error in drools itself.
-                        //throw new RuntimeException( "Warning: An error occurred compiling a semantic invoker. Errors should have been reported elsewhere." + handler.getError() );
-                    }
+                    this.results.add( handler.getError() );
                 }
             }
         }
@@ -588,9 +582,9 @@ public class JavaDialect
 
         this.pkg.addStaticImport( functionClassName + "." + functionDescr.getName() );
 
-        Function function = new Function( functionDescr.getName(),
+        Function function = new Function( functionDescr.getNamespace(), functionDescr.getName(),
                                           this.ID );
-        if ( resource != null && ((InternalResource)resource).hasURL() ) {
+        if ( resource != null && ((InternalResource) resource).hasURL() ) {
             function.setResource( resource );
         }
         this.pkg.addFunction( function );
@@ -717,7 +711,7 @@ public class JavaDialect
                                             final String prefix,
                                             final ResourceReader src) {
         // replaces all non alphanumeric or $ chars with _
-        String newName = prefix + "_" + name.replaceAll( "[[^\\w]$]",
+        String newName = prefix + "_" + name.replaceAll( "[ -/:-@\\[-`\\{-\\xff]",
                                                          "_" );
 
         // make sure the class name does not exist, if it does increase the counter
@@ -727,7 +721,7 @@ public class JavaDialect
 
             counter++;
             final String fileName = packageName.replaceAll( "\\.",
-                                                            "/" ) + newName + "_" + counter + ext;
+                                                            "/" ) + "/" + newName + "_" + counter + "." + ext;
 
             //MVEL:test null to Fix failing test on org.drools.rule.builder.dialect.mvel.MVELConsequenceBuilderTest.testImperativeCodeError()
             exists = src != null && src.isAvailable( fileName );

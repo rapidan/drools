@@ -16,16 +16,16 @@ package org.drools.base;
  * limitations under the License.
  */
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Date;
 
 import org.drools.base.field.BooleanFieldImpl;
 import org.drools.base.field.DoubleFieldImpl;
 import org.drools.base.field.LongFieldImpl;
 import org.drools.base.field.ObjectFieldImpl;
+import org.drools.core.util.DateUtils;
+import org.drools.core.util.MathUtils;
 import org.drools.spi.FieldValue;
-import org.drools.util.DateUtils;
+import org.drools.type.DateFormats;
 
 public class FieldFactory {
     private static final FieldFactory INSTANCE = new FieldFactory();
@@ -39,7 +39,8 @@ public class FieldFactory {
     }
 
     public static FieldValue getFieldValue(final String value,
-                                           ValueType valueType) {
+                                           ValueType valueType,
+                                           DateFormats dateFormats) {
         FieldValue field = null;
         if ( value == null ) {
             valueType = ValueType.NULL_TYPE;
@@ -82,7 +83,7 @@ public class FieldFactory {
         } else if ( valueType == ValueType.STRING_TYPE ) {
             field = new ObjectFieldImpl( value.intern() );
         } else if ( valueType == ValueType.DATE_TYPE ) {
-            Date date = DateUtils.parseDate( value );
+            Date date = DateUtils.parseDate( value, dateFormats );
             field = new ObjectFieldImpl( date );
         } else if ( valueType == ValueType.ARRAY_TYPE ) {
             //MN: I think its fine like this.
@@ -90,16 +91,17 @@ public class FieldFactory {
         } else if ( valueType == ValueType.OBJECT_TYPE ) {
             field = new ObjectFieldImpl( value );
         } else if ( valueType == ValueType.BIG_DECIMAL_TYPE ) {
-            field = new ObjectFieldImpl( new BigDecimal( value ) );
+            field = new ObjectFieldImpl( MathUtils.getBigDecimal( value ) );
         } else if ( valueType == ValueType.BIG_INTEGER_TYPE ) {
-            field = new ObjectFieldImpl( new BigInteger( value ) );
+            field = new ObjectFieldImpl( MathUtils.getBigInteger( value ) );
         }
 
         return field;
     }
 
     public static FieldValue getFieldValue(final Object value,
-                                           ValueType valueType) {
+                                           ValueType valueType,
+                                           DateFormats dateFormats) {
         FieldValue field = null;
         if ( value == null ) {
             valueType = ValueType.NULL_TYPE;
@@ -176,7 +178,7 @@ public class FieldFactory {
         } else if ( valueType == ValueType.DATE_TYPE ) {
             //MN: I think its fine like this, seems to work !
             if( value instanceof String ) {
-                Date date = DateUtils.parseDate( (String) value );
+                Date date = DateUtils.parseDate( (String) value, dateFormats );
                 field = new ObjectFieldImpl( date );
             } else {
                 field = new ObjectFieldImpl( value );
@@ -187,9 +189,9 @@ public class FieldFactory {
         } else if ( valueType == ValueType.OBJECT_TYPE ) {
             field = new ObjectFieldImpl( value );
         } else if ( valueType == ValueType.BIG_DECIMAL_TYPE ) {
-            field = new ObjectFieldImpl( value );
+            field = new ObjectFieldImpl( MathUtils.getBigDecimal( value ) );
         } else if ( valueType == ValueType.BIG_INTEGER_TYPE ) {
-            field = new ObjectFieldImpl( value );
+            field = new ObjectFieldImpl( MathUtils.getBigInteger( value ) );
         }
 
         return field;

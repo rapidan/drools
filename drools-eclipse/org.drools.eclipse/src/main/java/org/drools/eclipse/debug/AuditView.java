@@ -23,6 +23,7 @@ import org.drools.audit.event.RuleFlowNodeLogEvent;
 import org.drools.eclipse.DroolsEclipsePlugin;
 import org.drools.eclipse.DroolsPluginImages;
 import org.drools.eclipse.debug.actions.DeleteLogAction;
+import org.drools.eclipse.debug.actions.FileAuditDropAdapter;
 import org.drools.eclipse.debug.actions.OpenLogAction;
 import org.drools.eclipse.debug.actions.RefreshLogAction;
 import org.drools.eclipse.debug.actions.ShowEventCauseAction;
@@ -39,6 +40,9 @@ import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.swt.dnd.DND;
+import org.eclipse.swt.dnd.FileTransfer;
+import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Composite;
@@ -70,6 +74,11 @@ public class AuditView extends AbstractDebugView {
 				getViewer().refresh();
 			}
         });
+        
+        int ops = DND.DROP_COPY | DND.DROP_MOVE;
+        Transfer[] transfers = new Transfer[] { FileTransfer.getInstance()};
+        variablesViewer.addDropSupport(ops, transfers, new FileAuditDropAdapter(variablesViewer,this));
+        
         return variablesViewer;
     }
     
@@ -203,7 +212,7 @@ public class AuditView extends AbstractDebugView {
 					break;
 				case LogEvent.BEFORE_RULEFLOW_CREATED:
 					RuleFlowLogEvent inRuleFlowEvent = (RuleFlowLogEvent) inEvent;
-					event.setString("RuleFlow started: " + inRuleFlowEvent.getProcessName() + "[" + inRuleFlowEvent.getProcessId() + "]");
+					event.setString("Process started: " + inRuleFlowEvent.getProcessName() + "[" + inRuleFlowEvent.getProcessId() + "]");
 					if (!beforeEvents.isEmpty()) {
                         ((Event) beforeEvents.peek()).addSubEvent(event);
 					} else {
@@ -216,7 +225,7 @@ public class AuditView extends AbstractDebugView {
                     break;
 				case LogEvent.BEFORE_RULEFLOW_COMPLETED:
 					inRuleFlowEvent = (RuleFlowLogEvent) inEvent;
-					event.setString("RuleFlow completed: " + inRuleFlowEvent.getProcessName() + "[" + inRuleFlowEvent.getProcessId() + "]");
+					event.setString("Process completed: " + inRuleFlowEvent.getProcessName() + "[" + inRuleFlowEvent.getProcessId() + "]");
 					if (!beforeEvents.isEmpty()) {
                         ((Event) beforeEvents.peek()).addSubEvent(event);
 					} else {
@@ -229,7 +238,7 @@ public class AuditView extends AbstractDebugView {
                     break;
                 case LogEvent.BEFORE_RULEFLOW_NODE_TRIGGERED:
                     RuleFlowNodeLogEvent inRuleFlowNodeEvent = (RuleFlowNodeLogEvent) inEvent;
-                    event.setString("RuleFlow node triggered: " + inRuleFlowNodeEvent.getNodeName() + " in process " + inRuleFlowNodeEvent.getProcessName() + "[" + inRuleFlowNodeEvent.getProcessId() + "]");
+                    event.setString("Process node triggered: " + inRuleFlowNodeEvent.getNodeName() + " in process " + inRuleFlowNodeEvent.getProcessName() + "[" + inRuleFlowNodeEvent.getProcessId() + "]");
                     if (!beforeEvents.isEmpty()) {
                         ((Event) beforeEvents.peek()).addSubEvent(event);
                     } else {
@@ -242,7 +251,7 @@ public class AuditView extends AbstractDebugView {
                     break;
 				case LogEvent.BEFORE_RULEFLOW_GROUP_ACTIVATED:
 					RuleFlowGroupLogEvent inRuleFlowGroupEvent = (RuleFlowGroupLogEvent) inEvent;
-					event.setString("RuleFlowGroup activated: " + inRuleFlowGroupEvent.getGroupName() + "[size=" + inRuleFlowGroupEvent.getSize() + "]");
+					event.setString("RuleFlow Group activated: " + inRuleFlowGroupEvent.getGroupName() + "[size=" + inRuleFlowGroupEvent.getSize() + "]");
 					if (!beforeEvents.isEmpty()) {
                         ((Event) beforeEvents.peek()).addSubEvent(event);
 					} else {
@@ -255,7 +264,7 @@ public class AuditView extends AbstractDebugView {
                     break;
 				case LogEvent.BEFORE_RULEFLOW_GROUP_DEACTIVATED:
 					inRuleFlowGroupEvent = (RuleFlowGroupLogEvent) inEvent;
-					event.setString("RuleFlowGroup deactivated: " + inRuleFlowGroupEvent.getGroupName() + "[size=" + inRuleFlowGroupEvent.getSize() + "]");
+					event.setString("RuleFlow Group deactivated: " + inRuleFlowGroupEvent.getGroupName() + "[size=" + inRuleFlowGroupEvent.getSize() + "]");
 					if (!beforeEvents.isEmpty()) {
                         ((Event) beforeEvents.peek()).addSubEvent(event);
 					} else {

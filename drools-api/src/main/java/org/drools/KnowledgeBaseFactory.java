@@ -2,9 +2,10 @@ package org.drools;
 
 import java.util.Properties;
 
+import org.drools.builder.KnowledgeBuilderFactoryService;
 import org.drools.runtime.Environment;
 import org.drools.runtime.KnowledgeSessionConfiguration;
-import org.drools.util.ProviderLocator;
+import org.drools.util.ServiceRegistryImpl;
 
 /**
  * <p>
@@ -34,8 +35,8 @@ import org.drools.util.ProviderLocator;
  *
  * @see org.drools.KnowledgeBase
  */
-public class KnowledgeBaseFactory extends ProviderLocator {
-    private static KnowledgeBaseProvider provider;
+public class KnowledgeBaseFactory  {
+    private static KnowledgeBaseFactoryService factoryService;
 
     /**
      * Create a new KnowledgeBase using the default KnowledgeBaseConfiguration
@@ -43,7 +44,23 @@ public class KnowledgeBaseFactory extends ProviderLocator {
      *     The KnowledgeBase
      */
     public static KnowledgeBase newKnowledgeBase() {
-        return getKnowledgeBaseProvider().newKnowledgeBase();
+        return getKnowledgeBaseFactoryService().newKnowledgeBase();
+    }
+
+    /**
+     * Create a new KnowledgeBase using the default KnowledgeBaseConfiguration and
+     * the given KnowledgeBase ID.
+     * 
+     * @param kbaseId 
+     *     A string Identifier for the knowledge base. Specially useful when enabling
+     *     JMX monitoring and management, as that ID will be used to compose the
+     *     JMX ObjectName for all related MBeans. The application must ensure all kbase 
+     *     IDs are unique. 
+     * @return
+     *     The KnowledgeBase
+     */
+    public static KnowledgeBase newKnowledgeBase(String kbaseId) {
+        return getKnowledgeBaseFactoryService().newKnowledgeBase(kbaseId);
     }
 
     /**
@@ -52,7 +69,24 @@ public class KnowledgeBaseFactory extends ProviderLocator {
      *     The KnowledgeBase
      */
     public static KnowledgeBase newKnowledgeBase(KnowledgeBaseConfiguration conf) {
-        return getKnowledgeBaseProvider().newKnowledgeBase( conf );
+        return getKnowledgeBaseFactoryService().newKnowledgeBase( conf );
+    }
+
+    /**
+     * Create a new KnowledgeBase using the given KnowledgeBaseConfiguration and
+     * the given KnowledgeBase ID.
+     * 
+     * @param kbaseId 
+     *     A string Identifier for the knowledge base. Specially useful when enabling
+     *     JMX monitoring and management, as that ID will be used to compose the
+     *     JMX ObjectName for all related MBeans. The application must ensure all kbase 
+     *     IDs are unique. 
+     * @return
+     *     The KnowledgeBase
+     */
+    public static KnowledgeBase newKnowledgeBase(String kbaseId,
+                                                 KnowledgeBaseConfiguration conf) {
+        return getKnowledgeBaseFactoryService().newKnowledgeBase( kbaseId, conf );
     }
 
     /**
@@ -61,7 +95,7 @@ public class KnowledgeBaseFactory extends ProviderLocator {
      *     The KnowledgeBaseConfiguration.
      */
     public static KnowledgeBaseConfiguration newKnowledgeBaseConfiguration() {
-        return getKnowledgeBaseProvider().newKnowledgeBaseConfiguration();
+        return getKnowledgeBaseFactoryService().newKnowledgeBaseConfiguration();
     }
 
     /**
@@ -72,7 +106,7 @@ public class KnowledgeBaseFactory extends ProviderLocator {
      */
     public static KnowledgeBaseConfiguration newKnowledgeBaseConfiguration(Properties properties,
                                                                            ClassLoader classLoader) {
-        return getKnowledgeBaseProvider().newKnowledgeBaseConfiguration( properties,
+        return getKnowledgeBaseFactoryService().newKnowledgeBaseConfiguration( properties,
                                                                          classLoader );
     }
 
@@ -82,7 +116,7 @@ public class KnowledgeBaseFactory extends ProviderLocator {
      *     The KnowledgeSessionConfiguration.
      */
     public static KnowledgeSessionConfiguration newKnowledgeSessionConfiguration() {
-        return getKnowledgeBaseProvider().newKnowledgeSessionConfiguration();
+        return getKnowledgeBaseFactoryService().newKnowledgeSessionConfiguration();
     }
 
     /**
@@ -91,39 +125,27 @@ public class KnowledgeBaseFactory extends ProviderLocator {
      *     The KnowledgeSessionConfiguration.
      */
     public static KnowledgeSessionConfiguration newKnowledgeSessionConfiguration(Properties properties) {
-        return getKnowledgeBaseProvider().newKnowledgeSessionConfiguration( properties );
+        return getKnowledgeBaseFactoryService().newKnowledgeSessionConfiguration( properties );
     }
 
     public static Environment newEnvironment() {
-        return getKnowledgeBaseProvider().newEnvironment();
+        return getKnowledgeBaseFactoryService().newEnvironment();
     }
 
-//    private static synchronized KnowledgeBaseProvider getKnowledgeBaseProvider() {
-//        if ( provider == null ) {
-//            provider = newProviderFor( KnowledgeBaseProvider.class );
-//        }
-//        return provider;
-//    }
     
-    private static synchronized void setKnowledgeBaseProvider(KnowledgeBaseProvider provider) {
-        KnowledgeBaseFactory.provider = provider;
+    public static synchronized void setKnowledgeBaseServiceFactory(KnowledgeBaseFactoryService serviceFactory) {
+        KnowledgeBaseFactory.factoryService = serviceFactory;
     }
 
-    private static synchronized KnowledgeBaseProvider getKnowledgeBaseProvider() {
-        if ( provider == null ) {
-            loadProvider();
+    private static synchronized KnowledgeBaseFactoryService getKnowledgeBaseFactoryService() {
+        if ( factoryService == null ) {
+            loadServiceFactory();
         }
-        return provider;
+        return factoryService;
     }
 
     @SuppressWarnings("unchecked")
-    private static void loadProvider() {
-        try {
-            // we didn't find anything in properties so lets try and us reflection
-            Class<KnowledgeBaseProvider> cls = (Class<KnowledgeBaseProvider>) Class.forName( "org.drools.impl.KnowledgeBaseProviderImpl" );
-            setKnowledgeBaseProvider( cls.newInstance() );
-        } catch ( Exception e ) {
-            throw new ProviderInitializationException( "Provider org.drools.impl.KnowledgeBaseProviderImpl could not be set.", e );
-        }
+    private static void loadServiceFactory() {
+        setKnowledgeBaseServiceFactory( ServiceRegistryImpl.getInstance().get( KnowledgeBaseFactoryService.class ) );
     }
 }

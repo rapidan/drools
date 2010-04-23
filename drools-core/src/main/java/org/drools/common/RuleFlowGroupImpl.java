@@ -19,14 +19,16 @@ package org.drools.common;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.drools.core.util.Iterator;
+import org.drools.core.util.LinkedList;
 import org.drools.marshalling.impl.MarshallerReaderContext;
 import org.drools.marshalling.impl.MarshallerWriteContext;
 import org.drools.spi.Activation;
-import org.drools.util.Iterator;
-import org.drools.util.LinkedList;
 
 /**
  * Implementation of a <code>RuleFlowGroup</code> that collects activations
@@ -54,6 +56,7 @@ public class RuleFlowGroupImpl
     private boolean                     autoDeactivate   = true;    
     private LinkedList                  list;
     private List<RuleFlowGroupListener> listeners;
+    private Map<Long, String>           nodeInstances    = new HashMap<Long, String>();
 
     public RuleFlowGroupImpl() {
 
@@ -132,13 +135,14 @@ public class RuleFlowGroupImpl
             ((EventSupport) this.workingMemory).getRuleFlowEventSupport().fireBeforeRuleFlowGroupDeactivated( this,
                                                                                                               this.workingMemory );
             final Iterator it = this.list.iterator();
-            for ( RuleFlowGroupNode node = (RuleFlowGroupNode) it.next(); node != null; node = (RuleFlowGroupNode) it.next() ) {
+            for ( ActivationNode node = (ActivationNode) it.next(); node != null; node = (ActivationNode) it.next() ) {
                 final Activation activation = node.getActivation();
                 activation.remove();
                 if ( activation.getActivationGroupNode() != null ) {
                     activation.getActivationGroupNode().getActivationGroup().removeActivation( activation );
                 }
             }
+            nodeInstances.clear();
             notifyRuleFlowGroupListeners();
             ((EventSupport) this.workingMemory).getRuleFlowEventSupport().fireAfterRuleFlowGroupDeactivated( this,
                                                                                                              this.workingMemory );
@@ -163,7 +167,7 @@ public class RuleFlowGroupImpl
     private void triggerActivations() {
         // iterate all activations adding them to their AgendaGroups
         final Iterator it = this.list.iterator();
-        for ( RuleFlowGroupNode node = (RuleFlowGroupNode) it.next(); node != null; node = (RuleFlowGroupNode) it.next() ) {
+        for ( ActivationNode node = (ActivationNode) it.next(); node != null; node = (ActivationNode) it.next() ) {
             final Activation activation = node.getActivation();
             ((InternalAgendaGroup) activation.getAgendaGroup()).add( activation );
         }
@@ -181,9 +185,9 @@ public class RuleFlowGroupImpl
     }
 
     public void addActivation(final Activation activation) {
-        final RuleFlowGroupNode node = new RuleFlowGroupNode( activation,
+        final ActivationNode node = new ActivationNode( activation,
                                                               this );
-        activation.setRuleFlowGroupNode( node );
+        activation.setActivationNode( node );
         this.list.add( node );
 
         if ( this.active ) {
@@ -192,7 +196,7 @@ public class RuleFlowGroupImpl
     }
 
     public void removeActivation(final Activation activation) {
-        final RuleFlowGroupNode node = activation.getRuleFlowGroupNode();
+        final ActivationNode node = activation.getActivationNode();
         this.list.remove( node );
         activation.setActivationGroupNode( null );
         if ( this.active && this.autoDeactivate ) {
@@ -253,24 +257,23 @@ public class RuleFlowGroupImpl
         return this.name.hashCode();
     }
 
-    public static class DeactivateCallback
-        implements
-        WorkingMemoryAction {
-        private static final long     serialVersionUID = 400L;
+    public static class DeactivateCallback implements WorkingMemoryAction {
+    	
+        private static final long serialVersionUID = 400L;
+        
         private InternalRuleFlowGroup ruleFlowGroup;
-
-        public DeactivateCallback() {
-        }
 
         public DeactivateCallback(InternalRuleFlowGroup ruleFlowGroup) {
             this.ruleFlowGroup = ruleFlowGroup;
         }
 
         public DeactivateCallback(MarshallerReaderContext context) throws IOException {
-
+        	this.ruleFlowGroup = (InternalRuleFlowGroup) context.wm.getAgenda().getRuleFlowGroup(context.readUTF());
         }
 
         public void write(MarshallerWriteContext context) throws IOException {
+        	context.writeInt( WorkingMemoryAction.DeactivateCallback );
+        	context.writeUTF(ruleFlowGroup.getName());
         }
 
         public void readExternal(ObjectInput in) throws IOException,
@@ -279,15 +282,28 @@ public class RuleFlowGroupImpl
         }
 
         public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject( ruleFlowGroup );
+            out.writeObject(ruleFlowGroup);
         }
 
         public void execute(InternalWorkingMemory workingMemory) {
             // check whether ruleflow group is still empty first
-            if ( this.ruleFlowGroup.isEmpty() ) {
+            if (this.ruleFlowGroup.isEmpty()) {
                 // deactivate ruleflow group
-                this.ruleFlowGroup.setActive( false );
+                this.ruleFlowGroup.setActive(false);
             }
         }
     }
+    
+    public void addNodeInstance(Long processInstanceId, String nodeInstanceId) {
+    	nodeInstances.put(processInstanceId, nodeInstanceId);
+    }
+
+    public void removeNodeInstance(Long processInstanceId, String nodeInstanceId) {
+    	nodeInstances.put(processInstanceId, nodeInstanceId);
+    }
+    
+    public Map<Long, String> getNodeInstances() {
+    	return nodeInstances;
+    }
+    
 }

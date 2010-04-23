@@ -21,9 +21,9 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.PriorityQueue;
 
+import org.drools.core.util.BinaryHeapQueue;
+import org.drools.core.util.Queueable;
 import org.drools.spi.Activation;
-import org.drools.util.BinaryHeapQueue;
-import org.drools.util.Queueable;
 
 /**
  * <code>AgendaGroup</code> implementation that uses a <code>PriorityQueue</code> to prioritise the evaluation of added
@@ -154,5 +154,9 @@ public class BinaryHeapQueueAgendaGroup
 
     public void setFocus() {
         throw new UnsupportedOperationException();
+    }
+
+    public void remove(AgendaItem agendaItem) {
+        this.queue.dequeue( agendaItem.getIndex() );
     }
 }

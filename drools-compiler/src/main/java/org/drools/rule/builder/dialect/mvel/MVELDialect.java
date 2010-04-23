@@ -8,7 +8,9 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,7 @@ import org.drools.compiler.Dialect;
 import org.drools.compiler.ImportError;
 import org.drools.compiler.PackageBuilder;
 import org.drools.compiler.PackageRegistry;
+import org.drools.core.util.StringUtils;
 import org.drools.io.Resource;
 import org.drools.lang.descr.AccumulateDescr;
 import org.drools.lang.descr.AndDescr;
@@ -71,7 +74,6 @@ import org.drools.rule.builder.dialect.java.JavaFunctionBuilder;
 import org.drools.runtime.rule.RuleContext;
 import org.drools.spi.DeclarationScopeResolver;
 import org.drools.spi.KnowledgeHelper;
-import org.drools.util.StringUtils;
 import org.mvel2.MVEL;
 import org.mvel2.ParserContext;
 import org.mvel2.compiler.AbstractParser;
@@ -335,7 +337,7 @@ public class MVELDialect
     public void addFunction(FunctionDescr functionDescr,
                             TypeResolver typeResolver,
                             Resource resource) {
-        Serializable s1 = compile( (String) functionDescr.getContent(),
+        Serializable s1 = compile( (String) functionDescr.getText(),
                                    null,
                                    null,
                                    null,
@@ -525,14 +527,14 @@ public class MVELDialect
 
     public MVELCompilationUnit getMVELCompilationUnit(final String expression,
                                                       final Dialect.AnalysisResult analysis,
-                                                      final Declaration[] previousDeclarations,
-                                                      final Declaration[] localDeclarations,
+                                                      Declaration[] previousDeclarations,
+                                                      Declaration[] localDeclarations,
                                                       final Map<String, Class<?>> otherInputVariables,
                                                       final PackageBuildContext context) {
         String[] pkgImports = new String[this.packageImports.size()];
         int i = 0;
         for ( Iterator it = this.packageImports.values().iterator(); it.hasNext(); ) {
-            pkgImports[i] = (String) it.next();
+            pkgImports[i++] = (String) it.next();
         }
 
         //String[] imports = new String[this.imports.size()];
@@ -582,19 +584,36 @@ public class MVELDialect
             //            }
 
             // Set<String> usedIdentifiers = new HashSet<String>( list[0] );
+            
+            HashSet boundSet = new HashSet( list[0] );
+            HashSet implicitSet = new HashSet( analysis.getIdentifiers() );
 
+            List<Declaration> usedDeclrs = new ArrayList<Declaration>();
             if ( previousDeclarations != null ) {
                 for ( Declaration declr : previousDeclarations ) {
-                    resolvedInputs.put( declr.getIdentifier(),
-                                        declr.getExtractor().getExtractToClass() );
+                    if ( boundSet.contains( declr.getIdentifier() )) {
+                        usedDeclrs.add( declr );
+                        resolvedInputs.put( declr.getIdentifier(),
+                                            declr.getExtractor().getExtractToClass() );
+                    }
                 }
+                previousDeclarations = usedDeclrs.toArray( new Declaration[usedDeclrs.size()]);
             }
 
             if ( localDeclarations != null ) {
+                usedDeclrs.clear();
                 for ( Declaration declr : localDeclarations ) {
-                    resolvedInputs.put( declr.getIdentifier(),
-                                        declr.getExtractor().getExtractToClass() );
+                    if ( boundSet.contains( declr.getIdentifier() )) {
+                        usedDeclrs.add( declr );
+                        resolvedInputs.put( declr.getIdentifier(),
+                                            declr.getExtractor().getExtractToClass() );
+                    } else if ( implicitSet.contains( declr.getIdentifier() )) {
+                        usedDeclrs.add( declr );
+                        resolvedInputs.put( declr.getIdentifier(),
+                                            declr.getExtractor().getExtractToClass() );
+                    }                    
                 }
+                localDeclarations = usedDeclrs.toArray( new Declaration[usedDeclrs.size()]);
             }
 
             //            if ( outerDeclarations != null ) {
@@ -697,8 +716,7 @@ public class MVELDialect
                 DeclarationScopeResolver resolver = ((RuleBuildContext) context).getDeclarationResolver();
                 for ( Iterator it = list[0].iterator(); it.hasNext(); ) {
                     String identifier = (String) it.next();
-                    Class cls = resolver.getDeclaration( null,
-                                                         identifier ).getExtractor().getExtractToClass();
+                    Class cls = resolver.getDeclarationClasses( ((RuleBuildContext)context).getRule() ).get( identifier );
                     parserContext.addInput( identifier,
                                             cls );
                 }

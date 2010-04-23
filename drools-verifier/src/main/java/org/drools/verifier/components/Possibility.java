@@ -8,9 +8,11 @@ import org.drools.verifier.report.components.Cause;
  * 
  * @author Toni Rikkola
  */
-public interface Possibility extends Cause {
+public interface Possibility
+    extends
+    Cause {
 
-	public Set<Cause> getItems();
-	
-	public int getAmountOfItems();
+    public Set<? extends RuleComponent> getItems();
+
+    public int getAmountOfItems();
 }

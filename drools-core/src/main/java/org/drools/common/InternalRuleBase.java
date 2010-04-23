@@ -30,7 +30,7 @@ import org.drools.process.core.Process;
 import org.drools.reteoo.Rete;
 import org.drools.reteoo.ReteooBuilder;
 import org.drools.reteoo.ReteooWorkingMemory;
-import org.drools.rule.CompositeClassLoader;
+import org.drools.rule.DroolsCompositeClassLoader;
 import org.drools.rule.Package;
 import org.drools.rule.TypeDeclaration;
 import org.drools.spi.FactHandleFactory;
@@ -100,7 +100,7 @@ public interface InternalRuleBase
                               PropagationContext context,
                               ReteooWorkingMemory workingMemory) throws FactException;
  
-    public CompositeClassLoader getRootClassLoader();   
+    public DroolsCompositeClassLoader getRootClassLoader();   
     
     public Rete getRete();
     
@@ -147,5 +147,16 @@ public interface InternalRuleBase
      * @return
      */
     List<RuleBasePartitionId> getPartitionIds();
+    
+    /**
+     * Acquires a read lock on the rulebase
+     */
+    public void readLock();
+    
+    /**
+     * Releases a read lock on the rulebase
+     */
+    public void readUnlock();
+    
 
 }

@@ -211,11 +211,7 @@ public class DroolsRuntimesBlock implements ISelectionProvider {
 		IStructuredSelection selection = (IStructuredSelection) droolsRuntimesList.getSelection();
 		int selectionCount= selection.size();
 		fEditButton.setEnabled(selectionCount == 1);
-		if (selectionCount > 0 && selectionCount < droolsRuntimesList.getTable().getItemCount()) {
-			fRemoveButton.setEnabled(true);
-		} else {
-			fRemoveButton.setEnabled(false);
-		}
+		fRemoveButton.setEnabled(selectionCount > 0);
 	}
 	
 	public Control getControl() {
@@ -240,7 +236,7 @@ public class DroolsRuntimesBlock implements ISelectionProvider {
 	}
 	
 	private void addDroolsRuntime() {
-		DroolsRuntimeDialog dialog = new DroolsRuntimeDialog(getShell());
+		DroolsRuntimeDialog dialog = new DroolsRuntimeDialog(getShell(), droolsRuntimes);
 		if (dialog.open() == Window.OK) {
 			DroolsRuntime result = dialog.getResult();
 			if (result != null) {
@@ -258,7 +254,7 @@ public class DroolsRuntimesBlock implements ISelectionProvider {
 		if (runtime == null) {
 			return;
 		}
-		DroolsRuntimeDialog dialog = new DroolsRuntimeDialog(getShell());
+		DroolsRuntimeDialog dialog = new DroolsRuntimeDialog(getShell(), droolsRuntimes);
 		dialog.setDroolsRuntime(runtime);
 		if (dialog.open() == Window.OK) {
 			DroolsRuntime result = dialog.getResult();

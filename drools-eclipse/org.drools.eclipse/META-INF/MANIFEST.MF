@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Drools Eclipse Plug-in
 Bundle-SymbolicName: org.drools.eclipse;singleton:=true
-Bundle-Version: 5.0.1.SNAPSHOT
+Bundle-Version: 5.1.0.SNAPSHOT
 Bundle-Activator: org.drools.eclipse.DroolsEclipsePlugin
 Bundle-Vendor: JBoss, a division of Red Hat
 Bundle-Localization: plugin
@@ -26,7 +26,9 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.ui.views.properties.tabbed,
  org.eclipse.ui.workbench.texteditor,
  org.eclipse.gef,
- com.ibm.icu
+ com.ibm.icu,
+ org.eclipse.ltk.core.refactoring;bundle-version="3.4.0",
+ org.eclipse.ltk.ui.refactoring;bundle-version="3.4.0"
 Eclipse-LazyStart: true
 Eclipse-BuddyPolicy: registered
 Bundle-ClassPath: .,
@@ -37,12 +39,12 @@ Bundle-ClassPath: .,
  lib/drools-jsr94.jar,
  lib/jsr94.jar,
  lib/junit.jar,
- lib/jxl.jar,
- lib/xpp3.jar,
- lib/xstream.jar,
- lib/antlr-runtime.jar,
  lib/drools-templates.jar,
  lib/mvel2.jar,
- lib/joda-time.jar
+ lib/drools-bpmn2.jar,
+ lib/antlr-runtime.jar,
+ lib/jxl.jar,
+ lib/xpp3_min.jar,
+ lib/xstream.jar
 Bundle-RequiredExecutionEnvironment: J2SE-1.5
 Export-Package: org.drools.eclipse.util

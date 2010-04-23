@@ -8,6 +8,7 @@ import org.drools.eclipse.flow.ruleflow.skin.SkinProvider;
 import org.drools.eclipse.preferences.IDroolsConstants;
 import org.eclipse.draw2d.IFigure;
 import org.eclipse.draw2d.LineBorder;
+import org.eclipse.draw2d.geometry.Rectangle;
 
 public class CompositeNodeEditPart extends ElementContainerEditPart {
 	
@@ -16,7 +17,16 @@ public class CompositeNodeEditPart extends ElementContainerEditPart {
 	
     protected IFigure createFigure() {
     	SkinProvider skinProvider = SkinManager.getInstance().getSkinProvider(SKIN);
-    	return skinProvider.createCompositeNodeFigure();
+    	IFigure result = skinProvider.createCompositeNodeFigure();
+    	Rectangle constraint = getElementWrapper().getConstraint();
+    	if (constraint.width == -1) {
+    		constraint.width = result.getSize().width;
+    	}
+    	if (constraint.height == -1) {
+    		constraint.height = result.getSize().height;
+    	}
+    	getElementWrapper().setConstraint(constraint);
+    	return result;
     }
     
 //    public ConnectionAnchor getSourceConnectionAnchor(Request request) {

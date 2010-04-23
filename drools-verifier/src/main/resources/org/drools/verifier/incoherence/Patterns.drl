@@ -4,8 +4,9 @@ package org.drools.verifier.incoherence
 #list any import classes here.
 import org.drools.verifier.components.VerifierRule;
 import org.drools.verifier.components.LiteralRestriction;
-import org.drools.verifier.components.PatternPossibility;
-import org.drools.verifier.components.RulePossibility;
+import org.drools.verifier.components.NumberRestriction;
+import org.drools.verifier.components.SubPattern;
+import org.drools.verifier.components.SubRule;
 import org.drools.verifier.components.Pattern;
 import org.drools.verifier.components.VariableRestriction;
 import org.drools.verifier.report.components.Cause;
@@ -14,15 +15,17 @@ import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
 
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
 
 import java.util.Collection;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.drools.base.evaluators.Operator;
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 #
 # If two Patterns are in conflict.
@@ -40,47 +43,50 @@ rule "Incoherent Patterns in rule possibility"
 		)
 	
 		$r2 :LiteralRestriction(
-			ruleId == $r1.ruleId,
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
-			operator == $r1.operator
+			operator == $r1.operator,
+			valueAsString == $r1.valueAsString
 		)
 
-		eval( $r1.compareValues( $r2 ) == 0 )
-
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -107,46 +113,50 @@ rule "Incoherent Patterns in rule possibility, variables"
 		)
 
 		$r2 :VariableRestriction(
-			ruleId == $r1.ruleId,
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
-			fieldId == $r1.fieldId,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
+			fieldPath == $r1.fieldPath,
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
 			operator == $r1.operator
 		)
 
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -167,51 +177,54 @@ end
 #
 rule "Incoherent Patterns in rule possibility, ranges when not conflicts with lesser value"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			patternIsNot == true,
 			( operator == Operator.GREATER || == Operator.GREATER_OR_EQUAL )
 		)
 
-		$r2 :LiteralRestriction(
-			ruleId == $r1.ruleId,
+		$r2 :NumberRestriction(
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
 			( operator == Operator.GREATER || == Operator.GREATER_OR_EQUAL || == Operator.EQUAL ),
-			fieldId == $r1.fieldId
+			fieldPath == $r1.fieldPath,
+			value > $r1.value
 		)
 
-		eval( $r1.compareValues( $r2 ) == -1 )
-
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -232,51 +245,54 @@ end
 #
 rule "Incoherent Patterns in rule possibility, ranges when not conflicts with greater value"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			patternIsNot == true,
 			( operator == Operator.LESS || == Operator.LESS_OR_EQUAL )
 		)
 
-		$r2 :LiteralRestriction(
-			ruleId == $r1.ruleId,
+		$r2 :NumberRestriction(
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
 			( operator == Operator.LESS || == Operator.LESS_OR_EQUAL || == Operator.EQUAL ),
-			fieldId == $r1.fieldId
+			fieldPath == $r1.fieldPath,
+			value < $r1.value
 		)
 
-		eval( $r1.compareValues( $r2 ) == 1 )
-
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -303,46 +319,49 @@ rule "Incoherent Patterns in rule possibility, ranges when not conflicts with eq
 		)
 
 		$r2 :LiteralRestriction(
-			ruleId == $r1.ruleId,
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
 			# It is also a problem if the value is NOT_EQUAL, but there is already a rule for that.
 			( operator != Operator.EQUAL && != Operator.NOT_EQUAL ),
-			fieldId == $r1.fieldId
+			fieldPath == $r1.fieldPath,
+			valueAsString == $r1.valueAsString
 		)
 
-		eval( $r1.compareValues( $r2 ) == 0 )
-
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -369,46 +388,50 @@ rule "Incoherent Patterns in rule possibility, ranges when not conflicts with eq
 		)
 
 		$r2 :VariableRestriction(
-			ruleId == $r1.ruleId,
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
-			fieldId == $r1.fieldId,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
+			fieldPath == $r1.fieldPath,
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
 			# It is also a problem if the value is NOT_EQUAL, but there is already a rule for that.
 			( operator != Operator.EQUAL && != Operator.NOT_EQUAL )
 		)
 
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -435,45 +458,48 @@ rule "Incoherent Patterns in rule possibility, ranges when not conflicts with eq
 		)
 
 		$r2 :LiteralRestriction(
-			ruleId == $r1.ruleId,
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
 			operator == Operator.EQUAL,
-			fieldId == $r1.fieldId
+			fieldPath == $r1.fieldPath,
+			valueAsString == $r1.valueAsString
 		)
 
-		eval( $r1.compareValues( $r2 ) == 0 )
-
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,
@@ -501,45 +527,49 @@ rule "Incoherent Patterns in rule possibility, ranges when not conflicts with eq
 		)
 
 		$r2 :VariableRestriction(
-			ruleId == $r1.ruleId,
+			rulePath == $r1.rulePath,
 			patternIsNot == false,
-			fieldId == $r1.fieldId,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
+			fieldPath == $r1.fieldPath,
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
 			operator == Operator.EQUAL
 		)
 
-		$pp1 :PatternPossibility(
-			patternId == $r1.patternId
+		$pp1 :SubPattern(
+			patternPath == $r1.patternPath
 		)
 
-		$pp2 :PatternPossibility(
-			patternId == $r2.patternId
+		$pp2 :SubPattern(
+			patternPath == $r2.patternPath
 		)
 
-		# There is a problem if both of these are in the same RulePossibility.
-		$rp :RulePossibility(
+		# There is a problem if both of these are in the same SubRule.
+		$rp :SubRule(
 			 items contains $pp1,
 			 items contains $pp2
 		)
 
 		$p1 :Pattern(
-			id == $r1.patternId
+			path == $r1.patternPath
 		)
 
 		$p2 :Pattern(
-			id == $r2.patternId
+			path == $r2.patternPath
 		)
 
 		$r :VerifierRule(
-			id == $rp.ruleId
+			path == $rp.rulePath
 		)
 then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+	
 		Collection list = new ArrayList();
 		list.add( $p1 );
 		list.add( $p2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.INCOHERENCE,
 								$r,

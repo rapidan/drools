@@ -15,9 +15,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-import org.drools.io.InternalResource;
+import org.drools.core.util.StringUtils;
 import org.drools.io.Resource;
-import org.drools.util.StringUtils;
+import org.drools.io.internal.InternalResource;
 
 /**
  * Borrowed gratuitously from Spring under ASL2.0.

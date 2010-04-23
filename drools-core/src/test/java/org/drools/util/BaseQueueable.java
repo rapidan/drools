@@ -4,7 +4,10 @@ import java.util.Collection;
 
 import org.drools.common.ActivationGroupNode;
 import org.drools.common.LogicalDependency;
-import org.drools.common.RuleFlowGroupNode;
+import org.drools.common.ActivationNode;
+import org.drools.core.util.LinkedList;
+import org.drools.core.util.Queue;
+import org.drools.core.util.Queueable;
 import org.drools.rule.GroupElement;
 import org.drools.rule.Rule;
 import org.drools.FactHandle;
@@ -33,10 +36,12 @@ public class BaseQueueable
     Queueable {
     private Queue queue;
     private int   index;
+    
+    public BaseQueueable(Queue queue) {
+    	this.queue = queue;
+    }
 
-    public void enqueued(final Queue queue,
-                         final int index) {
-        this.queue = queue;
+    public void enqueued(final int index) {
         this.index = index;
     }
 
@@ -79,7 +84,7 @@ public class BaseQueueable
         return null;
     }
 
-    public RuleFlowGroupNode getRuleFlowGroupNode() {
+    public ActivationNode getActivationNode() {
         // TODO Auto-generated method stub
         return null;
     }
@@ -124,7 +129,7 @@ public class BaseQueueable
         
     }
 
-    public void setRuleFlowGroupNode(RuleFlowGroupNode ruleFlowGroupNode) {
+    public void setActivationNode(ActivationNode ruleFlowGroupNode) {
         // TODO Auto-generated method stub
         
     }

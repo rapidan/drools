@@ -41,14 +41,17 @@ import org.drools.process.instance.WorkItemManager;
 import org.drools.process.instance.event.SignalManager;
 import org.drools.process.instance.timer.TimerManager;
 import org.drools.reteoo.LIANodePropagation;
+import org.drools.reteoo.ObjectTypeConf;
 import org.drools.reteoo.PartitionTaskManager;
+import org.drools.rule.EntryPoint;
 import org.drools.rule.Rule;
 import org.drools.rule.TimeMachine;
+import org.drools.runtime.Calendars;
 import org.drools.runtime.Environment;
 import org.drools.runtime.ExitPoint;
 import org.drools.runtime.KnowledgeRuntime;
 import org.drools.runtime.ObjectFilter;
-import org.drools.runtime.impl.BatchExecutionResultImpl;
+import org.drools.runtime.impl.ExecutionResultImpl;
 import org.drools.spi.Activation;
 import org.drools.spi.AgendaFilter;
 import org.drools.spi.AsyncExceptionHandler;
@@ -57,6 +60,7 @@ import org.drools.spi.GlobalResolver;
 import org.drools.spi.PropagationContext;
 import org.drools.time.SessionClock;
 import org.drools.time.TimerService;
+import org.drools.type.DateFormats;
 
 public class MockWorkingMemory implements InternalWorkingMemory {
                 
@@ -78,6 +82,11 @@ public class MockWorkingMemory implements InternalWorkingMemory {
         out.writeObject(timeMachine);
         out.writeObject(globals);
     }
+    
+    public Calendars getCalendars() {
+        return null;
+    }
+    
 	public Iterator iterateObjects() {
 		return this.facts.iterator();
 	}
@@ -161,7 +170,7 @@ public class MockWorkingMemory implements InternalWorkingMemory {
         return null;
     }
 
-    public PartitionTaskManager getPartitionManager(RuleBasePartitionId partitionId) {
+    public PartitionTaskManager getPartitionTaskManager(RuleBasePartitionId partitionId) {
         // TODO Auto-generated method stub
         return null;
     }
@@ -532,24 +541,14 @@ public class MockWorkingMemory implements InternalWorkingMemory {
         
     }
 
-    public BatchExecutionResultImpl getExecutionResult() {
+    public ExecutionResultImpl getExecutionResult() {
         // TODO Auto-generated method stub
         return null;
     }
 
-    public void startBatchExecution() {
+    public void startBatchExecution(ExecutionResultImpl results) {
         // TODO Auto-generated method stub
         
-    }
-
-    public Collection< ? extends org.drools.runtime.rule.FactHandle> getFactHandles() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public Collection< ? extends org.drools.runtime.rule.FactHandle> getFactHandles(ObjectFilter filter) {
-        // TODO Auto-generated method stub
-        return null;
     }
 
     public Collection< Object > getObjects() {
@@ -560,6 +559,85 @@ public class MockWorkingMemory implements InternalWorkingMemory {
     public Collection< Object > getObjects(ObjectFilter filter) {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    public void endOperation() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    public long getIdleTime() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    public void startOperation() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    public long getTimeToNextJob() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    public void updateEntryPointsCache() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    public void activationFired() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    public void prepareToFireActivation() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    public String getEntryPointId() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public long getFactCount() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    public long getTotalFactCount() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    public DateFormats getDateFormats() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public <T extends org.drools.runtime.rule.FactHandle> Collection<T> getFactHandles() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public <T extends org.drools.runtime.rule.FactHandle> Collection<T> getFactHandles(ObjectFilter filter) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public EntryPoint getEntryPoint() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public void insert(InternalFactHandle handle,
+                       Object object,
+                       Rule rule,
+                       Activation activation,
+                       ObjectTypeConf typeConf) {
+        // TODO Auto-generated method stub
+        
     }
 
 }

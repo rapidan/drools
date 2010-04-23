@@ -1,28 +1,28 @@
 package org.drools.command.impl;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.drools.command.Command;
 import org.drools.command.CommandFactoryProvider;
 import org.drools.command.Setter;
-import org.drools.process.command.AbortWorkItemCommand;
-import org.drools.process.command.CompleteWorkItemCommand;
-import org.drools.process.command.FireAllRulesCommand;
-import org.drools.process.command.GetGlobalCommand;
-import org.drools.process.command.GetObjectCommand;
-import org.drools.process.command.GetObjectsCommand;
-import org.drools.process.command.InsertElementsCommand;
-import org.drools.process.command.InsertObjectCommand;
-import org.drools.process.command.ModifyCommand;
-import org.drools.process.command.QueryCommand;
-import org.drools.process.command.RetractCommand;
-import org.drools.process.command.SetGlobalCommand;
-import org.drools.process.command.SignalEventCommand;
-import org.drools.process.command.StartProcessCommand;
-import org.drools.process.command.ModifyCommand.SetterImpl;
+import org.drools.command.runtime.BatchExecutionCommand;
+import org.drools.command.runtime.GetGlobalCommand;
+import org.drools.command.runtime.SetGlobalCommand;
+import org.drools.command.runtime.process.AbortWorkItemCommand;
+import org.drools.command.runtime.process.CompleteWorkItemCommand;
+import org.drools.command.runtime.process.SignalEventCommand;
+import org.drools.command.runtime.process.StartProcessCommand;
+import org.drools.command.runtime.rule.FireAllRulesCommand;
+import org.drools.command.runtime.rule.GetObjectCommand;
+import org.drools.command.runtime.rule.GetObjectsCommand;
+import org.drools.command.runtime.rule.InsertObjectCommand;
+import org.drools.command.runtime.rule.ModifyCommand;
+import org.drools.command.runtime.rule.QueryCommand;
+import org.drools.command.runtime.rule.RetractCommand;
+import org.drools.command.runtime.rule.ModifyCommand.SetterImpl;
 import org.drools.runtime.ObjectFilter;
-import org.drools.runtime.impl.BatchExecutionImpl;
 import org.drools.runtime.rule.FactHandle;
 
 public class CommandFactoryProviderImpl implements CommandFactoryProvider {
@@ -38,7 +38,9 @@ public class CommandFactoryProviderImpl implements CommandFactoryProvider {
 	}
 
 	public Command newInsertElements(Iterable objects) {
-		return new InsertElementsCommand(objects);
+//		TODO: FIX THIS
+//		return new InsertElementsCommand(objects);
+		return null;
 	}
 
 	public Command newInsert(Object object) {
@@ -112,7 +114,7 @@ public class CommandFactoryProviderImpl implements CommandFactoryProvider {
 			Map<String, Object> parameters) {
 		StartProcessCommand startProcess = new StartProcessCommand();
 		startProcess.setProcessId(processId);
-		startProcess.setParameters(parameters);
+		startProcess.setParameters((HashMap<String, Object>) parameters);
 		return startProcess;
 	}
 
@@ -145,7 +147,6 @@ public class CommandFactoryProviderImpl implements CommandFactoryProvider {
 	}
 
 	public Command newBatchExecution(List<? extends Command> commands) {
-		return new BatchExecutionImpl(
-				(List<org.drools.process.command.Command>) commands);
+		return new BatchExecutionCommand((List<GenericCommand<?>>) commands);
 	}
 }

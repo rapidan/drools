@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns="http://drools.org/schema/drools-spring"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	targetNamespace="http://drools.org/schema/drools-spring"
+	elementFormDefault="qualified" 
+	attributeFormDefault="unqualified">
+
+	<xsd:simpleType name="connectionTypeEnum">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="local" />
+			<xsd:enumeration value="remote" />
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="knowledgeSessionTypeEnum">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="stateful" />
+			<xsd:enumeration value="stateless" />
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="resourceTypeEnum">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="DRL" />
+			<xsd:enumeration value="XDRL" />
+			<xsd:enumeration value="DSL" />
+			<xsd:enumeration value="DSLR" />
+			<xsd:enumeration value="DRF" />
+			<xsd:enumeration value="DTABLE" />
+			<xsd:enumeration value="PKG" />
+			<xsd:enumeration value="BRL" />
+			<xsd:enumeration value="CHANGE_SET" />
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:complexType name="resourceType">
+		<xsd:sequence>
+			<xsd:element name="decisiontable-conf" minOccurs="0" maxOccurs="1">
+				<xsd:complexType>
+					<xsd:attribute name="input-type" use="required" />
+					<xsd:attribute name="worksheet-name " use="required" />
+				</xsd:complexType>
+			</xsd:element>
+		</xsd:sequence>
+		<xsd:attribute name="source" use="required" type="xsd:string"/>
+		<xsd:attribute name="type" use="required" type="resourceTypeEnum"/>
+	</xsd:complexType>
+	
+	<xsd:complexType name="resourceRefType">
+		<xsd:attribute name="id" use="required" type="xsd:string"/>
+	</xsd:complexType>
+
+	<xsd:element name="resource">
+		<xsd:complexType>
+			<xsd:complexContent>
+				<xsd:extension base="resourceType">
+					<xsd:attribute name="id" use="optional" type="xsd:ID"/>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:complexType name="modelType">
+		<xsd:attribute name="source" use="required" type="xsd:string"/>
+	</xsd:complexType>
+	
+	<xsd:complexType name="classesType">
+		<xsd:sequence>
+			<xsd:element name="class" type="xsd:string"  />
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:element name="kbase">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="resource" type="resourceType" maxOccurs="unbounded"/>
+				<xsd:element name="resource-ref" type="resourceRefType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="model" type="modelType" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="id" use="optional" type="xsd:ID"/>
+			<xsd:attribute name="node" use="optional" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:element name="ksession">
+		<xsd:complexType>
+			<xsd:attribute name="type" use="required" type="knowledgeSessionTypeEnum"/>
+			<xsd:attribute name="kbase" use="required" type="xsd:string"/>
+			<xsd:attribute name="id" use="optional" type="xsd:ID"/>
+			<xsd:attribute name="node" use="optional" type="xsd:string"/>
+			<xsd:attribute name="name" use="optional" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="connection">
+		<xsd:complexType>
+			<xsd:attribute name="id" use="optional" type="xsd:ID"/>
+			<xsd:attribute name="type" use="required" type="connectionTypeEnum"/>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:element name="execution-node">
+		<xsd:complexType>
+			<xsd:attribute name="id" use="optional" type="xsd:ID"/>
+			<xsd:attribute name="connection" use="required" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+
+</xsd:schema>

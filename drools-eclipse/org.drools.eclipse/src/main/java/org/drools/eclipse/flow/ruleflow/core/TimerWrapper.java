@@ -44,8 +44,8 @@ public class TimerWrapper extends AbstractNodeWrapper {
     }
     
     private void setDescriptors() {
-        descriptors = new IPropertyDescriptor[DefaultElementWrapper.descriptors.length + 2];
-        System.arraycopy(DefaultElementWrapper.descriptors, 0, descriptors, 0, DefaultElementWrapper.descriptors.length);
+        descriptors = new IPropertyDescriptor[DefaultElementWrapper.DESCRIPTORS.length + 2];
+        System.arraycopy(DefaultElementWrapper.DESCRIPTORS, 0, descriptors, 0, DefaultElementWrapper.DESCRIPTORS.length);
         descriptors[descriptors.length - 2] = 
             new TextPropertyDescriptor(TIMER_DELAY, "Timer Delay");
         descriptors[descriptors.length - 1] = 
@@ -76,10 +76,12 @@ public class TimerWrapper extends AbstractNodeWrapper {
     public Object getPropertyValue(Object id) {
         Timer timer = getTimerNode().getTimer();
         if (TIMER_DELAY.equals(id)) {
-        	return timer == null ? "" : timer.getDelay() + "";
+        	return timer == null ? "" : 
+        		(timer.getDelay() == null? "" : timer.getDelay());
         }
         if (TIMER_PERIOD.equals(id)) {
-            return timer == null ? "" : timer.getPeriod() + "";
+            return timer == null ? "" :
+            	(timer.getPeriod() == null ? "" : timer.getPeriod());
         }
         return super.getPropertyValue(id);
     }
@@ -91,14 +93,14 @@ public class TimerWrapper extends AbstractNodeWrapper {
                 timer = new Timer();
                 getTimerNode().setTimer(timer);
             } else {
-                timer.setDelay(0);
+                timer.setDelay(null);
             }
         } else if (TIMER_PERIOD.equals(id)) {
             if (timer == null) {
                 timer = new Timer();
                 getTimerNode().setTimer(timer);
             } else {
-                timer.setPeriod(0);
+                timer.setPeriod(null);
             }
         } else {
             super.resetPropertyValue(id);
@@ -107,14 +109,22 @@ public class TimerWrapper extends AbstractNodeWrapper {
 
     public void setPropertyValue(Object id, Object value) {
         Timer timer = getTimerNode().getTimer();
+        if (timer == null) {
+            timer = new Timer();
+            getTimerNode().setTimer(timer);
+        }
         if (TIMER_DELAY.equals(id)) {
-            if (timer == null) {
-                timer = new Timer();
-                getTimerNode().setTimer(timer);
-            }
-            timer.setDelay(new Long((String) value));
+        	String s = ((String) value).trim();
+        	if (s.length() == 0) {
+        		s = null;
+        	}
+            timer.setDelay(s);
         } else if (TIMER_PERIOD.equals(id)) {
-            timer.setPeriod(new Long((String) value));
+        	String s = ((String) value).trim();
+        	if (s.length() == 0) {
+        		s = null;
+        	}
+            timer.setPeriod(s);
         } else {
             super.setPropertyValue(id, value);
         }

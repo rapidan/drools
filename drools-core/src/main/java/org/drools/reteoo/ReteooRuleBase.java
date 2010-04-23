@@ -17,6 +17,7 @@ package org.drools.reteoo;
  */
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
@@ -24,10 +25,10 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 import org.drools.FactException;
+import org.drools.FactHandle;
 import org.drools.KnowledgeBaseFactory;
 import org.drools.RuleBaseConfiguration;
 import org.drools.SessionConfiguration;
@@ -35,6 +36,9 @@ import org.drools.StatefulSession;
 import org.drools.StatelessSession;
 import org.drools.common.AbstractRuleBase;
 import org.drools.common.DefaultFactHandle;
+import org.drools.common.DroolsObjectInput;
+import org.drools.common.DroolsObjectInputStream;
+import org.drools.common.DroolsObjectOutputStream;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.RuleBasePartitionId;
@@ -44,6 +48,7 @@ import org.drools.event.RuleBaseEventListener;
 import org.drools.impl.EnvironmentFactory;
 import org.drools.impl.KnowledgeBaseImpl;
 import org.drools.impl.StatefulKnowledgeSessionImpl;
+import org.drools.management.DroolsManagementAgent;
 import org.drools.marshalling.Marshaller;
 import org.drools.marshalling.MarshallerFactory;
 import org.drools.reteoo.ReteooWorkingMemory.WorkingMemoryReteAssertAction;
@@ -53,7 +58,6 @@ import org.drools.rule.Package;
 import org.drools.rule.Rule;
 import org.drools.runtime.Environment;
 import org.drools.runtime.StatefulKnowledgeSession;
-import org.drools.FactHandle;
 import org.drools.spi.ExecutorServiceFactory;
 import org.drools.spi.FactHandleFactory;
 import org.drools.spi.PropagationContext;
@@ -140,8 +144,11 @@ public class ReteooRuleBase extends AbstractRuleBase {
                           final FactHandleFactory factHandleFactory) {
         super( id,
                config,
-               factHandleFactory );
+               factHandleFactory ); 
         setupRete();
+        if( config != null && config.isMBeansEnabled() ) {
+            DroolsManagementAgent.getInstance().registerKnowledgeBase( this ); 
+        }
     }
 
     private void setupRete() {
@@ -163,9 +170,28 @@ public class ReteooRuleBase extends AbstractRuleBase {
      *
      */
     public void writeExternal(final ObjectOutput stream) throws IOException {
-        super.writeExternal( stream );
-        stream.writeObject( this.reteooBuilder );
-        stream.writeObject( this.rete );
+        DroolsObjectOutputStream droolsStream = null;
+        boolean isDrools = stream instanceof DroolsObjectOutputStream; 
+        ByteArrayOutputStream bytes = null;
+        
+        stream.writeBoolean( isDrools );
+        if ( isDrools ) {
+            droolsStream = (DroolsObjectOutputStream) stream;
+        } else {
+            bytes = new ByteArrayOutputStream();
+            droolsStream = new DroolsObjectOutputStream( bytes );
+        }
+        
+        super.writeExternal( droolsStream );
+        droolsStream.writeObject( this.reteooBuilder );
+        droolsStream.writeObject( this.rete );
+        
+        if ( !isDrools ) {
+            droolsStream.flush();
+            droolsStream.close();
+            bytes.close();
+            stream.writeObject( bytes.toByteArray() );
+        }
     }
 
     /**
@@ -176,9 +202,30 @@ public class ReteooRuleBase extends AbstractRuleBase {
      */
     public void readExternal(final ObjectInput stream) throws IOException,
                                                       ClassNotFoundException {
-        super.readExternal( stream );
-        this.reteooBuilder = (ReteooBuilder) stream.readObject();
-        this.rete = (Rete) stream.readObject();
+        DroolsObjectInput droolsStream = null;
+        boolean isDrools = stream instanceof DroolsObjectInputStream;
+        ByteArrayInputStream bytes = null;
+
+        boolean wasDrools = stream.readBoolean();
+        if( wasDrools && !isDrools) {
+            throw new IllegalArgumentException("The knowledge base was serialized using a DroolsObjectOutputStream. A DroolsObjectInputStream is required for deserialization.");
+        }
+        
+        if ( wasDrools ) {
+            droolsStream = (DroolsObjectInput) stream;
+        } else {
+            bytes = new ByteArrayInputStream( (byte[]) stream.readObject() );
+            droolsStream = new DroolsObjectInputStream( bytes );
+        }
+        
+        super.readExternal( droolsStream );
+        this.reteooBuilder = (ReteooBuilder) droolsStream.readObject();
+        this.reteooBuilder.setRuleBase( this );
+        this.rete = (Rete) droolsStream.readObject();
+        
+        if( !wasDrools ) {
+            droolsStream.close();
+        }
     }
 
     // ------------------------------------------------------------
@@ -344,95 +391,6 @@ public class ReteooRuleBase extends AbstractRuleBase {
 
         return session;
     }
-
-    //    public StatefulSession readStatefulSession(final InputStream stream,
-    //                                               final boolean keepReference,
-    //                                               final Marshaller marshaller,
-    //                                               final SessionConfiguration sessionConfig,
-    //                                               Environment environment ) throws IOException,
-    //                                                                          ClassNotFoundException {
-    //
-    //        if ( this.config.isSequential() ) {
-    //            throw new RuntimeException( "Cannot have a stateful rule session, with sequential configuration set to true" );
-    //        }
-    //
-    ////        PlaceholderResolverStrategyFactory factory = new PlaceholderResolverStrategyFactory();
-    ////        factory.addPlaceholderResolverStrategy( new SerializablePlaceholderResolverStrategy() );
-    //
-    //        StatefulSession session = null;
-    //        synchronized ( this.pkgs ) {
-    //           // ExecutorService executor = ExecutorServiceFactory.createExecutorService( this.config.getExecutorService() );
-    //            
-    //            session = ( StatefulSession ) ((StatefulKnowledgeSessionImpl)marshaller.unmarshall( stream, sessionConfig, environment )).session;
-    //
-    ////            WMSerialisationInContext context = new WMSerialisationInContext( stream,
-    ////                                                                             this,
-    ////                                                                             RuleBaseNodes.getNodeMap( this ),
-    ////                                                                             factory );
-    ////
-    ////            session = InputPersister.readSession( context, nextWorkingMemoryCounter(), executor );
-    //
-    //            // executor.setCommandExecutor( new CommandExecutor( session ) );
-    //
-    //
-    //            if ( keepReference ) {
-    //                super.addStatefulSession( session );
-    //                for ( Iterator it = session.getRuleBaseUpdateListeners().iterator(); it.hasNext(); ) {
-    //                    addEventListener( (RuleBaseEventListener) it.next() );
-    //                }
-    //            }
-    //        }
-    //        return session;
-    //
-    //        //        final DroolsObjectInputStream streamWithLoader = new DroolsObjectInputStream( stream,
-    //        //                                                                                      this.packageClassLoader );
-    //        //        streamWithLoader.setRuleBase( this );
-    //        //
-    //        //        final StatefulSession session = (StatefulSession) streamWithLoader.readObject();
-    //        //
-    //        //        synchronized ( this.pkgs ) {
-    //        //            ((InternalWorkingMemory) session).setRuleBase( this );
-    //        //            ((InternalWorkingMemory) session).setId( (nextWorkingMemoryCounter()) );
-    //        //
-    //        //            ExecutorService executor = ExecutorServiceFactory.createExecutorService( this.config.getExecutorService() );
-    //        //            executor.setCommandExecutor( new CommandExecutor( session ) );
-    //        //            ((InternalWorkingMemory) session).setExecutorService( executor );
-    //        //
-    //        //            if ( keepReference ) {
-    //        //                addStatefulSession( session );
-    //        //                for ( Iterator it = session.getRuleBaseUpdateListeners().iterator(); it.hasNext(); ) {
-    //        //                    addEventListener( (RuleBaseEventListener) it.next() );
-    //        //                }
-    //        //            }
-    //        //
-    //        //            return session;
-    //        //        }
-    //    }
-    //
-    //    public void writeStatefulSession(final StatefulSession session,
-    //                                     final OutputStream stream,
-    //                                     Marshaller marshaller) throws IOException {
-    //        
-    ////        PlaceholderResolverStrategyFactory factory = new PlaceholderResolverStrategyFactory();
-    ////        factory.addPlaceholderResolverStrategy( new SerializablePlaceholderResolverStrategy() );
-    ////
-    ////        WMSerialisationOutContext context = new WMSerialisationOutContext( stream,
-    ////                                                                           this,
-    ////                                                                           (InternalWorkingMemory) session,
-    ////                                                                           RuleBaseNodes.getNodeMap( this ),
-    ////                                                                           factory );
-    ////        OutputPersister.writeSession( context );
-    //        marshaller.marshall( stream, session );
-    //        //((ReteooStatefulSession) session).write( context );
-    //        
-    //
-    //        //        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    //        //        OutputPersister op = new OutputPersister( this,
-    //        //                                                  (InternalWorkingMemory) wm,
-    //        //                                                  baos,
-    //        //                                                  factory );
-    //        //        op.write();
-    //    }
 
     public StatelessSession newStatelessSession() {
 

@@ -10,256 +10,274 @@ import org.drools.StatelessSessionResult;
 import org.drools.base.RuleNameMatchesAgendaFilter;
 import org.drools.base.evaluators.Operator;
 import org.drools.verifier.TestBase;
+import org.drools.verifier.VerifierComponentMockFactory;
 import org.drools.verifier.components.LiteralRestriction;
+import org.drools.verifier.components.ObjectType;
+import org.drools.verifier.components.Pattern;
 import org.drools.verifier.components.Variable;
 import org.drools.verifier.components.VariableRestriction;
 import org.drools.verifier.components.VerifierComponentType;
+import org.drools.verifier.components.VerifierRule;
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 
 public class IncompatibilityRestrictionsTest extends IncompatibilityBase {
 
-	public void testLiteralRestrictionsIncompatibilityLessOrEqual()
-			throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Restrictions.drl"));
+    public void testLiteralRestrictionsIncompatibilityLessOrEqual() throws Exception {
+        StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
-		session
-				.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-						"Incompatible LiteralRestrictions with ranges in pattern possibility, impossible equality less or equal"));
+        session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incompatible LiteralRestrictions with ranges in pattern possibility, impossible equality less or equal" ) );
 
-		Collection<Object> data = new ArrayList<Object>();
+        Collection<Object> data = new ArrayList<Object>();
 
-		/*
-		 * Working pair
-		 */
-		LiteralRestriction r1 = new LiteralRestriction();
-		r1.setOperator(Operator.EQUAL);
-		r1.setPatternId(0);
-		r1.setFieldId(0);
-		r1.setValue("10");
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
+        Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
-		LiteralRestriction r2 = new LiteralRestriction();
-		r2.setOperator(Operator.LESS);
-		r2.setPatternId(0);
-		r2.setFieldId(0);
-		r2.setValue("1");
+        /*
+         * Working pair
+         */
+        LiteralRestriction r1 = LiteralRestriction.createRestriction( pattern1,
+                                                                      "10" );
+        r1.setOperator( Operator.EQUAL );
+        r1.setFieldPath( "0" );
+        r1.setOrderNumber( 0 );
 
-		/*
-		 * Pair that doesn't work.
-		 */
-		LiteralRestriction r3 = new LiteralRestriction();
-		r3.setOperator(Operator.GREATER_OR_EQUAL);
-		r3.setPatternId(1);
-		r3.setFieldId(1);
-		r3.setValue("1");
+        LiteralRestriction r2 = LiteralRestriction.createRestriction( pattern1,
+                                                                      "1" );
+        r2.setOperator( Operator.LESS );
+        r2.setFieldPath( "0" );
+        r2.setOrderNumber( 2 );
 
-		LiteralRestriction r4 = new LiteralRestriction();
-		r4.setOperator(Operator.EQUAL);
-		r4.setPatternId(1);
-		r4.setFieldId(1);
-		r4.setValue("10");
+        /*
+         * Pair that doesn't work.
+         */
+        LiteralRestriction r3 = LiteralRestriction.createRestriction( pattern2,
+                                                                      "1" );
+        r3.setOperator( Operator.GREATER_OR_EQUAL );
+        r3.setFieldPath( "1" );
+        r3.setOrderNumber( 0 );
 
-		data.add(r1);
-		data.add(r2);
-		data.add(r3);
-		data.add(r4);
+        LiteralRestriction r4 = LiteralRestriction.createRestriction( pattern2,
+                                                                      "10" );
+        r4.setOperator( Operator.EQUAL );
+        r4.setFieldPath( "1" );
+        r4.setOrderNumber( 1 );
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        data.add( r1 );
+        data.add( r2 );
+        data.add( r3 );
+        data.add( r4 );
 
-		Map<Cause, Set<Cause>> map = createIncompatibilityMap(CauseType.RESTRICTION,
-				sessionResult.iterateObjects());
+        StatelessSessionResult sessionResult = session.executeWithResults( data );
 
-		assertTrue((TestBase.causeMapContains(map, r1, r2) ^ TestBase
-				.causeMapContains(map, r2, r1)));
+        Map<Cause, Set<Cause>> map = createIncompatibilityMap( VerifierComponentType.RESTRICTION,
+                                                               sessionResult.iterateObjects() );
 
-		if (!map.isEmpty()) {
-			fail("More incompatibilities than was expected.");
-		}
-	}
+        assertTrue( (TestBase.causeMapContains( map,
+                                                r1,
+                                                r2 ) ^ TestBase.causeMapContains( map,
+                                                                                  r2,
+                                                                                  r1 )) );
 
-	public void testLiteralRestrictionsIncompatibilityGreater()
-			throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Restrictions.drl"));
+        if ( !map.isEmpty() ) {
+            fail( "More incompatibilities than was expected." );
+        }
+    }
 
-		session
-				.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-						"Incompatible LiteralRestrictions with ranges in pattern possibility, impossible equality greater"));
+    public void testLiteralRestrictionsIncompatibilityGreater() throws Exception {
+        StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
-		Collection<Object> data = new ArrayList<Object>();
+        session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incompatible LiteralRestrictions with ranges in pattern possibility, impossible equality greater" ) );
 
-		/*
-		 * Working pair
-		 */
-		LiteralRestriction r1 = new LiteralRestriction();
-		r1.setOperator(Operator.GREATER);
-		r1.setPatternId(0);
-		r1.setFieldId(0);
-		r1.setValue("10");
+        Collection<Object> data = new ArrayList<Object>();
 
-		LiteralRestriction r2 = new LiteralRestriction();
-		r2.setOperator(Operator.EQUAL);
-		r2.setPatternId(0);
-		r2.setFieldId(0);
-		r2.setValue("1");
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
+        Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
-		/*
-		 * Pair that doesn't work.
-		 */
-		LiteralRestriction r3 = new LiteralRestriction();
-		r3.setOperator(Operator.GREATER_OR_EQUAL);
-		r3.setPatternId(1);
-		r3.setFieldId(1);
-		r3.setValue("1");
+        /*
+         * Working pair
+         */
+        LiteralRestriction r1 = LiteralRestriction.createRestriction( pattern1,
+                                                                      "10" );
+        r1.setOperator( Operator.GREATER );
+        r1.setFieldPath( "0" );
+        r1.setOrderNumber( 0 );
 
-		LiteralRestriction r4 = new LiteralRestriction();
-		r4.setOperator(Operator.EQUAL);
-		r4.setPatternId(1);
-		r4.setFieldId(1);
-		r4.setValue("10");
+        LiteralRestriction r2 = LiteralRestriction.createRestriction( pattern1,
+                                                                      "1" );
+        r2.setOperator( Operator.EQUAL );
+        r2.setFieldPath( "0" );
+        r2.setOrderNumber( 1 );
 
-		data.add(r1);
-		data.add(r2);
-		data.add(r3);
-		data.add(r4);
+        /*
+         * Pair that doesn't work.
+         */
+        LiteralRestriction r3 = LiteralRestriction.createRestriction( pattern2,
+                                                                      "1" );
+        r3.setOperator( Operator.GREATER_OR_EQUAL );
+        r3.setFieldPath( "1" );
+        r3.setOrderNumber( 0 );
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        LiteralRestriction r4 = LiteralRestriction.createRestriction( pattern2,
+                                                                      "10" );
+        r4.setOperator( Operator.EQUAL );
+        r4.setFieldPath( "1" );
+        r4.setOrderNumber( 1 );
 
-		Map<Cause, Set<Cause>> map = createIncompatibilityMap(CauseType.RESTRICTION,
-				sessionResult.iterateObjects());
+        data.add( r1 );
+        data.add( r2 );
+        data.add( r3 );
+        data.add( r4 );
 
-		assertTrue((TestBase.causeMapContains(map, r1, r2) ^ TestBase
-				.causeMapContains(map, r2, r1)));
+        StatelessSessionResult sessionResult = session.executeWithResults( data );
 
-		if (!map.isEmpty()) {
-			fail("More incompatibilities than was expected.");
-		}
-	}
+        Map<Cause, Set<Cause>> map = createIncompatibilityMap( VerifierComponentType.RESTRICTION,
+                                                               sessionResult.iterateObjects() );
 
-	public void testLiteralRestrictionsIncompatibilityImpossibleRange()
-			throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Restrictions.drl"));
+        assertTrue( (TestBase.causeMapContains( map,
+                                                r1,
+                                                r2 ) ^ TestBase.causeMapContains( map,
+                                                                                  r2,
+                                                                                  r1 )) );
 
-		session
-				.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-						"Incompatible LiteralRestrictions with ranges in pattern possibility, impossible range"));
+        if ( !map.isEmpty() ) {
+            fail( "More incompatibilities than was expected." );
+        }
+    }
 
-		Collection<Object> data = new ArrayList<Object>();
+    public void testLiteralRestrictionsIncompatibilityImpossibleRange() throws Exception {
+        StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
-		/*
-		 * Working pair
-		 */
-		LiteralRestriction r1 = new LiteralRestriction();
-		r1.setOperator(Operator.GREATER);
-		r1.setPatternId(0);
-		r1.setFieldId(0);
-		r1.setValue("10");
+        session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incompatible LiteralRestrictions with ranges in pattern possibility, impossible range" ) );
 
-		LiteralRestriction r2 = new LiteralRestriction();
-		r2.setOperator(Operator.LESS);
-		r2.setPatternId(0);
-		r2.setFieldId(0);
-		r2.setValue("10");
+        Collection<Object> data = new ArrayList<Object>();
 
-		/*
-		 * Pair that doesn't work.
-		 */
-		LiteralRestriction r3 = new LiteralRestriction();
-		r3.setOperator(Operator.GREATER_OR_EQUAL);
-		r3.setPatternId(1);
-		r3.setFieldId(1);
-		r3.setValue("1");
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
+        Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
-		LiteralRestriction r4 = new LiteralRestriction();
-		r4.setOperator(Operator.EQUAL);
-		r4.setPatternId(1);
-		r4.setFieldId(1);
-		r4.setValue("10");
+        /*
+         * Working pair
+         */
+        LiteralRestriction r1 = LiteralRestriction.createRestriction( pattern1,
+                                                                      "10" );
+        r1.setOperator( Operator.GREATER );
+        r1.setFieldPath( "0" );
+        r1.setOrderNumber( 0 );
 
-		data.add(r1);
-		data.add(r2);
-		data.add(r3);
-		data.add(r4);
+        LiteralRestriction r2 = LiteralRestriction.createRestriction( pattern1,
+                                                                      "10" );
+        r2.setOperator( Operator.LESS );
+        r2.setFieldPath( "0" );
+        r2.setOrderNumber( 1 );
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        /*
+         * Pair that doesn't work.
+         */
+        LiteralRestriction r3 = LiteralRestriction.createRestriction( pattern2,
+                                                                      "1" );
+        r3.setOperator( Operator.GREATER_OR_EQUAL );
+        r3.setFieldPath( "1" );
+        r3.setOrderNumber( 0 );
 
-		Map<Cause, Set<Cause>> map = createIncompatibilityMap(CauseType.RESTRICTION,
-				sessionResult.iterateObjects());
+        LiteralRestriction r4 = LiteralRestriction.createRestriction( pattern2,
+                                                                      "" );
+        r4.setOperator( Operator.EQUAL );
+        r4.setFieldPath( "1" );
+        r4.setOrderNumber( 1 );
 
-		assertTrue((TestBase.causeMapContains(map, r1, r2) ^ TestBase
-				.causeMapContains(map, r2, r1)));
+        data.add( r1 );
+        data.add( r2 );
+        data.add( r3 );
+        data.add( r4 );
 
-		if (!map.isEmpty()) {
-			fail("More incompatibilities than was expected.");
-		}
-	}
+        StatelessSessionResult sessionResult = session.executeWithResults( data );
 
-	public void testVariableRestrictionsIncompatibilityImpossibleRange()
-			throws Exception {
-		StatelessSession session = getStatelessSession(this.getClass()
-				.getResourceAsStream("Restrictions.drl"));
+        Map<Cause, Set<Cause>> map = createIncompatibilityMap( VerifierComponentType.RESTRICTION,
+                                                               sessionResult.iterateObjects() );
 
-		session
-				.setAgendaFilter(new RuleNameMatchesAgendaFilter(
-						"Incoherent VariableRestrictions in pattern possibility, impossible range"));
+        assertTrue( (TestBase.causeMapContains( map,
+                                                r1,
+                                                r2 ) ^ TestBase.causeMapContains( map,
+                                                                                  r2,
+                                                                                  r1 )) );
 
-		Collection<Object> data = new ArrayList<Object>();
+        if ( !map.isEmpty() ) {
+            fail( "More incompatibilities than was expected." );
+        }
+    }
 
-		/*
-		 * Working pair
-		 */
-		Variable variable1 = new Variable();
-		variable1.setObjectId(0);
-		variable1.setObjectType(VerifierComponentType.FIELD);
+    public void testVariableRestrictionsIncompatibilityImpossibleRange() throws Exception {
+        StatelessSession session = getStatelessSession( this.getClass().getResourceAsStream( "Restrictions.drl" ) );
 
-		VariableRestriction r1 = new VariableRestriction();
-		r1.setOperator(Operator.GREATER);
-		r1.setPatternId(0);
-		r1.setFieldId(0);
-		r1.setVariable(variable1);
+        session.setAgendaFilter( new RuleNameMatchesAgendaFilter( "Incoherent VariableRestrictions in pattern possibility, impossible range" ) );
 
-		VariableRestriction r2 = new VariableRestriction();
-		r2.setOperator(Operator.LESS);
-		r2.setPatternId(0);
-		r2.setFieldId(0);
-		r2.setVariable(variable1);
+        Collection<Object> data = new ArrayList<Object>();
 
-		/*
-		 * Pair that doesn't work.
-		 */
-		Variable variable2 = new Variable();
-		variable2.setObjectId(1);
-		variable2.setObjectType(VerifierComponentType.FIELD);
+        VerifierRule rule = VerifierComponentMockFactory.createRule1();
 
-		VariableRestriction r3 = new VariableRestriction();
-		r3.setOperator(Operator.GREATER_OR_EQUAL);
-		r3.setPatternId(1);
-		r3.setFieldId(1);
-		r3.setVariable(variable2);
+        ObjectType objectType = new ObjectType();
+        objectType.setFullName( "org.test.Person" );
 
-		VariableRestriction r4 = new VariableRestriction();
-		r4.setOperator(Operator.EQUAL);
-		r4.setPatternId(1);
-		r4.setFieldId(1);
-		r4.setVariable(variable2);
+        Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
+        Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
-		data.add(r1);
-		data.add(r2);
-		data.add(r3);
-		data.add(r4);
+        /*
+         * Working pair
+         */
+        Variable variable1 = new Variable( rule );
+        variable1.setObjectTypePath( "0" );
+        variable1.setObjectTypeType( VerifierComponentType.FIELD.getType() );
+        variable1.setOrderNumber( 11 );
 
-		StatelessSessionResult sessionResult = session.executeWithResults(data);
+        VariableRestriction r1 = new VariableRestriction( pattern1 );
+        r1.setOperator( Operator.GREATER );
+        r1.setFieldPath( "0" );
+        r1.setVariable( variable1 );
+        r1.setOrderNumber( 0 );
 
-		Map<Cause, Set<Cause>> map = createIncompatibilityMap(CauseType.RESTRICTION,
-				sessionResult.iterateObjects());
+        VariableRestriction r2 = new VariableRestriction( pattern1 );
+        r2.setOperator( Operator.LESS );
+        r2.setFieldPath( "0" );
+        r2.setVariable( variable1 );
+        r2.setOrderNumber( 1 );
 
-		assertTrue((TestBase.causeMapContains(map, r1, r2) ^ TestBase
-				.causeMapContains(map, r2, r1)));
+        /*
+         * Pair that doesn't work.
+         */
+        Variable variable2 = new Variable( rule );
+        variable2.setObjectTypePath( "1" );
+        variable2.setObjectTypeType( VerifierComponentType.FIELD.getType() );
+        variable2.setOrderNumber( 10 );
 
-		if (!map.isEmpty()) {
-			fail("More incompatibilities than was expected.");
-		}
-	}
+        VariableRestriction r3 = new VariableRestriction( pattern2 );
+        r3.setOperator( Operator.GREATER_OR_EQUAL );
+        r3.setFieldPath( "1" );
+        r3.setVariable( variable2 );
+        r3.setOrderNumber( 0 );
+
+        VariableRestriction r4 = new VariableRestriction( pattern2 );
+        r4.setOperator( Operator.EQUAL );
+        r4.setFieldPath( "1" );
+        r4.setVariable( variable2 );
+        r4.setOrderNumber( 1 );
+
+        data.add( r1 );
+        data.add( r2 );
+        data.add( r3 );
+        data.add( r4 );
+
+        StatelessSessionResult sessionResult = session.executeWithResults( data );
+
+        Map<Cause, Set<Cause>> map = createIncompatibilityMap( VerifierComponentType.RESTRICTION,
+                                                               sessionResult.iterateObjects() );
+
+        assertTrue( (TestBase.causeMapContains( map,
+                                                r1,
+                                                r2 ) ^ TestBase.causeMapContains( map,
+                                                                                  r2,
+                                                                                  r1 )) );
+
+        if ( !map.isEmpty() ) {
+            fail( "More incompatibilities than was expected." );
+        }
+    }
 }

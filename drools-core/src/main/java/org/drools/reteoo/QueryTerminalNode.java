@@ -19,15 +19,15 @@ package org.drools.reteoo;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.LinkedList;
 
-import org.drools.RuleBaseConfiguration;
+import org.drools.base.DroolsQuery;
 import org.drools.common.BaseNode;
+import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
-import org.drools.common.NodeMemory;
 import org.drools.common.PropagationContextImpl;
 import org.drools.reteoo.builder.BuildContext;
 import org.drools.rule.GroupElement;
+import org.drools.rule.Query;
 import org.drools.rule.Rule;
 import org.drools.spi.PropagationContext;
 
@@ -42,7 +42,6 @@ import org.drools.spi.PropagationContext;
 public final class QueryTerminalNode extends BaseNode
     implements
     LeftTupleSinkNode,
-    NodeMemory,
     TerminalNode {
     // ------------------------------------------------------------
     // Instance members
@@ -52,14 +51,13 @@ public final class QueryTerminalNode extends BaseNode
      *
      */
     private static final long serialVersionUID = 400L;
-    
-    public static final short type = 8;
-    
+
+    public static final short type             = 8;
+
     /** The rule to invoke upon match. */
     private Rule              rule;
     private GroupElement      subrule;
     private LeftTupleSource   tupleSource;
-    private boolean           tupleMemoryEnabled;
 
     private LeftTupleSinkNode previousTupleSinkNode;
     private LeftTupleSinkNode nextTupleSinkNode;
@@ -83,14 +81,13 @@ public final class QueryTerminalNode extends BaseNode
                              final LeftTupleSource source,
                              final Rule rule,
                              final GroupElement subrule,
-                             final BuildContext context ) {
+                             final BuildContext context) {
         super( id,
                context.getPartitionId(),
                context.getRuleBase().getConfiguration().isMultithreadEvaluation() );
         this.rule = rule;
         this.subrule = subrule;
         this.tupleSource = source;
-        this.tupleMemoryEnabled = false; //hard coded to false
     }
 
     // ------------------------------------------------------------
@@ -102,7 +99,6 @@ public final class QueryTerminalNode extends BaseNode
         rule = (Rule) in.readObject();
         subrule = (GroupElement) in.readObject();
         tupleSource = (LeftTupleSource) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
         previousTupleSinkNode = (LeftTupleSinkNode) in.readObject();
         nextTupleSinkNode = (LeftTupleSinkNode) in.readObject();
     }
@@ -112,7 +108,6 @@ public final class QueryTerminalNode extends BaseNode
         out.writeObject( rule );
         out.writeObject( subrule );
         out.writeObject( tupleSource );
-        out.writeBoolean( tupleMemoryEnabled );
         out.writeObject( previousTupleSinkNode );
         out.writeObject( nextTupleSinkNode );
     }
@@ -143,21 +138,29 @@ public final class QueryTerminalNode extends BaseNode
     public void assertLeftTuple(final LeftTuple tuple,
                                 final PropagationContext context,
                                 final InternalWorkingMemory workingMemory) {
-        final LinkedList list = (LinkedList) workingMemory.getNodeMemory( this );
-        if ( list.isEmpty() ) {
-            ((ReteooWorkingMemory) workingMemory).setQueryResults( this.rule.getName(),
-                                                                   this );
+        LeftTuple entry = tuple;
+
+        // find the DroolsQuery object
+        while ( entry.getParent() != null ) {
+            entry = entry.getParent();
         }
-        list.add( tuple );
+        DroolsQuery query = (DroolsQuery) entry.getLastHandle().getObject();
+        query.setQuery( (Query) this.rule );
+
+        // Add results to the adapter
+        query.getQueryResultCollector().add( tuple,
+                                             context,
+                                             workingMemory );
     }
 
     public void retractLeftTuple(final LeftTuple tuple,
                                  final PropagationContext context,
                                  final InternalWorkingMemory workingMemory) {
+        throw new UnsupportedOperationException( "Querries should not result in this method being called" );
     }
 
     public String toString() {
-        return "[QueryTerminalNode: rule=" + this.rule.getName() + "]";
+        return "[QueryTerminalNode(" + this.getId() + "): query=" + this.rule.getName() + "]";
     }
 
     public void ruleAttached() {
@@ -192,16 +195,10 @@ public final class QueryTerminalNode extends BaseNode
                             final ReteooBuilder builder,
                             final BaseNode node,
                             final InternalWorkingMemory[] workingMemories) {
-        for ( int i = 0, length = workingMemories.length; i < length; i++ ) {
-            workingMemories[i].clearNodeMemory( this );
-        }
-
-        if ( !context.alreadyVisited( this.tupleSource ) ) {
-            this.tupleSource.remove( context,
-                                     builder,
-                                     this,
-                                     workingMemories );
-        }
+        this.tupleSource.remove( context,
+                                 builder,
+                                 this,
+                                 workingMemories );
     }
 
     public boolean isInUse() {
@@ -213,16 +210,12 @@ public final class QueryTerminalNode extends BaseNode
         // There are no child nodes to update, do nothing.
     }
 
-    public Object createMemory(final RuleBaseConfiguration config) {
-        return new LinkedList();
-    }
-
     public boolean isLeftTupleMemoryEnabled() {
-        return tupleMemoryEnabled;
+        return false;
     }
 
     public void setLeftTupleMemoryEnabled(boolean tupleMemoryEnabled) {
-        this.tupleMemoryEnabled = tupleMemoryEnabled;
+        // do nothing, this can only ever be false
     }
 
     /**
@@ -267,9 +260,22 @@ public final class QueryTerminalNode extends BaseNode
     public void setNextLeftTupleSinkNode(final LeftTupleSinkNode next) {
         this.nextTupleSinkNode = next;
     }
-    
+
     public short getType() {
         return NodeTypeEnums.QueryTerminalNode;
-    } 
+    }
+
+    public void modifyLeftTuple(InternalFactHandle factHandle,
+                                ModifyPreviousTuples modifyPreviousTuples,
+                                PropagationContext context,
+                                InternalWorkingMemory workingMemory) {
+        throw new UnsupportedOperationException( "Querries should not result in this method being called" );
+    }
+
+    public void modifyLeftTuple(LeftTuple leftTuple,
+                                PropagationContext context,
+                                InternalWorkingMemory workingMemory) {
+        throw new UnsupportedOperationException( "Querries should not result in this method being called" );
+    }
 
 }

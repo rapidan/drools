@@ -15,42 +15,33 @@ package org.drools.guvnor.client.modeldriven.ui;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import java.util.List;
 
 import org.drools.guvnor.client.common.DirtyableComposite;
-import org.drools.guvnor.client.common.FieldEditListener;
 import org.drools.guvnor.client.common.FormStylePopup;
-import org.drools.guvnor.client.common.GenericCallback;
 import org.drools.guvnor.client.common.InfoPopup;
-import org.drools.guvnor.client.common.LoadingPopup;
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.common.ValueChanged;
+import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.modeldriven.DropDownData;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.FactPattern;
 import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
 import org.drools.guvnor.client.modeldriven.brl.RuleModel;
 import org.drools.guvnor.client.modeldriven.brl.SingleFieldConstraint;
-import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
-import org.drools.guvnor.client.messages.Constants;
 
-import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.DeferredCommand;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ChangeListener;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
-import com.google.gwt.user.client.ui.KeyboardListener;
-import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.core.client.GWT;
 
 /**
  * This is an editor for constraint values.
@@ -62,102 +53,164 @@ import com.google.gwt.core.client.GWT;
  */
 public class ConstraintValueEditor extends DirtyableComposite {
 
+    private final FactPattern pattern;
+    private final String fieldName;
+    private final SuggestionCompletionEngine sce;
     private final ISingleFieldConstraint constraint;
-    private final Panel                  panel;
-    private final RuleModel              model;
-    private final boolean                numericValue;
-    private DropDownData                 dropDownData;
-    private Constants                    constants = ((Constants) GWT.create( Constants.class ));
-    private String                       fieldType;
+    private final Panel panel;
+    private final RuleModel model;
+    private final RuleModeller modeller;
+    private final boolean numericValue;
+    private DropDownData dropDownData;
+    private Constants constants = ((Constants) GWT.create(Constants.class));
+    private String fieldType;
+    private boolean readOnly;
 
-    //private String[] enumeratedValues;
-
-    /**
-     * @param con The constraint being edited.
-     */
-    public ConstraintValueEditor(FactPattern pattern,
-                                 String fieldName,
-                                 ISingleFieldConstraint con,
-                                 RuleModeller modeller,
-                                 String valueType /* eg is numeric */) {
+    public ConstraintValueEditor(FactPattern pattern, String fieldName,
+    		ISingleFieldConstraint con, RuleModeller modeller, String valueType,
+			boolean readOnly) {
+        this.pattern = pattern;
+        this.fieldName = fieldName;
+        this.sce = modeller.getSuggestionCompletions();
         this.constraint = con;
-        valueType = modeller.getSuggestionCompletions().getFieldType( pattern.factType,
-                                                                      fieldName );
+        this.panel = new SimplePanel();
+        this.model = modeller.getModel();
+        this.modeller = modeller;
+
+        valueType = sce.getFieldType(pattern.factType, fieldName);
         this.fieldType = valueType;
-        SuggestionCompletionEngine sce = modeller.getSuggestionCompletions();
-        if ( SuggestionCompletionEngine.TYPE_NUMERIC.equals( valueType ) ) {
+        if (SuggestionCompletionEngine.TYPE_NUMERIC.equals(valueType)) {
             this.numericValue = true;
         } else {
             this.numericValue = false;
         }
-        if ( SuggestionCompletionEngine.TYPE_BOOLEAN.equals( valueType ) ) {
-            this.dropDownData = DropDownData.create( new String[]{"true", "false"} ); //NON-NLS
+        
+        this.readOnly = readOnly;
+        if (SuggestionCompletionEngine.TYPE_BOOLEAN.equals(valueType)) {
+            this.dropDownData = DropDownData.create(new String[]{"true", "false"}); //NON-NLS
         } else {
-            this.dropDownData = sce.getEnums( pattern,
-                                              fieldName );
+            this.dropDownData = sce.getEnums(pattern,
+                    fieldName);
         }
 
-        this.model = modeller.getModel();
-
-        panel = new SimplePanel();
         refreshEditor();
-        initWidget( panel );
+        initWidget(panel);
 
     }
 
-    private void refreshEditor() {
+	private void refreshEditor() {
         panel.clear();
+        Widget constraintWidget = null;
+        if (constraint.constraintValueType == SingleFieldConstraint.TYPE_UNDEFINED) {
+            Image clickme = new Image("images/edit.gif"); //NON-NLS
+            clickme.addClickListener(new ClickListener() {
 
-        if ( constraint.constraintValueType == SingleFieldConstraint.TYPE_UNDEFINED ) {
-            Image clickme = new Image( "images/edit.gif" ); //NON-NLS
-            clickme.addClickListener( new ClickListener() {
                 public void onClick(Widget w) {
-                    showTypeChoice( w,
-                                    constraint );
+                    showTypeChoice(w,
+                            constraint);
                 }
-            } );
-            panel.add( clickme );
+            });
+            constraintWidget = clickme;
         } else {
-            switch ( constraint.constraintValueType ) {
-                case SingleFieldConstraint.TYPE_LITERAL :
-                    panel.add( literalEditor() );
+            switch (constraint.constraintValueType) {
+                case SingleFieldConstraint.TYPE_LITERAL:
+                    if (this.dropDownData != null) {
+                        constraintWidget = new EnumDropDownLabel(this.pattern,
+                                this.fieldName,
+                                this.sce,
+                                this.constraint);
+                    } else if (SuggestionCompletionEngine.TYPE_DATE.equals(this.fieldType)) {
+
+                        DatePickerLabel datePicker = new DatePickerLabel(constraint.value);
+
+                        // Set the default time
+                        this.constraint.value = datePicker.getDateString();
+
+                        if (!this.readOnly) {
+                            datePicker.addValueChanged(new ValueChanged() {
+
+                                public void valueChanged(String newValue) {
+                                    constraint.value = newValue;
+                                }
+                            });
+
+                            constraintWidget =  datePicker;
+                        } else {
+                        	constraintWidget = new SmallLabel(this.constraint.value);
+                        }
+                    } else {
+                        if (!this.readOnly) {
+                        	constraintWidget = new DefaultLiteralEditor(this.constraint,
+                                    this.numericValue);
+                        } else {
+                        	constraintWidget = new SmallLabel(this.constraint.value);
+                        }
+                    }
                     break;
-                case SingleFieldConstraint.TYPE_RET_VALUE :
-                    panel.add( returnValueEditor() );
+                case SingleFieldConstraint.TYPE_RET_VALUE:
+                	constraintWidget = returnValueEditor();
                     break;
-                case SingleFieldConstraint.TYPE_VARIABLE :
-                    panel.add( variableEditor() );
+                case SingleFieldConstraint.TYPE_EXPR_BUILDER:
+                	constraintWidget = expressionEditor();
                     break;
-                default :
+                case SingleFieldConstraint.TYPE_VARIABLE:
+                	constraintWidget = variableEditor();
+                    break;
+                case ISingleFieldConstraint.TYPE_TEMPLATE:
+                	constraintWidget = new DefaultLiteralEditor(this.constraint, false);
+                    break;
+                default:
                     break;
             }
         }
+        panel.add(constraintWidget);
     }
 
     private Widget variableEditor() {
-        List vars = this.model.getBoundVariablesInScope( this.constraint );
+
+        if (this.readOnly){
+            return new SmallLabel(this.constraint.value);
+        }
+
+        List vars = this.model.getBoundVariablesInScope(this.constraint);
 
         final ListBox box = new ListBox();
 
-        if ( this.constraint.value == null ) {
-            box.addItem( constants.Choose() );
+        if (this.constraint.value == null) {
+            box.addItem(constants.Choose());
         }
-        for ( int i = 0; i < vars.size(); i++ ) {
-            String var = (String) vars.get( i );
-            FactPattern f = model.getBoundFact( var );
-            if ( f.factType.equals( this.fieldType ) ) {
-                box.addItem( var );
-                if ( this.constraint.value != null && this.constraint.value.equals( var ) ) {
-                    box.setSelectedIndex( i );
+
+        int j = 0;
+        for (int i = 0; i < vars.size(); i++) {
+            String var = (String) vars.get(i);
+            FactPattern f = model.getBoundFact(var);
+            String fv = model.getFieldConstraint(var);
+            if ((f != null && f.factType.equals(this.fieldType)) || (fv != null && fv.equals(this.fieldType))) {
+                box.addItem(var);
+                if (this.constraint.value != null && this.constraint.value.equals(var)) {
+                    box.setSelectedIndex(j);
+                }
+                j++;
+            } else {
+                // for collection, present the list of possible bound variable
+                String factCollectionType = sce.getParametricFieldType(pattern.factType,
+                        this.fieldName);
+                if ((f != null && factCollectionType != null && f.factType.equals(factCollectionType)) || (factCollectionType != null && factCollectionType.equals(fv))) {
+                    box.addItem(var);
+                    if (this.constraint.value != null && this.constraint.value.equals(var)) {
+                        box.setSelectedIndex(j);
+                    }
+                    j++;
                 }
             }
         }
 
-        box.addChangeListener( new ChangeListener() {
+        box.addChangeListener(new ChangeListener() {
+
             public void onChange(Widget w) {
-                constraint.value = box.getItemText( box.getSelectedIndex() );
+                constraint.value = box.getItemText(box.getSelectedIndex());
             }
-        } );
+        });
 
         return box;
     }
@@ -166,315 +219,133 @@ public class ConstraintValueEditor extends DirtyableComposite {
      * An editor for the retval "formula" (expression).
      */
     private Widget returnValueEditor() {
-        TextBox box = boundTextBox( constraint );
+        TextBox box = new BoundTextBox(constraint);
         String msg = constants.FormulaEvaluateToAValue();
-        Image img = new Image( "images/function_assets.gif" ); //NON-NLS
-        img.setTitle( msg );
-        box.setTitle( msg );
-        Widget ed = widgets( img,
-                             box );
+        Image img = new Image("images/function_assets.gif"); //NON-NLS
+        img.setTitle(msg);
+        box.setTitle(msg);
+        Widget ed = widgets(img,
+                box);
         return ed;
     }
 
-    /**
-     * An editor for literal values.
-     */
-    private Widget literalEditor() {
-
-        //use a drop down if we have a fixed list
-        if ( this.dropDownData != null ) {
-            return enumDropDown( constraint.value,
-                                 new ValueChanged() {
-                                     public void valueChanged(String newValue) {
-                                         constraint.value = newValue;
-                                     }
-                                 },
-                                 this.dropDownData );
-
-        } else if ( SuggestionCompletionEngine.TYPE_DATE.equals( this.fieldType ) ) {
-
-            DatePicker datePicker = new DatePicker( constraint.value );
-            
-            // Set the default time
-            constraint.value = datePicker.getDateString();
-            
-            datePicker.addValueChanged( new ValueChanged() {
-                public void valueChanged(String newValue) {
-                    constraint.value = newValue;
-                }
-            } );
-
-            return datePicker;
-        } else {
-
-            final TextBox box = boundTextBox( constraint );
-
-            if ( this.numericValue ) {
-                box.addKeyboardListener( new KeyboardListener() {
-
-                    public void onKeyDown(Widget arg0,
-                                          char arg1,
-                                          int arg2) {
-
-                    }
-
-                    public void onKeyPress(Widget w,
-                                           char c,
-                                           int i) {
-                        if ( Character.isLetter( c ) ) {
-                            ((TextBox) w).cancelKey();
-                        }
-                    }
-
-                    public void onKeyUp(Widget arg0,
-                                        char arg1,
-                                        int arg2) {
-                    }
-
-                } );
-            }
-
-            box.setTitle( constants.LiteralValueTip() );
-            return box;
+    private Widget expressionEditor() {
+        if (!(this.constraint instanceof SingleFieldConstraint)) {
+            throw new IllegalArgumentException("Expected SingleFieldConstraint, but " + constraint.getClass().getName() + " found.");
         }
-    }
-
-    /**
-     * This will do a drop down for enumerated values..
-     */
-    public static Widget enumDropDown(final String currentValue,
-                                      final ValueChanged valueChanged,
-                                      final DropDownData dropData) {
-        final ListBox box = new ListBox();
-        final Constants cs = GWT.create( Constants.class );
-
-        //if we have to do it lazy, we will hit up the server when the widget gets focus
-        if ( dropData.fixedList == null && dropData.queryExpression != null ) {
-            DeferredCommand.addCommand( new Command() {
-                public void execute() {
-                    LoadingPopup.showMessage( cs.RefreshingList() );
-                    RepositoryServiceFactory.getService().loadDropDownExpression( dropData.valuePairs,
-                                                                                  dropData.queryExpression,
-                                                                                  new GenericCallback() {
-                                                                                      public void onSuccess(Object data) {
-                                                                                          LoadingPopup.close();
-                                                                                          String[] list = (String[]) data;
-                                                                                          doDropDown( currentValue,
-                                                                                                      list,
-                                                                                                      box );
-                                                                                      }
-
-                                                                                      public void onFailure(Throwable t) {
-                                                                                          LoadingPopup.close();
-                                                                                          //just do an empty drop down...
-                                                                                          doDropDown( currentValue,
-                                                                                                      new String[]{cs.UnableToLoadList()},
-                                                                                                      box );
-                                                                                      }
-                                                                                  } );
-                }
-            } );
-
-            //	        box.addFocusListener(new FocusListener() {
-            //
-            //
-            //				public void onFocus(Widget w) {
-            //					DeferredCommand.addCommand(new Command() {
-            //						public void execute() {
-            //							LoadingPopup.showMessage("Refreshing list...");
-            //							RepositoryServiceFactory.getService().loadDropDownExpression(dropData.valuePairs, dropData.queryExpression, new GenericCallback() {
-            //								public void onSuccess(Object data) {
-            //									LoadingPopup.close();
-            //									String[] list = (String[]) data;
-            //									doDropDown(currentValue, list, box);
-            //								}
-            //							});
-            //						}
-            //					});
-            //				}
-            //				public void onLostFocus(Widget w) {}
-            //	        });
-        } else {
-            //otherwise its just a normal one...
-            doDropDown( currentValue,
-                        dropData.fixedList,
-                        box );
-        }
-
-        box.addChangeListener( new ChangeListener() {
-            public void onChange(Widget w) {
-                valueChanged.valueChanged( box.getValue( box.getSelectedIndex() ) );
-                //constraint.value = box.getValue( box.getSelectedIndex() );
-            }
-        } );
-
-        if ( currentValue == null || "".equals( currentValue ) ) {
-            int ix = box.getSelectedIndex();
-            if ( ix > -1 ) {
-                String val = box.getValue( ix );
-                valueChanged.valueChanged( val );
-            }
-        }
-
-        return box;
-    }
-
-    //    /**
-    //     * This will do a drop down for enumerated values..
-    //     */
-    //    public static Widget enumDropDown(//final ISingleFieldConstraint constraint,
-    //                                       final String currentValue, final ValueChanged valueChanged,
-    //                                final String[] enumeratedValues) {
-    //        final ListBox box = new ListBox();
-    //
-    //        if (currentValue == null || "".equals( currentValue )) {
-    //            box.addItem( "Choose ..." );
-    //        }
-    //
-    //        doDropDown(currentValue, enumeratedValues, box);
-    //
-    //        box.addChangeListener( new ChangeListener() {
-    //            public void onChange(Widget w) {
-    //                valueChanged.valueChanged( box.getValue( box.getSelectedIndex() ) );
-    //                //constraint.value = box.getValue( box.getSelectedIndex() );
-    //            }
-    //        });
-    //        return box;
-    //    }
-
-    private static void doDropDown(final String currentValue,
-                                   final String[] enumeratedValues,
-                                   final ListBox box) {
-        boolean selected = false;
-
-        box.clear();
-
-        for ( int i = 0; i < enumeratedValues.length; i++ ) {
-            String v = enumeratedValues[i];
-            String val;
-            if ( v.indexOf( '=' ) > 0 ) {
-                //using a mapping
-                String[] splut = ConstraintValueEditorHelper.splitValue( v );
-                String realValue = splut[0];
-                String display = splut[1];
-                val = realValue;
-                box.addItem( display,
-                             realValue );
-            } else {
-                box.addItem( v,
-                             v );
-                val = v;
-            }
-            if ( currentValue != null && currentValue.equals( val ) ) {
-                box.setSelectedIndex( i );
-                selected = true;
-            }
-        }
-
-        if ( currentValue != null && !"".equals( currentValue ) && !selected ) {
-            //need to add this value
-            box.addItem( currentValue,
-                         currentValue );
-            box.setSelectedIndex( enumeratedValues.length );
-        }
-    }
-
-    private TextBox boundTextBox(final ISingleFieldConstraint c) {
-        final TextBox box = new TextBox();
-        box.setStyleName( "constraint-value-Editor" ); //NON-NLS
-        if ( c.value == null ) {
-            box.setText( "" );
-        } else {
-            box.setText( c.value );
-        }
-
-        String v = c.value;
-        if ( c.value == null || v.length() < 7 ) {
-            box.setVisibleLength( 8 );
-        } else {
-            box.setVisibleLength( v.length() + 1 );
-        }
-
-        box.addChangeListener( new ChangeListener() {
-            public void onChange(Widget w) {
-                c.value = box.getText();
-                makeDirty();
-            }
-
-        } );
-
-        box.addKeyboardListener( new FieldEditListener( new Command() {
-            public void execute() {
-                box.setVisibleLength( box.getText().length() );
-            }
-        } ) );
-
-        return box;
+        ExpressionBuilder builder = new ExpressionBuilder(this.modeller, ((SingleFieldConstraint) this.constraint).getExpression());
+        String msg = constants.ExpressionEditor();
+        Widget ed = widgets(new HTML("&nbsp;"),
+                builder);
+        return ed;
     }
 
     /**
      * Show a list of possibilities for the value type.
      */
     private void showTypeChoice(Widget w,
-                                final ISingleFieldConstraint con) {
-        final FormStylePopup form = new FormStylePopup( "images/newex_wiz.gif",
-                                                        constants.FieldValue() );
+            final ISingleFieldConstraint con) {
+        final FormStylePopup form = new FormStylePopup("images/newex_wiz.gif",
+                constants.FieldValue());
 
-        Button lit = new Button( constants.LiteralValue() );
-        lit.addClickListener( new ClickListener() {
+        Button lit = new Button(constants.LiteralValue());
+        lit.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
                 con.constraintValueType = SingleFieldConstraint.TYPE_LITERAL;
-                doTypeChosen( form );
+                doTypeChosen(form);
             }
+        });
+        form.addAttribute(constants.LiteralValue() + ":",
+                widgets(lit,
+                new InfoPopup(constants.LiteralValue(),
+                constants.LiteralValTip())));
 
-        } );
-        form.addAttribute( constants.LiteralValue() + ":",
-                           widgets( lit,
-                                    new InfoPopup( constants.LiteralValue(),
-                                                   constants.LiteralValTip() ) ) );
-
-        form.addRow( new HTML( "<hr/>" ) );
-        form.addRow( new SmallLabel( constants.AdvancedOptions() ) );
+		if (modeller.isTemplate()) {
+	        String templateKeyLabel = constants.TemplateKey();
+	        Button templateKeyButton = new Button(templateKeyLabel);
+	        templateKeyButton.addClickListener(new ClickListener() {
+	            public void onClick(Widget arg0) {
+	                con.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+	                doTypeChosen(form);
+	            }
+	        });
+	
+	        form.addAttribute(templateKeyLabel + ":",
+	                widgets(templateKeyButton,
+	                new InfoPopup(templateKeyLabel,
+	                constants.LiteralValTip())));
+        }
+        
+        form.addRow(new HTML("<hr/>"));
+        form.addRow(new SmallLabel(constants.AdvancedOptions()));
 
         //only want to show variables if we have some !
-        if ( this.model.getBoundVariablesInScope( this.constraint ).size() > 0 ) {
+        if (this.model.getBoundVariablesInScope(this.constraint).size() > 0 || SuggestionCompletionEngine.TYPE_COLLECTION.equals(this.fieldType)) {
             List vars = this.model.getBoundFacts();
             boolean foundABouncVariableThatMatches = false;
-            for ( int i = 0; i < vars.size(); i++ ) {
-                String var = (String) vars.get( i );
-                FactPattern f = model.getBoundFact( var );
-                if ( f.factType.equals( this.fieldType ) ) {
+            for (int i = 0; i < vars.size(); i++) {
+                String var = (String) vars.get(i);
+                FactPattern f = model.getBoundFact(var);
+                String fieldConstraint = model.getFieldConstraint(var);
+
+                if ((f != null && f.factType.equals(this.fieldType)) || this.fieldType.equals(fieldConstraint)) {
                     foundABouncVariableThatMatches = true;
                     break;
+                } else {
+                    // for collection, present the list of possible bound variable
+                    String factCollectionType = sce.getParametricFieldType(pattern.factType,
+                            this.fieldName);
+                    if ((f != null && factCollectionType != null && f.factType.equals(factCollectionType)) || (factCollectionType != null && factCollectionType.equals(fieldConstraint))) {
+                        foundABouncVariableThatMatches = true;
+                        break;
+                    }
                 }
             }
-            if ( foundABouncVariableThatMatches == true ) {
-                Button variable = new Button( constants.BoundVariable() );
-                variable.addClickListener( new ClickListener() {
+            if (foundABouncVariableThatMatches == true) {
+                Button variable = new Button(constants.BoundVariable());
+                variable.addClickListener(new ClickListener() {
+
                     public void onClick(Widget w) {
                         con.constraintValueType = SingleFieldConstraint.TYPE_VARIABLE;
-                        doTypeChosen( form );
+                        doTypeChosen(form);
                     }
-                } );
-                form.addAttribute( constants.AVariable(),
-                                   widgets( variable,
-                                            new InfoPopup( constants.ABoundVariable(),
-                                                           constants.BoundVariableTip() ) ) );
+                });
+                form.addAttribute(constants.AVariable(),
+                        widgets(variable,
+                        new InfoPopup(constants.ABoundVariable(),
+                        constants.BoundVariableTip())));
             }
         }
 
-        Button formula = new Button( constants.NewFormula() );
-        formula.addClickListener( new ClickListener() {
+        Button formula = new Button(constants.NewFormula());
+        formula.addClickListener(new ClickListener() {
+
             public void onClick(Widget w) {
                 con.constraintValueType = SingleFieldConstraint.TYPE_RET_VALUE;
-                doTypeChosen( form );
+                doTypeChosen(form);
             }
-        } );
+        });
 
-        form.addAttribute( constants.AFormula() + ":",
-                           widgets( formula,
-                                    new InfoPopup( constants.AFormula(),
-                                                   constants.FormulaExpressionTip() ) ) );
+        form.addAttribute(constants.AFormula() + ":",
+                widgets(formula,
+                new InfoPopup(constants.AFormula(),
+                constants.FormulaExpressionTip())));
+
+        Button expression = new Button(constants.ExpressionEditor());
+        expression.addClickListener(new ClickListener() {
+
+            public void onClick(Widget w) {
+                con.constraintValueType = SingleFieldConstraint.TYPE_EXPR_BUILDER;
+                doTypeChosen(form);
+            }
+        });
+
+        form.addAttribute(constants.ExpressionEditor() + ":",
+                widgets(expression,
+                new InfoPopup(constants.ExpressionEditor(),
+                constants.ExpressionEditor())));
+
 
         form.show();
     }
@@ -485,16 +356,15 @@ public class ConstraintValueEditor extends DirtyableComposite {
     }
 
     private Panel widgets(Widget left,
-                          Widget right) {
+            Widget right) {
         HorizontalPanel panel = new HorizontalPanel();
-        panel.add( left );
-        panel.add( right );
-        panel.setWidth( "100%" );
+        panel.add(left);
+        panel.add(right);
+        panel.setWidth("100%");
         return panel;
     }
 
     public boolean isDirty() {
         return super.isDirty();
     }
-
 }

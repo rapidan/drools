@@ -1,59 +1,122 @@
 package org.drools.verifier.report.components;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 /**
  * 
  * @author Toni Rikkola
  */
 public class VerifierMessage extends VerifierMessageBase {
-	private static final long serialVersionUID = 9190003495068712452L;
+    private static final long         serialVersionUID = 9190003495068712452L;
 
-	protected final Collection<Cause> causes;
+    protected final Collection<Cause> causes;
 
-	public VerifierMessage(Severity severity, MessageType messageType,
-			Cause faulty, String message, Collection<Cause> causes) {
-		super(severity, messageType, faulty, message);
+    public VerifierMessage(Map<String, String> impactedRules,
+                           Severity severity,
+                           MessageType messageType,
+                           Cause faulty,
+                           String message,
+                           Collection<Cause> causes) {
+        super( impactedRules,
+               severity,
+               messageType,
+               faulty,
+               message );
 
-		this.causes = causes;
-	}
+        this.causes = causes;
+    }
 
-	public VerifierMessage(Severity severity, MessageType messageType,
-			Cause faulty, String message) {
-		super(severity, messageType, faulty, message);
+    public VerifierMessage(Map<String, String> impactedRules,
+                           Severity severity,
+                           MessageType messageType,
+                           Cause faulty,
+                           String message,
+                           Cause cause) {
+        super( impactedRules,
+               severity,
+               messageType,
+               faulty,
+               message );
 
-		this.causes = Collections.emptyList();
-	}
+        Collection<Cause> causes = new ArrayList<Cause>();
+        causes.add( cause );
 
-	public Collection<Cause> getCauses() {
-		return causes;
-	}
+        this.causes = causes;
+    }
 
-	@Override
-	public String toString() {
-		StringBuffer str = new StringBuffer(severity.getSingular());
+    public VerifierMessage(Map<String, String> impactedRules,
+                           Severity severity,
+                           MessageType messageType,
+                           Cause faulty,
+                           String message) {
+        super( impactedRules,
+               severity,
+               messageType,
+               faulty,
+               message );
 
-		str.append(" id = ");
-		str.append(id);
-		str.append(":\n");
+        this.causes = Collections.emptyList();
+    }
 
-		if (faulty != null) {
-			str.append("faulty : ");
-			str.append(faulty);
-			str.append(", ");
-		}
+    public Collection<Cause> getCauses() {
+        return causes;
+    }
 
-		str.append(message);
-		str.append(" \n\tCauses are [ \n");
+    @Override
+    public String toString() {
+        StringBuffer str = new StringBuffer( severity.getSingular() );
 
-		for (Cause cause : causes) {
-			str.append("\t\t");
-			str.append(cause);
-			str.append("\n");
-		}
-		str.append("\t]");
+        str.append( " id = " );
+        str.append( id );
+        str.append( ":\n" );
 
-		return str.toString();
-	}
+        if ( !getImpactedRules().isEmpty() ) {
+            str.append( "Impacted rules:\n" );
+            for ( String ruleName : getImpactedRules().values() ) {
+                str.append( "    -" + ruleName + "\n" );
+            }
+        }
+
+        if ( faulty != null ) {
+            str.append( "faulty : " );
+            str.append( faulty );
+            str.append( "\n" );
+        }
+
+        str.append( message );
+        str.append( " \n\tCause trace: \n" );
+        str.append( printCauses( 8,
+                                 causes ) );
+
+        return str.toString();
+    }
+
+    private StringBuffer printCauses(int spaces,
+                                     Collection<Cause> causes) {
+
+        StringBuffer buffer = new StringBuffer();
+
+        for ( Cause cause : causes ) {
+            for ( int i = 0; i < spaces; i++ ) {
+                buffer.append( " " );
+            }
+            buffer.append( cause.toString() );
+            buffer.append( "\n" );
+
+            Collection<Cause> childCauses = cause.getCauses();
+            if ( childCauses == null ) {
+                System.out.println( cause );
+            }
+            if ( !childCauses.isEmpty() ) {
+                buffer.append( printCauses( spaces * 2,
+                                            childCauses ) );
+            }
+        }
+
+        return buffer;
+    }
+
 }

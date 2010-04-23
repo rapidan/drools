@@ -304,6 +304,14 @@ public class WSHumanTaskHandler implements WorkItemHandler {
 				Object result = in.readObject();
 				in.close();
 				results.put("Result", result);
+				if (result instanceof Map) {
+					Map<?, ?> map = (Map) result;
+					for (Map.Entry<?, ?> entry: map.entrySet()) {
+						if (entry.getKey() instanceof String) {
+							results.put((String) entry.getKey(), entry.getValue());
+						}
+					}
+				}
 				manager.completeWorkItem(task.getTaskData().getWorkItemId(), results);
 			} catch (IOException e) {
 				e.printStackTrace();

@@ -5,7 +5,8 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
 
-import org.drools.ProviderInitializationException;
+import org.drools.KnowledgeBaseFactoryService;
+import org.drools.util.ServiceRegistryImpl;
 
 /**
  * <p>
@@ -26,7 +27,7 @@ import org.drools.ProviderInitializationException;
  *
  */
 public class ResourceFactory {
-    private static ResourceProvider resourceProvider;
+    private static ResourceFactoryService factoryService;
 
     /**
      * A Service that can be started, to provide notifications of changed Resources.
@@ -34,7 +35,7 @@ public class ResourceFactory {
      * @return
      */
     public static ResourceChangeNotifier getResourceChangeNotifierService() {
-        return getResourceProvider().getResourceChangeNotifierService();
+        return getFactoryService().getResourceChangeNotifierService();
     }
 
     /**
@@ -42,79 +43,73 @@ public class ResourceFactory {
      * 
      * @return
      */
-    public static ResourceChangeScanner getResourceChangeScannerService() {
-        return getResourceProvider().getResourceChangeScannerService();
+     public static ResourceChangeScanner getResourceChangeScannerService() {
+        return getFactoryService().getResourceChangeScannerService();
     }
 
     public static Resource newUrlResource(URL url) {
-        return getResourceProvider().newUrlResource( url );
+        return getFactoryService().newUrlResource( url );
     }
 
     public static Resource newUrlResource(String path) {
-        return getResourceProvider().newUrlResource( path );
+        return getFactoryService().newUrlResource( path );
     }
 
     public static Resource newFileResource(File file) {
-        return getResourceProvider().newFileSystemResource( file );
+        return getFactoryService().newFileSystemResource( file );
     }
 
     public static Resource newFileResource(String fileName) {
-        return getResourceProvider().newFileSystemResource( fileName );
+        return getFactoryService().newFileSystemResource( fileName );
     }
 
     public static Resource newByteArrayResource(byte[] bytes) {
-        return getResourceProvider().newByteArrayResource( bytes );
+        return getFactoryService().newByteArrayResource( bytes );
     }
 
     public static Resource newInputStreamResource(InputStream stream) {
-        return getResourceProvider().newInputStreamResource( stream );
+        return getFactoryService().newInputStreamResource( stream );
     }
 
     public static Resource newReaderResource(Reader reader) {
-        return getResourceProvider().newReaderResource( reader );
+        return getFactoryService().newReaderResource( reader );
     }
 
     public static Resource newReaderResource(Reader reader,
                                              String encoding) {
-        return getResourceProvider().newReaderResource( reader,
+        return getFactoryService().newReaderResource( reader,
                                                         encoding );
     }
 
     public static Resource newClassPathResource(String path) {
-        return getResourceProvider().newClassPathResource( path );
+        return getFactoryService().newClassPathResource( path );
     }
 
     public static Resource newClassPathResource(String path,
                                                 Class clazz) {
-        return getResourceProvider().newClassPathResource( path,
+        return getFactoryService().newClassPathResource( path,
                                                            clazz );
     }
 
     public static Resource newClassPathResource(String path,
                                                 ClassLoader classLoader) {
-        return getResourceProvider().newClassPathResource( path,
+        return getFactoryService().newClassPathResource( path,
                                                            classLoader );
     }
 
-    private static synchronized void setResourceProvider(ResourceProvider provider) {
-        ResourceFactory.resourceProvider = provider;
+    private static synchronized void setFactoryService(ResourceFactoryService factoryService) {
+        ResourceFactory.factoryService = factoryService;
     }
 
-    private static synchronized ResourceProvider getResourceProvider() {
-        if ( resourceProvider == null ) {
-            loadProvider();
+    private static synchronized ResourceFactoryService getFactoryService() {
+        if ( factoryService == null ) {
+            loadFactoryService();
         }
-        return resourceProvider;
+        return factoryService;
     }
 
-    private static void loadProvider() {
-        try {
-            Class<ResourceProvider> cls = (Class<ResourceProvider>) Class.forName( "org.drools.io.impl.ResourceProviderImpl" );
-            setResourceProvider( cls.newInstance() );
-        } catch ( Exception e2 ) {
-            throw new ProviderInitializationException( "Provider org.drools.io.impl.ResourceProviderImpl could not be set.",
-                                                       e2 );
-        }
+    private static void loadFactoryService() {
+        setFactoryService( ServiceRegistryImpl.getInstance().get( ResourceFactoryService.class ) );
     }
 
 }

@@ -2,25 +2,29 @@ package org.drools.verifier.components;
 
 import org.drools.verifier.report.components.Cause;
 
-public interface Consequence extends Cause {
+public interface Consequence
+    extends
+    Cause {
 
-	public static class ConsequenceType {
+    public static class ConsequenceType {
+        public static final ConsequenceType TEXT = new ConsequenceType( "TEXT" );
 
-		public static final ConsequenceType TEXT = new ConsequenceType(0);
+        public String                       type;
 
-		private final int index;
+        public ConsequenceType(String t) {
+            type = t;
+        }
 
-		private ConsequenceType(int i) {
-			index = i;
-		}
-	}
+        public String toString() {
+            return type;
+        }
+    }
 
-	public int getId();
+    public String getPath();
 
-	public ConsequenceType getConsequenceType();
+    public ConsequenceType getConsequenceType();
 
-	public int getRuleId();
-
-	public String getRuleName();
-
+    public String getRulePath();
+    
+    public String getRuleName();
 }

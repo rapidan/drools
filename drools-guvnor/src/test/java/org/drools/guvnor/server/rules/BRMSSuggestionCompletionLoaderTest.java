@@ -18,12 +18,12 @@ package org.drools.guvnor.server.rules;
 
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import junit.framework.TestCase;
 
 import org.drools.guvnor.client.common.AssetFormats;
+import org.drools.guvnor.client.modeldriven.FieldAccessorsAndMutators;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.server.ServiceImplementation;
 import org.drools.guvnor.server.util.BRMSSuggestionCompletionLoader;
@@ -50,9 +50,47 @@ public class BRMSSuggestionCompletionLoaderTest extends TestCase {
 
     }
 
+    public void testLoaderWithComplexFields() throws Exception {
+
+        RulesRepository repo = new RulesRepository(TestEnvironmentSessionHelper.getSession());
+        PackageItem item = repo.createPackage( "testLoaderWithComplexFields", "to test the loader" );
+        ServiceImplementation.updateDroolsHeader("import org.drools.guvnor.server.rules.Agent", item );
+        repo.save();
+
+        BRMSSuggestionCompletionLoader  loader = new BRMSSuggestionCompletionLoader();
+        String header = ServiceImplementation.getDroolsHeader(item);
+
+
+        SuggestionCompletionEngine engine = loader.getSuggestionEngine( item );
+        assertNotNull(engine);
+
+        String[] modelFields = engine.getModelFields("Agent");
+        System.out.println("modelFields: "+Arrays.asList(modelFields));
+        assertNotNull(modelFields);
+        assertEquals(9, modelFields.length );
+
+        modelFields = engine.getModelFields(FieldAccessorsAndMutators.BOTH, "Agent");
+        assertNotNull(modelFields);
+        System.out.println("modelFields: "+Arrays.asList(modelFields));
+        assertEquals(10, modelFields.length );
+        
+        modelFields = engine.getModelFields(FieldAccessorsAndMutators.ACCESSOR, "Agent");
+        assertNotNull(modelFields);
+        System.out.println("modelFields: "+Arrays.asList(modelFields));
+        assertEquals(9, modelFields.length );
+
+        modelFields = engine.getModelFields(FieldAccessorsAndMutators.MUTATOR, "Agent");
+        assertNotNull(modelFields);
+        System.out.println("modelFields: "+Arrays.asList(modelFields));
+        assertEquals(9, modelFields.length );
+
+    }
+
+
+
     public void testStripUnNeededFields() {
         SuggestionCompletionLoader loader = new SuggestionCompletionLoader();
-        String[] result = loader.removeIrrelevantFields( new String[] {"foo", "toString", "class", "hashCode"} );
+        String[] result = loader.removeIrrelevantFields( Arrays.asList(new String[] {"foo", "toString", "class", "hashCode"} ));
         assertEquals(1, result.length);
         assertEquals("foo", result[0]);
     }
@@ -76,11 +114,12 @@ public class BRMSSuggestionCompletionLoaderTest extends TestCase {
 
         SuggestionCompletionEngine engine = loader.getSuggestionEngine( item );
         assertNotNull(engine);
-        String[] factTypes = engine.getFactTypes();
 
-        assertEquals( 2, factTypes.length );
-        assertEquals("Date", factTypes[0]);
-        assertEquals("Person", factTypes[1]);
+        List<String> factTypes = Arrays.asList(engine.getFactTypes());
+
+        assertEquals( 2 + loader.getExternalImportDescrs().size(), factTypes.size() );
+        assertTrue(factTypes.contains("Date"));
+        assertTrue(factTypes.contains("Person"));
 
         String[] fieldsForType = engine.getFieldCompletions( "Person" );
         assertEquals( 2, fieldsForType.length );
@@ -107,7 +146,7 @@ public class BRMSSuggestionCompletionLoaderTest extends TestCase {
         SuggestionCompletionEngine engine = loader.getSuggestionEngine( item );
         assertNotNull(engine);
         String[] factTypes = engine.getFactTypes();
-        assertEquals(1, factTypes.length);
+        assertEquals(1 + loader.getExternalImportDescrs().size(), factTypes.length);
         assertEquals("Car", factTypes[0]);
 
         List<String> fields = Arrays.asList( engine.getFieldCompletions("Car") );
@@ -134,8 +173,7 @@ public class BRMSSuggestionCompletionLoaderTest extends TestCase {
 
 
         SuggestionCompletionEngine eng = loader.getSuggestionEngine( item );
-        assertNotNull(eng.dataEnumLists);
-        assertEquals(Collections.EMPTY_MAP, eng.dataEnumLists);
+        assertFalse(eng.hasDataEnumLists());
         assertFalse(loader.hasErrors());
         assertEquals(1, eng.actionDSLSentences.length);
         assertEquals(1, eng.conditionDSLSentences.length);
@@ -159,7 +197,7 @@ public class BRMSSuggestionCompletionLoaderTest extends TestCase {
         SuggestionCompletionEngine sce = loader.getSuggestionEngine( item );
 
         assertFalse(loader.hasErrors());
-        assertEquals(1, sce.dataEnumLists.size());
+        assertEquals(1, sce.getDataEnumListsSize());
 
 
         asset.updateContent( "goober boy" );

@@ -45,6 +45,9 @@ public class Cheesery
     public List getCheeses() {
         return this.cheeses;
     }
+    public void setCheeses(List l) {
+        this.cheeses=l;
+    }
 
     public void addCheese(final Cheese cheese) {
         this.cheeses.add( cheese );
@@ -54,6 +57,13 @@ public class Cheesery
     public void removeCheese(final Cheese cheese) {
         this.cheeses.remove( cheese );
         recalculateTotalAmount();
+    }
+
+    /**
+     * Used to check inline evals.
+     */
+    public boolean hasSomeFlavour(String flavour) {
+        return "zesty".equals(flavour);
     }
 
     private void recalculateTotalAmount() {

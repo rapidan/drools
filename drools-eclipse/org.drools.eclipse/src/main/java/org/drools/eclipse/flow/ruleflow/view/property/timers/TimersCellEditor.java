@@ -22,7 +22,7 @@ import org.drools.eclipse.flow.common.view.property.EditBeanDialog;
 import org.drools.process.core.timer.Timer;
 import org.drools.workflow.core.DroolsAction;
 import org.drools.workflow.core.WorkflowProcess;
-import org.drools.workflow.core.node.EventBasedNode;
+import org.drools.workflow.core.node.StateBasedNode;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Shell;
 
@@ -34,17 +34,17 @@ import org.eclipse.swt.widgets.Shell;
 public class TimersCellEditor extends BeanDialogCellEditor<Map<Timer, DroolsAction>> {
 
     private WorkflowProcess process;
-    private EventBasedNode eventBasedNode;
+    private StateBasedNode stateBasedNode;
     
-    public TimersCellEditor(Composite parent, WorkflowProcess process, EventBasedNode eventBasedNode) {
+    public TimersCellEditor(Composite parent, WorkflowProcess process, StateBasedNode stateBasedNode) {
         super(parent);
         this.process = process;
-        this.eventBasedNode = eventBasedNode;
+        this.stateBasedNode = stateBasedNode;
     }
 
     protected EditBeanDialog<Map<Timer, DroolsAction>> createDialog(Shell shell) {
         TimersDialog dialog = new TimersDialog(shell, process);
-        dialog.setValue(eventBasedNode.getTimers());
+        dialog.setValue(stateBasedNode.getTimers());
         return dialog;
     }
     

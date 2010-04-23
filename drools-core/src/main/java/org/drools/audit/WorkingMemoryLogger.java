@@ -35,6 +35,8 @@ import org.drools.audit.event.RuleBaseLogEvent;
 import org.drools.audit.event.RuleFlowGroupLogEvent;
 import org.drools.audit.event.RuleFlowLogEvent;
 import org.drools.audit.event.RuleFlowNodeLogEvent;
+import org.drools.command.impl.CommandBasedStatefulKnowledgeSession;
+import org.drools.command.impl.KnowledgeCommandContext;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.definition.process.Node;
@@ -74,7 +76,6 @@ import org.drools.event.RuleFlowStartedEvent;
 import org.drools.event.WorkingMemoryEventListener;
 import org.drools.impl.StatefulKnowledgeSessionImpl;
 import org.drools.impl.StatelessKnowledgeSessionImpl;
-import org.drools.process.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.rule.Declaration;
 import org.drools.runtime.process.NodeInstance;
 import org.drools.runtime.process.NodeInstanceContainer;
@@ -135,7 +136,7 @@ public abstract class WorkingMemoryLogger
     		((StatelessKnowledgeSessionImpl) session).getRuleBase().addEventListener( this );
     	} else if (session instanceof CommandBasedStatefulKnowledgeSession) {
     		WorkingMemoryEventManager eventManager = 
-    			((CommandBasedStatefulKnowledgeSession) session).getCommandService().getSession();
+    			((StatefulKnowledgeSessionImpl)((KnowledgeCommandContext)((CommandBasedStatefulKnowledgeSession) session).getCommandService().getContext()).getStatefulKnowledgesession()).session;
     		eventManager.addEventListener( (WorkingMemoryEventListener) this );
     		eventManager.addEventListener( (AgendaEventListener) this );
     		eventManager.addEventListener( (RuleFlowEventListener) this );
@@ -299,7 +300,7 @@ public abstract class WorkingMemoryLogger
      * @return A String represetation of the declarations of the activation.
      */
     private String extractDeclarations(final Activation activation,  final WorkingMemory workingMemory) {
-        final StringBuffer result = new StringBuffer();
+        final StringBuilder result = new StringBuilder();
         final Tuple tuple = activation.getTuple();
         final Map<?, ?> declarations = activation.getSubRule().getOuterDeclarations();
         for ( Iterator<?> it = declarations.values().iterator(); it.hasNext(); ) {
@@ -343,7 +344,7 @@ public abstract class WorkingMemoryLogger
      * @return A unique id for the activation
      */
     private static String getActivationId(final Activation activation) {
-        final StringBuffer result = new StringBuffer( activation.getRule().getName() );
+        final StringBuilder result = new StringBuilder( activation.getRule().getName() );
         result.append( " [" );
         final Tuple tuple = activation.getTuple();
         final FactHandle[] handles = tuple.getFactHandles();
@@ -458,6 +459,9 @@ public abstract class WorkingMemoryLogger
     
     private String createNodeId(NodeInstance nodeInstance) {
     	Node node = ((org.drools.workflow.instance.NodeInstance) nodeInstance).getNode();
+    	if (node == null) {
+    		return "";
+    	}
     	String nodeId = "" + node.getId();
     	NodeContainer nodeContainer = node.getNodeContainer();
     	while (nodeContainer != null) {

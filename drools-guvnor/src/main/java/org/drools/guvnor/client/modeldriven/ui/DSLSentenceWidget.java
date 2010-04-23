@@ -17,34 +17,25 @@ package org.drools.guvnor.client.modeldriven.ui;
  */
 
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
 import org.drools.guvnor.client.common.DirtyableComposite;
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.common.ValueChanged;
-import org.drools.guvnor.client.explorer.Preferences;
 import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ChangeListener;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.Composite;
-import com.google.gwt.user.client.ui.FocusListener;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.Panel;
-import com.google.gwt.user.client.ui.PopupPanel;
-import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
@@ -55,28 +46,43 @@ import com.gwtext.client.util.Format;
  * 
  * @author Michael Neale
  */
-public class DSLSentenceWidget extends Composite {
+public class DSLSentenceWidget extends RuleModellerWidget {
 
     private static final String        ENUM_TAG    = "ENUM";
     private static final String        DATE_TAG    = "DATE";
     private static final String        BOOLEAN_TAG = "BOOLEAN";
     private final List                 widgets;
     private final DSLSentence          sentence;
-    private SuggestionCompletionEngine completions;
     private final VerticalPanel        layout;
     private HorizontalPanel            currentRow;
+    private boolean readOnly;
 
-    public DSLSentenceWidget(DSLSentence sentence,
-                             SuggestionCompletionEngine completions) {
+    public DSLSentenceWidget(RuleModeller modeller, DSLSentence sentence) {
+        this(modeller, sentence, null);
+    }
+
+    public DSLSentenceWidget(RuleModeller modeller, DSLSentence sentence, Boolean readOnly) {
+        super (modeller);
         widgets = new ArrayList();
         this.sentence = sentence;
-        this.completions = completions;
+
+        if (readOnly == null){
+            this.readOnly = false;
+        }else{
+            this.readOnly = readOnly;
+        }
+
         this.layout = new VerticalPanel();
         this.currentRow = new HorizontalPanel();
         this.layout.add( currentRow );
         this.layout.setCellWidth( currentRow,
                                   "100%" );
         this.layout.setWidth( "100%" );
+
+        if (this.readOnly) {
+            this.layout.addStyleName("editor-disabled-widget");
+        }
+
         init();
     }
 
@@ -162,26 +168,15 @@ public class DSLSentenceWidget extends Composite {
         // <varName>:DATE:<dateFormat>
         // <varName>:BOOLEAN:[checked | unchecked] <-initial value
 
-        int colonIndex = currVariable.indexOf( ":" );
-        if ( colonIndex > 0 ) {
-
-            String definition = currVariable.substring( colonIndex + 1,
-                                                        currVariable.length() );
-
-            int secondColonIndex = definition.indexOf( ":" );
-            if ( secondColonIndex > 0 ) {
-
-                String type = currVariable.substring( colonIndex + 1,
-                                                      colonIndex + secondColonIndex + 1 );
-                if ( type.equalsIgnoreCase( ENUM_TAG ) ) {
-                    result = getEnumDropdown( currVariable );
-                } else if ( type.equalsIgnoreCase( DATE_TAG ) ) {
-                    result = getDateSelector( currVariable );
-                } else if ( type.equalsIgnoreCase( BOOLEAN_TAG ) ) {
-                    result = getCheckbox( currVariable );
-                }
+        if ( currVariable.contains( ":" ) ) {
+            if ( currVariable.contains( ":" + ENUM_TAG + ":" ) ) {
+                result = getEnumDropdown( currVariable );
+            } else if ( currVariable.contains( ":" + DATE_TAG + ":" ) ) {
+                result = getDateSelector( currVariable );
+            } else if ( currVariable.contains( ":" + BOOLEAN_TAG + ":" ) ) {
+                result = getCheckbox( currVariable );
             } else {
-                String regex = currVariable.substring( colonIndex + 1,
+                String regex = currVariable.substring( currVariable.indexOf( ":" ) + 1,
                                                        currVariable.length() );
                 result = getBox( currVariable,
                                  regex );
@@ -221,7 +216,10 @@ public class DSLSentenceWidget extends Composite {
     }
 
     public Widget getDateSelector(String variableDef) {
-        return new DSLDateSelector( variableDef );
+        String[] parts = variableDef.split( ":" + DATE_TAG + ":" );
+
+        return new DSLDateSelector( parts[0],
+                                    parts[1] );
     }
 
     public Widget getLabel(String labelDef) {
@@ -353,7 +351,7 @@ public class DSLSentenceWidget extends Composite {
     }
 
     class DSLDropDown extends DirtyableComposite {
-
+        final SuggestionCompletionEngine completions = getModeller().getSuggestionCompletions();
         ListBox        resultWidget = null;
         // Format for the dropdown def is <varName>:<type>:<Fact.field>
         private String varName      = "";
@@ -452,7 +450,7 @@ public class DSLSentenceWidget extends Composite {
             resultWidget.addItem( "true" );
             resultWidget.addItem( "false" );
 
-            if ( checkedUnchecked.equalsIgnoreCase( "checked" ) ) {
+            if ( checkedUnchecked.equalsIgnoreCase( "true" ) ) {
                 resultWidget.setSelectedIndex( 0 );
             } else {
                 resultWidget.setSelectedIndex( 1 );
@@ -489,18 +487,17 @@ public class DSLSentenceWidget extends Composite {
         }
 
         public String getCheckedValue() {
-            return this.resultWidget.getSelectedIndex() == 0 ? "checked" : "checked";
+            return this.resultWidget.getSelectedIndex() == 0 ? "true" : "false";
 
         }
     }
 
-    class DSLDateSelector extends DatePicker {
+    class DSLDateSelector extends DatePickerLabel {
 
-        public DSLDateSelector(String variableDef) {
-            super( variableDef.substring( 0,
-                                          variableDef.indexOf( ":" ) ),
-                   variableDef.substring( variableDef.lastIndexOf( ":" ) + 1,
-                                          variableDef.length() ) );
+        public DSLDateSelector(String selectedDate,
+                               String dateFormat) {
+            super( selectedDate,
+                   dateFormat );
 
             addValueChanged( new ValueChanged() {
                 public void valueChanged(String newValue) {
@@ -512,5 +509,10 @@ public class DSLSentenceWidget extends Composite {
         public String getType() {
             return DATE_TAG;
         }
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return this.readOnly;
     }
 }

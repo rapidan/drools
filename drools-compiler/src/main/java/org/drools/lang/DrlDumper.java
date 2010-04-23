@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.drools.core.util.ReflectiveVisitor;
 import org.drools.lang.descr.AccumulateDescr;
 import org.drools.lang.descr.AndDescr;
 import org.drools.lang.descr.AttributeDescr;
@@ -49,7 +50,6 @@ import org.drools.lang.descr.RestrictionConnectiveDescr;
 import org.drools.lang.descr.ReturnValueRestrictionDescr;
 import org.drools.lang.descr.RuleDescr;
 import org.drools.lang.descr.VariableRestrictionDescr;
-import org.drools.util.ReflectiveVisitor;
 
 /**
  * 
@@ -60,13 +60,13 @@ public class DrlDumper extends ReflectiveVisitor
     implements
     PackageDescrDumper {
 
-    private StringBuffer        drlDump;
+    private StringBuilder        drlDump;
     private static final String eol          = System.getProperty( "line.separator" );
     private String              template;
     private boolean             needsBracket = false;
 
     public synchronized String dump(final PackageDescr packageDescr) {
-        this.drlDump = new StringBuffer();
+        this.drlDump = new StringBuilder();
         visitPackageDescr( packageDescr );
         return this.drlDump.toString();
     }
@@ -122,7 +122,7 @@ public class DrlDumper extends ReflectiveVisitor
     }
 
     public void visitPatternDescr(final PatternDescr descr) {
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         buf.append( "\t\t" );
         if ( descr.getIdentifier() != null ) {
             buf.append(  descr.getIdentifier() );

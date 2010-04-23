@@ -56,6 +56,8 @@ import org.drools.spi.ConsequenceException;
 import org.drools.spi.KnowledgeHelper;
 import org.drools.spi.PropagationContext;
 import org.drools.spi.RuleFlowGroup;
+import org.drools.spi.Salience;
+import org.drools.time.impl.DurationTimer;
 
 /**
  * @author mproctor
@@ -123,6 +125,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+
+            public String getName() {
+                return "default";
+            }
         } );
 
         // Add consequence. Notice here the context here for the add to ageyunda
@@ -146,13 +152,17 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }
         } );
 
         assertEquals( 0,
                       agenda.getFocus().size() );
 
         rule1.setNoLoop( false );
-        rule2.setDuration( 5000 );
+        rule2.setTimer( new DurationTimer( 5000 ) );
 
         node1.assertLeftTuple( tuple,
                                context1,
@@ -224,6 +234,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         } );
 
         final LeftTuple tuple = new LeftTuple( new DefaultFactHandle( 1,
@@ -318,6 +332,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final LeftTuple tuple = new LeftTuple( new DefaultFactHandle( 1,
@@ -566,6 +584,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final LeftTuple tuple = new LeftTuple( new DefaultFactHandle( 1,
@@ -714,6 +736,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final LeftTuple tuple = new LeftTuple( new DefaultFactHandle( 1,
@@ -751,6 +777,7 @@ public class AgendaTest extends DroolsTestCase {
                                                                         null );
 
         final Rule rule2 = new Rule( "test-rule2" );
+        rule2.setSalience( new SalienceInteger( -5 ) );
         final RuleTerminalNode node2 = new RuleTerminalNode( 7,
                                                              new MockTupleSource( 6 ),
                                                              rule2,
@@ -765,6 +792,7 @@ public class AgendaTest extends DroolsTestCase {
 
         final Rule rule3 = new Rule( "test-rule3",
                                      "agendaGroup3" );
+        rule3.setSalience( new SalienceInteger( -10 ) );
         rule3.setActivationGroup( "activation-group-3" );
         final RuleTerminalNode node3 = new RuleTerminalNode( 9,
                                                              new MockTupleSource( 8 ),
@@ -825,7 +853,7 @@ public class AgendaTest extends DroolsTestCase {
         // List should only have a single item, "rule0"
         assertEquals( 1,
                       list.size() );
-        assertSame( rule0,
+        assertSame( rule1,
                     list.get( 0 ) );
 
         list.clear();
@@ -877,7 +905,7 @@ public class AgendaTest extends DroolsTestCase {
 
         assertEquals( 2,
                       list.size() );
-        assertEquals( rule0,
+        assertEquals( rule1,
                       list.get( 0 ) );
         assertEquals( rule2,
                       list.get( 1 ) );
@@ -919,6 +947,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         // create a rule for each rule flow groups
@@ -1087,6 +1119,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule1 = new Rule( "test-rule1" );
@@ -1130,6 +1166,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule0 = new Rule( "test-rule0" );
@@ -1209,6 +1249,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule1 = new Rule( "test-rule1" );
@@ -1253,6 +1297,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule0 = new Rule( "test-rule0" );
@@ -1333,6 +1381,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule0 = new Rule( "test-rule0" );
@@ -1436,6 +1488,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule0 = new Rule( "test-rule0" );
@@ -1561,6 +1617,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final Rule rule0 = new Rule( "test-rule0" );
@@ -1674,6 +1734,10 @@ public class AgendaTest extends DroolsTestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }             
         };
 
         final LeftTuple tuple = new LeftTuple( new DefaultFactHandle( 1,

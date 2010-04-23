@@ -23,6 +23,7 @@ import java.io.ObjectOutput;
 
 import org.drools.RuleBaseConfiguration;
 import org.drools.base.ClassObjectType;
+import org.drools.base.ValueType;
 import org.drools.common.AbstractRuleBase;
 import org.drools.common.BaseNode;
 import org.drools.common.DroolsObjectInputStream;
@@ -31,8 +32,13 @@ import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.NodeMemory;
 import org.drools.common.PropagationContextImpl;
+import org.drools.core.util.Iterator;
+import org.drools.core.util.ObjectHashSet;
+import org.drools.core.util.ObjectHashSet.ObjectEntry;
 import org.drools.reteoo.ReteooWorkingMemory.WorkingMemoryReteExpireAction;
+import org.drools.reteoo.RuleRemovalContext.CleanupAdapter;
 import org.drools.reteoo.builder.BuildContext;
+import org.drools.reteoo.compiled.CompiledNetwork;
 import org.drools.rule.Declaration;
 import org.drools.rule.EntryPoint;
 import org.drools.rule.EvalCondition;
@@ -44,28 +50,23 @@ import org.drools.time.JobContext;
 import org.drools.time.JobHandle;
 import org.drools.time.TimerService;
 import org.drools.time.impl.PointInTimeTrigger;
-import org.drools.util.Iterator;
-import org.drools.util.ObjectHashSet;
-import org.drools.util.ObjectHashSet.ObjectEntry;
 
 /**
  * <code>ObjectTypeNodes<code> are responsible for filtering and propagating the matching
  * fact assertions propagated from the <code>Rete</code> node using <code>ObjectType</code> interface.
- * <p>
+ * <p/>
  * The assert and retract methods do not attempt to filter as this is the role of the <code>Rete</code>
  * node which builds up a cache of matching <code>ObjectTypdeNodes</code>s for each asserted object, using
  * the <code>matches(Object object)</code> method. Incorrect propagation in these methods is not checked and
  * will result in <code>ClassCastExpcections</code> later on in the network.
- * <p>
+ * <p/>
  * Filters <code>Objects</code> coming from the <code>Rete</code> using a
  * <code>ObjectType</code> semantic module.
  *
- *
- * @see ObjectType
- * @see Rete
- *
  * @author <a href="mailto:mark.proctor@jboss.com">Mark Proctor</a>
  * @author <a href="mailto:bob@werken.com">Bob McWhirter</a>
+ * @see ObjectType
+ * @see Rete
  */
 public class ObjectTypeNode extends ObjectSource
     implements
@@ -83,7 +84,9 @@ public class ObjectTypeNode extends ObjectSource
      */
     private static final long   serialVersionUID = 400L;
 
-    /** The <code>ObjectType</code> semantic module. */
+    /**
+     * The <code>ObjectType</code> semantic module.
+     */
     private ObjectType          objectType;
 
     private boolean             skipOnModify     = false;
@@ -94,6 +97,8 @@ public class ObjectTypeNode extends ObjectSource
 
     private transient ExpireJob job              = new ExpireJob();
 
+    private CompiledNetwork     compiledNetwork;
+
     public ObjectTypeNode() {
 
     }
@@ -102,10 +107,8 @@ public class ObjectTypeNode extends ObjectSource
      * Construct given a semantic <code>ObjectType</code> and the provided
      * unique id. All <code>ObjectTypdeNode</code> have node memory.
      *
-     * @param id
-     *          The unique id for the node.
-     * @param objectType
-     *           The semantic object-type differentiator.
+     * @param id         The unique id for the node.
+     * @param objectType The semantic object-type differentiator.
      */
     public ObjectTypeNode(final int id,
                           final EntryPointNode source,
@@ -145,8 +148,7 @@ public class ObjectTypeNode extends ObjectSource
     /**
      * Retrieve the semantic <code>ObjectType</code> differentiator.
      *
-     * @return
-     *      The semantic <code>ObjectType</code> differentiator.
+     * @return The semantic <code>ObjectType</code> differentiator.
      */
     public ObjectType getObjectType() {
         return this.objectType;
@@ -156,34 +158,38 @@ public class ObjectTypeNode extends ObjectSource
         return this.objectType.isAssignableFrom( objectType );
     }
 
+    public void setCompiledNetwork(CompiledNetwork compiledNetwork) {
+        this.compiledNetwork = compiledNetwork;
+
+        this.compiledNetwork.setObjectTypeNode( this );
+    }
+
     /**
      * Propagate the <code>FactHandleimpl</code> through the <code>Rete</code> network. All
      * <code>FactHandleImpl</code> should be remembered in the node memory, so that later runtime rule attachmnents
      * can have the matched facts propagated to them.
      *
-     * @param factHandle
-     *            The fact handle.
-     * @param object
-     *            The object to assert.
-     * @param workingMemory
-     *            The working memory session.
+     * @param factHandle    The fact handle.
+     * @param object        The object to assert.
+     * @param workingMemory The working memory session.
      */
     public void assertObject(final InternalFactHandle factHandle,
                              final PropagationContext context,
                              final InternalWorkingMemory workingMemory) {
-        if ( context.getType() == PropagationContext.MODIFICATION && this.skipOnModify && context.getDormantActivations() == 0 ) {
-            // we do this after the shadowproxy update, just so that its up to date for the future
-            return;
-        }
-
         if ( this.objectMemoryEnabled ) {
             final ObjectHashSet memory = (ObjectHashSet) workingMemory.getNodeMemory( this );
             memory.add( factHandle,
                         false );
         }
-        this.sink.propagateAssertObject( factHandle,
-                                         context,
-                                         workingMemory );
+        if ( compiledNetwork != null ) {
+            compiledNetwork.assertObject( factHandle,
+                                          context,
+                                          workingMemory );
+        } else {
+            this.sink.propagateAssertObject( factHandle,
+                                             context,
+                                             workingMemory );
+        }
 
         if ( this.expirationOffset >= 0 ) {
             // schedule expiration
@@ -192,54 +198,72 @@ public class ObjectTypeNode extends ObjectSource
             TimerService clock = workingMemory.getTimerService();
 
             long nextTimestamp = Math.max( clock.getCurrentTime() + this.expirationOffset,
-                                           ((EventFactHandle)factHandle).getStartTimestamp() + this.expirationOffset );
+                                           ((EventFactHandle) factHandle).getStartTimestamp() + this.expirationOffset );
             JobContext jobctx = new ExpireJobContext( expire,
                                                       workingMemory );
             JobHandle handle = clock.scheduleJob( job,
                                                   jobctx,
-                                                  new PointInTimeTrigger( nextTimestamp ) );
+                                                  new PointInTimeTrigger( nextTimestamp,
+                                                                          null,
+                                                                          null ) );
             jobctx.setJobHandle( handle );
         }
 
     }
 
     /**
-     * Retract the <code>FactHandleimpl</code> from the <code>Rete</code> network. Also remove the 
+     * Retract the <code>FactHandleimpl</code> from the <code>Rete</code> network. Also remove the
      * <code>FactHandleImpl</code> from the node memory.
-     * 
-     * @param rightTuple
-     *            The fact handle.
-     * @param object
-     *            The object to assert.
-     * @param workingMemory
-     *            The working memory session.
+     *
+     * @param rightTuple    The fact handle.
+     * @param object        The object to assert.
+     * @param workingMemory The working memory session.
      */
     public void retractObject(final InternalFactHandle factHandle,
                               final PropagationContext context,
                               final InternalWorkingMemory workingMemory) {
-
-        if ( context.getType() == PropagationContext.MODIFICATION && this.skipOnModify && context.getDormantActivations() == 0 ) {
-            return;
-        }
-
         if ( this.objectMemoryEnabled ) {
             final ObjectHashSet memory = (ObjectHashSet) workingMemory.getNodeMemory( this );
             memory.remove( factHandle );
         }
 
-        for ( RightTuple rightTuple = factHandle.getRightTuple(); rightTuple != null; rightTuple = (RightTuple) rightTuple.getHandleNext() ) {
+        for ( RightTuple rightTuple = factHandle.getFirstRightTuple(); rightTuple != null; rightTuple = (RightTuple) rightTuple.getHandleNext() ) {
             rightTuple.getRightTupleSink().retractRightTuple( rightTuple,
                                                               context,
                                                               workingMemory );
         }
-        factHandle.setRightTuple( null );
+        factHandle.setFirstRightTuple( null );
+        factHandle.setLastRightTuple( null );
 
-        for ( LeftTuple leftTuple = factHandle.getLeftTuple(); leftTuple != null; leftTuple = (LeftTuple) leftTuple.getLeftParentNext() ) {
+        for ( LeftTuple leftTuple = factHandle.getFirstLeftTuple(); leftTuple != null; leftTuple = (LeftTuple) leftTuple.getLeftParentNext() ) {
             leftTuple.getLeftTupleSink().retractLeftTuple( leftTuple,
                                                            context,
                                                            workingMemory );
         }
-        factHandle.setLeftTuple( null );
+        factHandle.setFirstLeftTuple( null );
+        factHandle.setLastLeftTuple( null );
+    }
+
+    public void modifyObject(InternalFactHandle factHandle,
+                             ModifyPreviousTuples modifyPreviousTuples,
+                             PropagationContext context,
+                             InternalWorkingMemory workingMemory) {
+        if ( this.skipOnModify && context.getDormantActivations() == 0 ) {
+            // we do this after the shadowproxy update, just so that its up to date for the future
+            return;
+        }
+
+        if ( compiledNetwork != null ) {
+            compiledNetwork.modifyObject( factHandle,
+                                          modifyPreviousTuples,
+                                          context,
+                                          workingMemory );
+        } else {
+            this.sink.propagateModifyObject( factHandle,
+                                             modifyPreviousTuples,
+                                             context,
+                                             workingMemory );
+        }
     }
 
     public void updateSink(final ObjectSink sink,
@@ -282,7 +306,8 @@ public class ObjectTypeNode extends ObjectSource
     }
 
     public void networkUpdated() {
-        this.skipOnModify = canSkipOnModify( this.sink.getSinks(), true );
+        this.skipOnModify = canSkipOnModify( this.sink.getSinks(),
+                                             true );
     }
 
     /**
@@ -290,7 +315,6 @@ public class ObjectTypeNode extends ObjectSource
      * never removed from the rulebase in the current implementation
      *
      * @inheritDoc
-     *
      * @see org.drools.common.BaseNode#remove(org.drools.reteoo.RuleRemovalContext, org.drools.reteoo.ReteooBuilder, org.drools.common.BaseNode, org.drools.common.InternalWorkingMemory[])
      */
     public void remove(RuleRemovalContext context,
@@ -303,10 +327,29 @@ public class ObjectTypeNode extends ObjectSource
                   workingMemories );
     }
 
+    /**
+     * OTN needs to override remove to avoid releasing the node ID, since OTN are
+     * never removed from the rulebase in the current implementation
+     */
     protected void doRemove(final RuleRemovalContext context,
                             final ReteooBuilder builder,
                             final BaseNode node,
                             final InternalWorkingMemory[] workingMemories) {
+        if ( context.getCleanupAdapter() != null ) {
+            for ( InternalWorkingMemory workingMemory : workingMemories ) {
+                CleanupAdapter adapter = context.getCleanupAdapter();
+                final ObjectHashSet memory = (ObjectHashSet) workingMemory.getNodeMemory( this );
+                Iterator it = memory.iterator();
+                for ( ObjectEntry entry = (ObjectEntry) it.next(); entry != null; entry = (ObjectEntry) it.next() ) {
+                    InternalFactHandle handle = (InternalFactHandle) entry.getValue();
+                    for ( LeftTuple leftTuple = handle.getFirstLeftTuple(); leftTuple != null; leftTuple = leftTuple.getLeftParentNext() ) {
+                        adapter.cleanUp( leftTuple,
+                                         workingMemory );
+                    }
+                }
+            }
+            context.setCleanupAdapter( null );
+        }
         if ( !node.isInUse() ) {
             removeObjectSink( (ObjectSink) node );
         }
@@ -330,7 +373,7 @@ public class ObjectTypeNode extends ObjectSource
     }
 
     public String toString() {
-        return "[ObjectTypeNode(" + this.id + ")::" + ((EntryPointNode) this.source).getEntryPoint() + " objectType=" + this.objectType + " expiration="+this.expirationOffset+"ms ]";
+        return "[ObjectTypeNode(" + this.id + ")::" + ((EntryPointNode) this.source).getEntryPoint() + " objectType=" + this.objectType + " expiration=" + this.expirationOffset + "ms ]";
     }
 
     /**
@@ -352,7 +395,7 @@ public class ObjectTypeNode extends ObjectSource
         final ObjectTypeNode other = (ObjectTypeNode) object;
 
         return this.objectType.equals( other.objectType ) && this.source.equals( other.source );
-    }    
+    }
 
     /**
      * Checks if a modify action on this object type may
@@ -361,11 +404,12 @@ public class ObjectTypeNode extends ObjectSource
      * @param sinks
      * @return
      */
-    private boolean canSkipOnModify(final Sink[] sinks, final boolean rootCall) {
+    private boolean canSkipOnModify(final Sink[] sinks,
+                                    final boolean rootCall) {
         // If we have no alpha or beta node with constraints on this ObjectType, we can just skip modifies
         boolean hasConstraints = false;
         for ( int i = 0; i < sinks.length && !hasConstraints; i++ ) {
-            if ( sinks[i] instanceof AlphaNode || sinks[i] instanceof AccumulateNode || sinks[i] instanceof CollectNode || sinks[i] instanceof FromNode ) {
+            if ( sinks[i] instanceof AlphaNode || sinks[i] instanceof AccumulateNode || sinks[i] instanceof FromNode ) {
                 hasConstraints = true;
             } else if ( sinks[i] instanceof BetaNode && ((BetaNode) sinks[i]).getConstraints().length > 0 ) {
                 hasConstraints = rootCall || this.usesDeclaration( ((BetaNode) sinks[i]).getConstraints() );
@@ -373,9 +417,11 @@ public class ObjectTypeNode extends ObjectSource
                 hasConstraints = this.usesDeclaration( ((EvalConditionNode) sinks[i]).getCondition() );
             }
             if ( !hasConstraints && sinks[i] instanceof ObjectSource ) {
-                hasConstraints = !this.canSkipOnModify( ((ObjectSource) sinks[i]).getSinkPropagator().getSinks(), false );
+                hasConstraints = !this.canSkipOnModify( ((ObjectSource) sinks[i]).getSinkPropagator().getSinks(),
+                                                        false );
             } else if ( !hasConstraints && sinks[i] instanceof LeftTupleSource ) {
-                hasConstraints = !this.canSkipOnModify( ((LeftTupleSource) sinks[i]).getSinkPropagator().getSinks(), false );
+                hasConstraints = !this.canSkipOnModify( ((LeftTupleSource) sinks[i]).getSinkPropagator().getSinks(),
+                                                        false );
             }
         }
 
@@ -422,11 +468,14 @@ public class ObjectTypeNode extends ObjectSource
 
     public void setExpirationOffset(long expirationOffset) {
         this.expirationOffset = expirationOffset;
-        if ( this.expirationOffset > 0 || this.expirationOffset == -1 ) {
-            // override memory enabled settings
-            this.setObjectMemoryEnabled( true );
-        } else {
-            this.setObjectMemoryEnabled( false );
+        if ( !this.objectType.getValueType().equals( ValueType.QUERY_TYPE ) ) {
+            if ( this.expirationOffset > 0 ) {
+                // override memory enabled settings
+                this.setObjectMemoryEnabled( true );
+            } else if ( this.expirationOffset == 0 ) {
+                // disable memory
+                this.setObjectMemoryEnabled( false );
+            }
         }
     }
 

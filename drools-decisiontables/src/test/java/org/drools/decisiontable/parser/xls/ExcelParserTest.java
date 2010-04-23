@@ -19,14 +19,13 @@ package org.drools.decisiontable.parser.xls;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.template.parser.DataListener;
-
 import junit.framework.TestCase;
 import jxl.Cell;
-//import jxl.CellFeatures;
 import jxl.CellType;
 import jxl.Range;
 import jxl.format.CellFormat;
+
+import org.drools.template.parser.DataListener;
 
 /**
  * @author <a href="mailto:michael.neale@gmail.com"> Michael Neale</a>
@@ -92,7 +91,7 @@ public class ExcelParserTest extends TestCase {
     	
     }
     
-    static class MockCell implements Cell {
+    static class MockCell<CellFeatures> implements Cell {
 
     	int column;
     	int row;
@@ -122,7 +121,7 @@ public class ExcelParserTest extends TestCase {
 		public boolean isHidden() {
 			return false;
 		}
-    	
+
     }
     
     static class MockRange implements Range {

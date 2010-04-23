@@ -21,8 +21,8 @@ public class ForEachNodeWrapper extends CompositeNodeWrapper {
     private static IPropertyDescriptor[] descriptors;
 
     static {
-        descriptors = new IPropertyDescriptor[DefaultElementWrapper.descriptors.length + 4];
-        System.arraycopy(DefaultElementWrapper.descriptors, 0, descriptors, 0, DefaultElementWrapper.descriptors.length);
+        descriptors = new IPropertyDescriptor[DefaultElementWrapper.DESCRIPTORS.length + 4];
+        System.arraycopy(DefaultElementWrapper.DESCRIPTORS, 0, descriptors, 0, DefaultElementWrapper.DESCRIPTORS.length);
         descriptors[descriptors.length - 4] = 
             new TextPropertyDescriptor(VARIABLE_NAME, "Variable Name");
         descriptors[descriptors.length - 3] = 
@@ -93,7 +93,7 @@ public class ForEachNodeWrapper extends CompositeNodeWrapper {
 
     public void setPropertyValue(Object id, Object value) {
         if (VARIABLE_NAME.equals(id)) {
-            getForEachNode().setVariable((String) value, new ObjectDataType()); 
+            getForEachNode().setVariable((String) value, new ObjectDataType("java.lang.Object")); 
         } else if (COLLECTION_EXPRESSION.equals(id)) {
             getForEachNode().setCollectionExpression((String) value);
         } else if (START_NODE.equals(id)) {

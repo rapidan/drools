@@ -23,12 +23,13 @@ import java.util.Map;
 import org.drools.guvnor.client.common.ErrorPopup;
 import org.drools.guvnor.client.common.GenericCallback;
 import org.drools.guvnor.client.common.LoadingPopup;
+import org.drools.guvnor.client.messages.Constants;
+import org.drools.guvnor.client.modeldriven.FactTypeFilter;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
-import org.drools.guvnor.client.messages.Constants;
 
-import com.google.gwt.user.client.Command;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
 import com.gwtext.client.util.Format;
 
 /**
@@ -44,9 +45,7 @@ public class SuggestionCompletionCache {
 
     private static SuggestionCompletionCache INSTANCE = null;
 
-    
-
-    Map cache = new HashMap();
+    Map<String, SuggestionCompletionEngine> cache = new HashMap<String, SuggestionCompletionEngine>();
     private final Constants constants;
 
 
@@ -54,7 +53,6 @@ public class SuggestionCompletionCache {
         if (INSTANCE == null) INSTANCE = new SuggestionCompletionCache();
         return INSTANCE;
     }
-
 
     private SuggestionCompletionCache() {
         constants = GWT.create(Constants.class);
@@ -79,12 +77,10 @@ public class SuggestionCompletionCache {
         } else {
             command.execute();
         }
-
-
     }
 
     public SuggestionCompletionEngine getEngineFromCache(String packageName) {
-        SuggestionCompletionEngine eng = (SuggestionCompletionEngine) cache.get( packageName );
+        SuggestionCompletionEngine eng = cache.get( packageName );
         if (eng == null) {
             ErrorPopup.showMessage(constants.UnableToGetContentAssistanceForThisRule());
             return null;
@@ -94,7 +90,9 @@ public class SuggestionCompletionCache {
 
 
     public void loadPackage(final String packageName, final Command command) {
-        System.out.println("Loading package Suggestions..."); //NON-NLS
+
+        LoadingPopup.showMessage(Format.format(constants.InitialisingInfoFor0PleaseWait(), packageName));
+
         RepositoryServiceFactory.getService().loadSuggestionCompletionEngine( packageName, new GenericCallback<SuggestionCompletionEngine>() {
             public void onSuccess(SuggestionCompletionEngine engine) {
                 cache.put( packageName, engine );
@@ -109,18 +107,35 @@ public class SuggestionCompletionCache {
         });
     }
 
-
     /**
      * Removed the package from the cache, causing it to be loaded the next time.
      */
     public void refreshPackage(String packageName, Command done) {
-        if (cache.containsKey( packageName )) {
+    	SuggestionCompletionEngine sce = cache.get(packageName);
+        if (sce != null) {
+        	sce.setFactTypeFilter(null);
+        	if (done != null) {
+        		done.execute();
+        	}
             cache.remove( packageName );
             loadPackage( packageName, done );
         } else {
             done.execute();
         }
-
     }
 
+    /**
+     * Reloads a package and then applies the given filter.
+     * @param packageName the package name.
+     * @param filter the filter.
+     * @param done the command to be executed after the filter is applied.
+     */
+	public void applyFactFilter(final String packageName, final FactTypeFilter filter, final Command done) {
+		this.refreshPackage(packageName, new Command() {
+			public void execute() {
+				getEngineFromCache(packageName).setFactTypeFilter(filter);
+				done.execute();
+			}
+		});
+	}
 }

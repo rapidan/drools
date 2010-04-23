@@ -5,25 +5,32 @@ package org.drools.verifier.consequence
 import org.drools.verifier.components.VerifierRule;
 import org.drools.verifier.components.TextConsequence;
 import org.drools.verifier.report.components.VerifierMessage;
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
 
+import java.util.Map;
+import java.util.HashMap;
+
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 
 rule "No action - possibly commented out"
 	when
-		$c :TextConsequence( ( text == null || matches "" ) )
+		$c :TextConsequence( ( text == null || == "" ) )
 
 		$r :VerifierRule(
-			id == $c.ruleId
+			path == $c.rulePath
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $r.getPath(), $r.getName());
+		
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.WARNING,
 								MessageType.MISSING_COMPONENT,
-								$r,
+								null,
 								$r + " has no RHS." ) );
 end

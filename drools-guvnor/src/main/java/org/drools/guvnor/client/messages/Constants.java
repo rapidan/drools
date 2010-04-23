@@ -7,7 +7,7 @@ import com.google.gwt.i18n.client.ConstantsWithLookup;
  * See: http://code.google.com/docreader/#p=google-web-toolkit-doc-1-5&s=google-web-toolkit-doc-1-5&t=DevGuideInternationalization
  * (for more information).
  *
- * Each method name matches up with a key in Constants.properties (the proeprties file can still be used on the server).
+ * Each method name matches up with a key in Constants.properties (the properties file can still be used on the server).
  * To use this, use <code>GWT.create(Constants.class)</code>.
  *
  * @author Michael Neale
@@ -18,9 +18,7 @@ public interface Constants extends ConstantsWithLookup {
 
     String ChooseAPatternThatThisColumnAddsDataTo();
 
-
     String Assets();
-
 
     String Category();
     
@@ -28,31 +26,15 @@ public interface Constants extends ConstantsWithLookup {
 
     String AddAnotherFieldToThisSoYouCanSetItsValue();
 
-
     String ChooseAMethodToInvoke();
 
     String AddField();
-
-
-
-
-
-
-
-
-
 
     String OK();
 
     String pleaseChooseFactType();
 
-
-
-
     String NewFactSelectTheType();
-
-
-
 
     String ColumnConfigurationSetAFieldOnAFact();
 
@@ -95,7 +77,6 @@ public interface Constants extends ConstantsWithLookup {
     String DeleteAssetTooltip();
 
     String DeleteAreYouSure();
-
 
     String ChangeStatusTip();
 
@@ -297,7 +278,6 @@ public interface Constants extends ConstantsWithLookup {
 
     String FailureOverall();
 
-
     String RuleCoveragePercent();
 
     String RulesCovered();
@@ -434,8 +414,6 @@ public interface Constants extends ConstantsWithLookup {
 
     String PackageSnapshots();
 
-
-    String DSLPopupHint();
 
     String AddANewCondition();
 
@@ -910,7 +888,9 @@ public interface Constants extends ConstantsWithLookup {
 
     String CreateANewPackage();
 
+    String CreateANewSubPackage();
     
+    String ParentPackage();
 
     String ImportDRLDesc1();
 
@@ -1150,7 +1130,8 @@ public interface Constants extends ConstantsWithLookup {
     String CreateNew();
 
     String NewPackage1();
-
+    
+    String NewSubPackage();
 
     String NewRule();
 
@@ -1409,6 +1390,8 @@ public interface Constants extends ConstantsWithLookup {
 
     String FreeFormDrl();
 
+    String ExpressionEditor();
+    
     String ConditionTypeButton();
 
 
@@ -1832,7 +1815,6 @@ public interface Constants extends ConstantsWithLookup {
 
     String December();
 
-
     String SorryAnItemOfThatNameAlreadyExistsInTheRepositoryPleaseChooseAnother();
 
     String ALiteralValueMeansTheValueAsTypedInIeItsNotACalculation();
@@ -1844,6 +1826,8 @@ public interface Constants extends ConstantsWithLookup {
     String AddAnActionToThisRule();
 
     String optionsRuleModeller();
+    
+    String clickToAddPattern();
 
     String clickToAddPatterns();
 
@@ -1868,4 +1852,235 @@ public interface Constants extends ConstantsWithLookup {
     String AreYouSureYouWantToRemoveThisBlockOfData();
 
     String PleaseEnterANameThatIsNotAlreadyUsedByAnotherPattern();
+
+    String ThereIsAAn0With();
+
+    String ThereIsAAn0();
+    
+    String All0with();
+
+    String AddFirstNewField();
+
+    String ImportedDRLContainsNoNameForThePackage();
+
+    String InitialisingInfoFor0PleaseWait();
+
+    String SavedOK();
+
+    String Actions();
+
+    String ChangeSet();
+
+    String URLToChangeSetForDeploymentAgents();
+
+    String FrozenAreas();
+
+    String FrozenExplanation();
+
+    String FreezeAreasForEditing();
+
+    String Conditions();
+
+    String smallCommentBy0On1Small();
+
+    String AddADiscussionComment();
+
+    String EraseAllComments();
+
+    String EraseAllCommentsWarning();
+
+    String Discussion();
+
+    String SaveAndClose();
+
+    String Predicates();
+
+    String PredicatesInfo();
+    
+	String NewBPELPackage();
+
+	String CreateANewBPELPackage();
+
+	String OpenEditorInNewWindow();
+
+	String BPELPackages();
+
+	String ValueCanNotBeEmpty();
+
+	String Value();
+
+    String property0ModifiedOn12();
+
+    String isContainedInTheFollowingList();
+
+    String RecentlyOpened();
+
+    String RecentlyEdited();
+
+    String IncomingChanges();
+
+    String From();
+    
+    String FromAccumulate();
+
+    String FromCollect();
+    
+    String URLDocumentionDescription();
+
+    String URLForDocumention();
+
+    String CanNotMoveColumnsFromOneTypeGroupToAnother();
+
+    String PleaseSelectARow();
+
+    String AddRowBeforeSelectedRow();
+    
+    String CreateNewAsset();
+    
+    String CreateLinkedAsset();
+    
+    String CreateLinkedAssetFromUUID();
+   
+    String NoteNewLinkedAsset();
+
+    String NewLinkedAssetDesc1();
+    
+    String NewLinkedAssetDesc2();
+    
+    String NewLinkedAssetDesc3();
+    
+    String BuildWholePackageTip();
+    
+    String BuiltInSelectorTip();
+
+    String BuildWholePackage();
+    
+    String BuildPackageUsingBuiltInSelector();
+    
+    String BuildPackageUsingCustomSelector();
+    
+    String BuildPackageUsingFollowingAssets();
+    
+    String BuildPackageUsingBuiltInSelectorStatus();
+    
+    String BuildPackageUsingBuiltInSelectorCat();
+    
+    String BuiltInSelector();    
+    
+    String BuildPackageUsingCustomSelectorSelector();    
+    
+    String CreateInPackage();
+   
+    String CreateInGlobalArea();
+    
+    String AssetToImport();
+    
+    String Older0();
+    
+    String Newer0();
+    
+    String TypeAdded();
+    
+    String TypeArchived();
+    
+    String TypeDeleted();
+    
+    String TypeRestored();
+    
+    String TypeUpdated();
+    
+    String Severity();
+    
+    String CleaningLogMessages();
+    
+    String MoveUp();
+    
+    String MoveDown();
+    
+    String Clean();
+
+    String Top();
+
+    String Bottom();
+    
+    String Line0();
+
+    String PositionColon();
+
+    String ConditionPositionExplanation();
+
+    String ActionPositionExplanation();
+
+    String AddAConditionBelow();
+
+    String AddAnActionBelow();
+
+    String openSelectedToSingleTab();
+
+    String SaveAllChanges();
+
+    String SaveAndCloseAll();
+
+    String DescriptionAndDiscussion();
+
+    String Show();
+    
+    String Asset0IsAlreadyOpenPleaseCloseItBeforeOpeningMultiview();
+    
+    String PromoteToGlobal();  
+    
+    String PromoteAreYouSure();   
+    
+    String Promoted();  
+    
+    String ItemAlreadyInGlobalArea();
+
+    String VerifyingItemPleaseWait();
+
+    String Verify();  
+    
+    String VerificationReport();
+    
+    String CanNotSwitchToBasicView();
+
+    String Causes();
+
+    String ImpactedRules();
+
+    String SelectWorkingSets();
+    
+    String ErrorLoadingRules();
+                               ;
+    String AElementToDelInCollectionList();
+    String  AElementToAddInCollectionList();
+    String GuidedList();
+    String AGuidedList();
+    String AGuidedListTip();
+    String AddElementBelow();
+    String MoveUpList();
+    String MoveDownListMove();
+
+    String WorkingSets();
+    String NewWorkingSet();
+    String CreateWorkingSet();
+    String WorkingSetName();
+    String CopyTheWorkingSet();
+    String CopyTheWorkingSetTip();
+    String NewWorkingSetNameIs();
+    String NotAValidWorkingSetName();
+    String WorkingSetCopiedSuccessfully();
+    String RenameTheWorkingSet();
+    String RenameTheWorkingSetTip();
+    String WorkingSetRenamedSuccessfully();
+    String ConstraintsSection();
+    String AddNewConstraint();
+    String removeConstraint();
+    String theRuleHasErrorsOrWarningsDotDoYouWantToContinue();
+    String RulesVerification();
+    String RulesVerificationManager();
+    String EditRulesVerificationConfiguration();
+    String AutomaticVerification();
+    String Enabled();
+    String NewRuleTemplate();
+    String TemplateKey();
 }

@@ -201,7 +201,7 @@ public abstract class ProcessWrapper implements ElementContainer, IPropertySourc
             new TextPropertyDescriptor(ID, "Id"),
             new TextPropertyDescriptor(PACKAGE_NAME, "Package"),
             new ComboBoxPropertyDescriptor(ROUTER_LAYOUT, "Connection Layout", 
-                new String[] { "Manual", "Manhatten", "Shortest Path" }),
+                new String[] { "Manual", "Manhattan", "Shortest Path" }),
             new ListPropertyDescriptor(VARIABLES, "Variables", VariableListCellEditor.class),
             new ListPropertyDescriptor(SWIMLANES, "Swimlanes",
                 SwimlanesCellEditor.class),
@@ -294,5 +294,9 @@ public abstract class ProcessWrapper implements ElementContainer, IPropertySourc
         	((ExceptionScope) process.getDefaultContext(
                 ExceptionScope.EXCEPTION_SCOPE)).setExceptionHandlers((Map<String, ExceptionHandler>) value);
         }
+    }
+
+    public boolean canAddElement(ElementWrapper element) {
+    	return true;
     }
 }

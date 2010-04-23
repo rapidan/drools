@@ -1,5 +1,7 @@
 package org.drools;
 
+import org.drools.util.ServiceRegistryImpl;
+
 /**
  * This factory allows you to set the SystemEventListener that will be used by various components of Drools, such
  * as the KnowledgeAgent, ResourceChangeNotifier and ResourceChangeListener.
@@ -8,7 +10,7 @@ package org.drools;
  *
  */
 public class SystemEventListenerFactory {
-    private static SystemEventListenerProvider provider;
+    private static SystemEventListenerService service;
 
     /**
      * Set the SystemEventListener
@@ -16,7 +18,7 @@ public class SystemEventListenerFactory {
      * @param listener
      */
     public static void setSystemEventListener(SystemEventListener listener) {
-        getSystemEventListenerProvider().setSystemEventListener( listener );
+        getSystemEventListenerService().setSystemEventListener( listener );
     }
 
     /**
@@ -24,28 +26,21 @@ public class SystemEventListenerFactory {
      * @return
      */
     public static SystemEventListener getSystemEventListener() {
-        return getSystemEventListenerProvider().getSystemEventListener();
+        return getSystemEventListenerService().getSystemEventListener();
     }
 
-    private static synchronized void setSystemEventListenerProvider(SystemEventListenerProvider provider) {
-        SystemEventListenerFactory.provider = provider;
+    private static synchronized void setSystemEventListenerService(SystemEventListenerService service) {
+        SystemEventListenerFactory.service = service;
     }
 
-    private static synchronized SystemEventListenerProvider getSystemEventListenerProvider() {
-        if ( provider == null ) {
-            loadProvider();
+    private static synchronized SystemEventListenerService getSystemEventListenerService() {
+        if ( service == null ) {
+            loadService();
         }
-        return provider;
+        return service;
     }
 
-    private static void loadProvider() {
-        try {
-            // we didn't find anything in properties so lets try and us reflection
-            Class<SystemEventListenerProvider> cls = (Class<SystemEventListenerProvider>) Class.forName( "org.drools.impl.SystemEventListenerProviderImpl" );
-            setSystemEventListenerProvider( cls.newInstance() );
-        } catch ( Exception e ) {
-            throw new ProviderInitializationException( "Provider org.drools.impl.SystemEventListenerProviderImpl could not be set.",
-                                                       e );
-        }
+    private static void loadService() {
+        setSystemEventListenerService( ServiceRegistryImpl.getInstance().get( SystemEventListenerService.class ) );
     }
 }

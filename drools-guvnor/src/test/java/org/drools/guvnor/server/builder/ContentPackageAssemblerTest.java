@@ -598,8 +598,7 @@ public class ContentPackageAssemblerTest extends TestCase {
 
 
         ContentPackageAssembler asm = new ContentPackageAssembler( pkg,
-                                                                   false,
-                                                                   null );
+                                                                   false);
         String drl = asm.getDRL();
 
         assertNotNull( drl );
@@ -618,6 +617,32 @@ public class ContentPackageAssemblerTest extends TestCase {
                         drl );
 
         assertEquals(-1, drl.indexOf("garbage"));
+
+    }
+    
+    public void testBuildPackageWithEmptyHeader() throws Exception {
+        RulesRepository repo = getRepo();
+
+        //first, setup the package correctly:
+        PackageItem pkg = repo.createPackage( "testBuildPackageWithEmptyHeader",
+                                              "" );
+
+        ServiceImplementation.updateDroolsHeader( "\n",
+                                                  pkg );
+        repo.save();
+
+        ContentPackageAssembler asm = null;
+        try {
+            asm = new ContentPackageAssembler( pkg );
+        } catch ( NullPointerException e ) {
+            // Possible cause: Header has only white spaces "\n\t".
+            fail( e.toString() );
+        }
+        String drl = asm.getDRL();
+
+        assertNotNull( drl );
+        assertEquals( "package testBuildPackageWithEmptyHeader",
+                      drl.trim() );
 
     }
 
@@ -683,8 +708,7 @@ public class ContentPackageAssemblerTest extends TestCase {
         assertRule3.checkin( "" );
 
         ContentPackageAssembler asm = new ContentPackageAssembler( pkg,
-                                                                   true,
-                                                                   null );
+                                                                   true);
         assertFalse( asm.hasErrors() );
         Package p = asm.builder.getPackage();
 
@@ -912,8 +936,8 @@ public class ContentPackageAssemblerTest extends TestCase {
                               }
                           } );
 
-        ContentPackageAssembler asm = new ContentPackageAssembler( pkg,
-                                                                   "testSelect" );
+        ContentPackageAssembler asm = new ContentPackageAssembler( pkg, true, 
+                                                                   "customSelector", null, null, false, null, null, false, "testSelect");
 
         Package pk = asm.getBinaryPackage();
         assertEquals( 1,
@@ -922,12 +946,12 @@ public class ContentPackageAssemblerTest extends TestCase {
                       pk.getRules()[0].getName() );
 
         asm = new ContentPackageAssembler( pkg,
-                                           null );
+                                           true );
         pk = asm.getBinaryPackage();
         assertEquals( 2,
                       pk.getRules().length );
 
-        asm = new ContentPackageAssembler( pkg,
+        asm = new ContentPackageAssembler( pkg, true, "customSelector", null, null, false, null, null, false,
                                            "nothing valid" );
         assertTrue( asm.hasErrors() );
         assertEquals( 1,
@@ -935,7 +959,7 @@ public class ContentPackageAssemblerTest extends TestCase {
         assertEquals( pkg,
                       asm.getErrors().get( 0 ).itemInError );
 
-        asm = new ContentPackageAssembler( pkg,
+        asm = new ContentPackageAssembler( pkg, true, "customSelector", null, null, false, null, null, false,
                                            "" );
         pk = asm.getBinaryPackage();
         assertEquals( 2,
@@ -943,15 +967,11 @@ public class ContentPackageAssemblerTest extends TestCase {
 
     }
 
-
-
-
     private void assertContains(String sub,
                                 String text) {
         if ( text.indexOf( sub ) == -1 ) {
             fail( "the text: '" + sub + "' was not found." );
         }
-
     }
 
     private void assertDoesNotContain(String sub,

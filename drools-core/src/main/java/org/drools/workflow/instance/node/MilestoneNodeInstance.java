@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.drools.WorkingMemory;
+import org.drools.common.AbstractWorkingMemory;
 import org.drools.common.InternalAgenda;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
@@ -41,7 +42,7 @@ import org.drools.workflow.core.node.MilestoneNode;
  * 
  * @author <a href="mailto:kris_verlaenen@hotmail.com">Kris Verlaenen</a>
  */
-public class MilestoneNodeInstance extends EventBasedNodeInstance implements AgendaEventListener {
+public class MilestoneNodeInstance extends StateBasedNodeInstance implements AgendaEventListener {
 
     private static final long serialVersionUID = 400L;
 
@@ -56,7 +57,7 @@ public class MilestoneNodeInstance extends EventBasedNodeInstance implements Age
                 "A MilestoneNode only accepts default incoming connections!");
         }
         String rule = "RuleFlow-Milestone-" + getProcessInstance().getProcessId()
-        	+ "-" + getNode().getId();
+        	+ "-" + getMilestoneNode().getUniqueId();
         boolean isActive = ((InternalAgenda) getProcessInstance().getAgenda())
 			.isRuleActiveInRuleFlowGroup("DROOLS_SYSTEM", rule, getProcessInstance().getId());
         if (isActive) {
@@ -111,6 +112,9 @@ public class MilestoneNodeInstance extends EventBasedNodeInstance implements Age
             String ruleName = event.getActivation().getRule().getName();
             String milestoneName = "RuleFlow-Milestone-" + getProcessInstance().getProcessId() + "-" + getNodeId();
             if (milestoneName.equals(ruleName) && checkProcessInstance(event.getActivation())) {
+        		if ( !((AbstractWorkingMemory) getProcessInstance().getWorkingMemory()).getActionQueue().isEmpty() ) {
+        			((AbstractWorkingMemory) getProcessInstance().getWorkingMemory()).executeQueuedActions();
+                }
             	synchronized(getProcessInstance()) {
 	                removeEventListeners();
 	                triggerCompleted();

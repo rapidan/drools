@@ -3,7 +3,8 @@ package org.drools.verifier.incoherence
 
 #list any import classes here.
 import org.drools.verifier.components.LiteralRestriction;
-import org.drools.verifier.components.PatternPossibility;
+import org.drools.verifier.components.NumberRestriction;
+import org.drools.verifier.components.SubPattern;
 import org.drools.verifier.components.Pattern;
 import org.drools.verifier.components.VariableRestriction;
 import org.drools.verifier.report.components.Cause;
@@ -11,15 +12,17 @@ import org.drools.verifier.report.components.MissingRange;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
 
 import java.util.Collection;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.drools.base.evaluators.Operator;
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 #
 # If two LiteralRestrictions are in conflict.
@@ -37,30 +40,33 @@ rule "Incoherent LiteralRestrictions in pattern possibility"
 		)
 
 		$r2 :LiteralRestriction(
-			patternId == $r1.patternId,
+			patternPath == $r1.patternPath,
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
-			id != $r1.id,
+			path != $r1.path,
 			# Operator needs to be reversed to what the other one has.
-			eval( operator == MissingRange.getReversedOperator( $r1.getOperator() ))
+			eval( operator == MissingRange.getReversedOperator( $r1.getOperator() )),
+			valueAsString == $r1.valueAsString
 		)
 
-		eval( $r1.compareValues( $r2 ) == 0 )
-
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+	
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -79,34 +85,37 @@ end
 #
 rule "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible ranges"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			( operator == Operator.GREATER_OR_EQUAL || == Operator.GREATER )
 		)
 
-		$r2 :LiteralRestriction(
-			patternId == $r1.patternId,
+		$r2 :NumberRestriction(
+			patternPath == $r1.patternPath,
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			( operator == Operator.LESS_OR_EQUAL || == Operator.LESS),
-			id != $r1.id
+			path != $r1.path,
+			value < $r1.value
 		)
-
-		eval( $r1.compareValues( $r2 ) == 1 )
-
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+		
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -125,34 +134,37 @@ end
 #
 rule "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible equality less or equal"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			operator == Operator.EQUAL
 		)
 
-		$r2 :LiteralRestriction(
-			patternId == $r1.patternId,
+		$r2 :NumberRestriction(
+			patternPath == $r1.patternPath,
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			( operator == Operator.LESS_OR_EQUAL || == Operator.LESS || == Operator.EQUAL ),
-			id != $r1.id
+			path != $r1.path,
+			value < $r1.value
 		)
 
-		eval( $r1.compareValues( $r2 ) == 1 )
-
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+		
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -171,34 +183,37 @@ end
 #
 rule "Incoherent LiteralRestrictions with ranges in pattern possibility, impossible equality greater"
 	when
-		$r1 :LiteralRestriction(
+		$r1 :NumberRestriction(
 			( operator == Operator.GREATER || == Operator.GREATER_OR_EQUAL )
 		)
 
-		$r2 :LiteralRestriction(
-			patternId == $r1.patternId,
+		$r2 :NumberRestriction(
+			patternPath == $r1.patternPath,
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			operator == Operator.EQUAL,
-			id != $r1.id
+			path != $r1.path,
+			value < $r1.value
 		)
 
-		eval( $r1.compareValues( $r2 ) == 1 )
-
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+		
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -222,29 +237,32 @@ rule "Incoherent LiteralRestrictions with ranges in pattern possibility, impossi
 		)
 
 		$r2 :LiteralRestriction(
-			patternId == $r1.patternId,
+			patternPath == $r1.patternPath,
 			restrictionType == $r1.restrictionType,
-			fieldId == $r1.fieldId,
+			fieldPath == $r1.fieldPath,
 			valueType == $r1.valueType,
 			operator == Operator.GREATER,
-			id != $r1.id
+			path != $r1.path,
+			valueAsString == $r1.valueAsString
 		)
 
-		eval( $r1.compareValues( $r2 ) == 0 )
-
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+		
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -270,28 +288,32 @@ rule "Incoherent VariableRestrictions in pattern possibility"
 		)
 
 		$r2 :VariableRestriction(
-			patternId == $r1.patternId,
-			fieldId == $r1.fieldId,
-			id != $r1.id,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
+			patternPath == $r1.patternPath,
+			fieldPath == $r1.fieldPath,
+			path != $r1.path,
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
 			# Operator needs to be reversed to what the other one has.
 			eval( operator == MissingRange.getReversedOperator( $r1.getOperator() ))
 		)
 
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+		
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -300,6 +322,7 @@ rule "Incoherent VariableRestrictions in pattern possibility"
 								list
 								) );
 end
+
 
 #
 # If two VariableRestrictions are in conflict.
@@ -315,27 +338,31 @@ rule "Incoherent VariableRestrictions in pattern possibility, impossible range"
 		)
 
 		$r2 :VariableRestriction(
-			patternId == $r1.patternId,
-			fieldId == $r1.fieldId,
+			patternPath == $r1.patternPath,
+			fieldPath == $r1.fieldPath,
 			operator == Operator.GREATER,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
-			id != $r1.id
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
+			path != $r1.path
 		)
 
-		# There is a problem if both of these are in the same PatternPossibility.
-		$pp :PatternPossibility(
+		# There is a problem if both of these are in the same SubPattern.
+		$pp :SubPattern(
 			 items contains $r1,
 			 items contains $r2
 		)
 
-		$p :Pattern( id == $pp.patternId )
+		$p :Pattern( path == $pp.patternPath )
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $p.getRulePath(), $p.getRuleName());
+		
 		Collection list = new ArrayList();
 		list.add( $r1 );
 		list.add( $r2 );
 
 		result.add( new VerifierMessage(
+								impactedRules,
 								Severity.ERROR,
 								MessageType.INCOHERENCE,
 								$p,
@@ -344,3 +371,4 @@ rule "Incoherent VariableRestrictions in pattern possibility, impossible range"
 								list
 								) );
 end
+

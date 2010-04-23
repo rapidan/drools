@@ -1,11 +1,14 @@
 package org.drools.reteoo;
 
+import java.util.Arrays;
+
+import org.drools.common.AgendaItem;
 import org.drools.common.InternalFactHandle;
+import org.drools.core.util.Entry;
+import org.drools.core.util.LeftTupleList;
 import org.drools.rule.Declaration;
 import org.drools.spi.Activation;
 import org.drools.spi.Tuple;
-import org.drools.util.Entry;
-import org.drools.util.LeftTupleList;
 
 public class LeftTuple
     implements
@@ -20,10 +23,6 @@ public class LeftTuple
     private LeftTuple          parent;
 
     private Activation         activation;
-
-    private long               recency;
-
-    private int                hashCode;
 
     private RightTuple         blocker;
 
@@ -46,7 +45,8 @@ public class LeftTuple
     private Entry              previous;
 
     // children
-    private LeftTuple          children;
+    public LeftTuple          firstChild;
+    public LeftTuple          lastChild;
 
     private LeftTupleSink      sink;
 
@@ -61,18 +61,18 @@ public class LeftTuple
                      LeftTupleSink sink,
                      boolean leftTupleMemoryEnabled) {
         this.handle = factHandle;
-        this.recency = factHandle.getRecency();
-
-        this.hashCode = handle.hashCode();
 
         if ( leftTupleMemoryEnabled ) {
-            LeftTuple currentFirst = handle.getLeftTuple();
-            if ( currentFirst != null ) {
-                currentFirst.leftParentPrevious = this;
-                this.leftParentNext = currentFirst;
+            LeftTuple first = handle.getLastLeftTuple();                     
+            if ( first == null ) {
+                // node other LeftTuples, just add.
+                handle.setFirstLeftTuple( this );
+                handle.setLastLeftTuple( this );
+            } else {
+                this.leftParentPrevious = handle.getLastLeftTuple();
+                this.leftParentPrevious.leftParentNext = this;
+                handle.setLastLeftTuple( this );
             }
-
-            handle.setLeftTuple( this );
         }
         this.sink = sink;
     }
@@ -82,17 +82,17 @@ public class LeftTuple
                      boolean leftTupleMemoryEnabled) {
         this.index = leftTuple.index;
         this.parent = leftTuple.parent;
-        this.recency = leftTuple.recency;
         this.handle = leftTuple.handle;
-        this.hashCode = leftTuple.hashCode();
 
         if ( leftTupleMemoryEnabled ) {
             this.leftParent = leftTuple;
-            this.leftParentNext = leftTuple.children;
-            if ( this.leftParentNext != null ) {
-                this.leftParentNext.leftParentPrevious = this;
+            if ( leftTuple.lastChild != null ) {
+                this.leftParentPrevious = leftTuple.lastChild;
+                this.leftParentPrevious.leftParentNext = this;
+            } else {
+                leftTuple.firstChild = this;
             }
-            this.leftParent.children = this;
+            leftTuple.lastChild = this;
         }
         
         this.sink = sink;
@@ -100,62 +100,171 @@ public class LeftTuple
 
     public LeftTuple(final LeftTuple leftTuple,
                      final RightTuple rightTuple,
-                     LeftTupleSink sink,
-                     boolean leftTupleMemoryEnabled) {
+                     final LeftTupleSink sink,
+                     final boolean leftTupleMemoryEnabled) {
+        this( leftTuple,
+              rightTuple,
+              null,
+              null,
+              sink,
+              leftTupleMemoryEnabled );
+    }
+    
+    public LeftTuple(final LeftTuple leftTuple,
+                     final RightTuple rightTuple,
+                     final LeftTuple currentLeftChild,
+                     final LeftTuple currentRightChild,
+                     final LeftTupleSink sink,
+                     final boolean leftTupleMemoryEnabled) {
         this.handle = rightTuple.getFactHandle();
         this.index = leftTuple.index + 1;
         this.parent = leftTuple;
-        this.recency = leftTuple.recency + this.handle.getRecency();
-        this.hashCode = leftTuple.hashCode ^ (handle.hashCode() * 31);
 
-        if ( leftTupleMemoryEnabled ) {
-            this.rightParent = rightTuple;
-            this.rightParentNext = this.rightParent.getBetaChildren();
-            if ( this.rightParentNext != null ) {
-                this.rightParentNext.rightParentPrevious = this;
-            }
-            this.rightParent.setBetaChildren( this );
-
+        if ( leftTupleMemoryEnabled ) {                        
             this.leftParent = leftTuple;
-            this.leftParentNext = leftTuple.children;
-            if ( this.leftParentNext != null ) {
-                this.leftParentNext.leftParentPrevious = this;
+            this.rightParent = rightTuple;
+            if( currentLeftChild == null ) {
+                // insert at the end of the list 
+                if ( leftTuple.lastChild != null ) {
+                    this.leftParentPrevious = leftTuple.lastChild;
+                    this.leftParentPrevious.leftParentNext = this;
+                } else {
+                    leftTuple.firstChild = this;
+                }
+                leftTuple.lastChild = this;         
+            } else {
+                // insert before current child
+                this.leftParentNext = currentLeftChild;
+                this.leftParentPrevious = currentLeftChild.leftParentPrevious;
+                currentLeftChild.leftParentPrevious = this;
+                if( this.leftParentPrevious == null ) {
+                    this.leftParent.firstChild = this;
+                } else {
+                    this.leftParentPrevious.leftParentNext = this;
+                }
             }
-            this.leftParent.children = this;
+            
+            if( currentRightChild == null ) {
+                // insert at the end of the list
+                if ( rightTuple.lastChild != null ) {
+                    this.rightParentPrevious = rightTuple.lastChild;
+                    this.rightParentPrevious.rightParentNext = this;
+                } else {
+                    rightTuple.firstChild = this;
+                }
+                rightTuple.lastChild = this;             
+            } else {
+                // insert before current child
+                this.rightParentNext = currentRightChild;
+                this.rightParentPrevious = currentRightChild.rightParentPrevious;
+                currentRightChild.rightParentPrevious = this;
+                if( this.rightParentPrevious == null ) {
+                    this.rightParent.firstChild = this;
+                } else {
+                    this.rightParentPrevious.rightParentNext = this;
+                }
+            }
         }
         
         this.sink = sink;
     }
+    
+    public void reAdd() {
+        LeftTuple first = handle.getLastLeftTuple();                     
+        if ( first == null ) {
+            // node other LeftTuples, just add.
+            handle.setFirstLeftTuple( this );
+            handle.setLastLeftTuple( this );
+        } else {
+            
+            handle.getLastLeftTuple().leftParentNext = this;
+            this.leftParentPrevious = handle.getLastLeftTuple();
+            handle.setLastLeftTuple( this );
+        }        
+    }
+    
+    public void reAddLeft() {
+        // The parent can never be the FactHandle (root LeftTuple) as that is handled by reAdd()
+        // make sure we aren't already at the end
+        if ( this.leftParentNext != null ) {            
+            if ( this.leftParentPrevious != null ) {
+                // remove the current LeftTuple from the middle of the chain
+                this.leftParentPrevious.leftParentNext = this.leftParentNext;
+                this.leftParentNext.leftParentPrevious = this.leftParentPrevious;
+            } else {
+                if( this.leftParent.firstChild == this ) {
+                    // remove the current LeftTuple from start start of the chain
+                    this.leftParent.firstChild = this.leftParentNext;
+                }
+                this.leftParentNext.leftParentPrevious = null;
+            }
+            // re-add to end
+            this.leftParentPrevious = this.leftParent.lastChild;
+            this.leftParentPrevious.leftParentNext = this;
+            this.leftParent.lastChild = this;            
+            this.leftParentNext = null;
+        }
+    }
+    
+    public void reAddRight() {
+        // make sure we aren't already at the end        
+        if ( this.rightParentNext != null ) {
+            if ( this.rightParentPrevious != null ) {
+                // remove the current LeftTuple from the middle of the chain
+                this.rightParentPrevious.rightParentNext = this.rightParentNext;
+                this.rightParentNext.rightParentPrevious = this.rightParentPrevious;
+            } else {
+                if( this.rightParent.firstChild == this ) {
+                    // remove the current LeftTuple from the start of the chain
+                    this.rightParent.firstChild = this.rightParentNext;
+                }
+                this.rightParentNext.rightParentPrevious = null;
+            }
+            // re-add to end            
+            this.rightParentPrevious = this.rightParent.lastChild;
+            this.rightParentPrevious.rightParentNext = this;
+            this.rightParent.lastChild = this;    
+            this.rightParentNext = null;
+        }
+    }
 
     public void unlinkFromLeftParent() {
-        LeftTuple previous = this.leftParentPrevious;
-        LeftTuple next = this.leftParentNext;
+        LeftTuple previousParent = this.leftParentPrevious;
+        LeftTuple nextParent = this.leftParentNext;
 
-        if ( previous != null && next != null ) {
+        if ( previousParent != null && nextParent != null ) {
             //remove  from middle
-            this.leftParentPrevious.leftParentNext = this.leftParentNext;
-            this.leftParentNext.leftParentPrevious = this.leftParentPrevious;
-        } else if ( next != null ) {
+            this.leftParentPrevious.leftParentNext = nextParent;
+            this.leftParentNext.leftParentPrevious = previousParent;
+        } else if ( nextParent != null ) {
+            //remove from first
             if ( this.leftParent != null ) { 
-                //remove from first
-                this.leftParent.children = this.leftParentNext;
+                this.leftParent.firstChild = nextParent;
             } else {
-                this.handle.setLeftTuple( this.leftParentNext );
+                // This is relevant to the root node and only happens at rule removal time
+                this.handle.setFirstLeftTuple( nextParent );
             }
-
-            this.leftParentNext.leftParentPrevious = null;
-        } else if ( previous != null ) {
+            nextParent.leftParentPrevious = null;
+        } else if ( previousParent != null ) {
             //remove from end
-            this.leftParentPrevious.leftParentNext = null;
-        } else {
             if ( this.leftParent != null ) { 
-                this.leftParent.children = null;
+                this.leftParent.lastChild = previousParent;
             } else {
-                this.handle.setLeftTuple( null );
+                // relevant to the root node, as here the parent is the FactHandle, only happens at rule removal time
+                this.handle.setLastLeftTuple( previousParent );
+            }
+            previousParent.leftParentNext = null;                
+        } else {
+            // single remaining item, no previous or next
+            if( leftParent != null ) {
+                this.leftParent.firstChild = null;
+                this.leftParent.lastChild = null;
+            } else {
+                // it is a root tuple - only happens during rule removal
+                this.handle.setFirstLeftTuple( null );
+                this.handle.setLastLeftTuple( null );
             }
         }
-
-        //this.parent  = null;
 
         this.leftParent = null;
         this.leftParentPrevious = null;
@@ -169,25 +278,27 @@ public class LeftTuple
             // no right parent;
             return;
         }
-        LeftTuple previous = this.rightParentPrevious;
-        LeftTuple next = this.rightParentNext;
+        
+        LeftTuple previousParent = this.rightParentPrevious;
+        LeftTuple nextParent = this.rightParentNext;
 
-        if ( previous != null && next != null ) {
-            //remove  from middle
+        if ( previousParent != null && nextParent != null ) {
+            // remove from middle
             this.rightParentPrevious.rightParentNext = this.rightParentNext;
             this.rightParentNext.rightParentPrevious = this.rightParentPrevious;
-        } else if ( next != null ) {
-            //remove from first
-            this.rightParent.setBetaChildren( this.rightParentNext );
-            this.rightParentNext.rightParentPrevious = null;
-        } else if ( previous != null ) {
-            //remove from end
-            this.rightParentPrevious.rightParentNext = null;
+        } else if ( nextParent != null ) { 
+            // remove from the start
+            this.rightParent.firstChild = nextParent;
+            nextParent.rightParentPrevious = null;
+        } else if ( previousParent != null ) {
+            // remove from end     
+            this.rightParent.lastChild = previousParent;
+            previousParent.rightParentNext = null;
         } else {
-            this.rightParent.setBetaChildren( null );
-        }
-
-        //this.parent  = null;
+            // single remaining item, no previous or next
+            this.rightParent.firstChild = null;
+            this.rightParent.lastChild = null;
+        }        
 
         this.blocker = null;
 
@@ -252,13 +363,13 @@ public class LeftTuple
         this.rightParentNext = rightParentRight;
     }
 
-    public void setBetaChildren(LeftTuple leftTuple) {
-        this.children = leftTuple;
-    }
-
-    public LeftTuple getBetaChildren() {
-        return this.children;
-    }
+//    public void setBetaChildren(LeftTuple leftTuple) {
+//        this.firstChild = leftTuple;
+//    }
+//
+//    public LeftTuple getBetaChildren() {
+//        return this.firstChild;
+//    }
 
     public InternalFactHandle get(final int index) {
         LeftTuple entry = this;
@@ -326,11 +437,7 @@ public class LeftTuple
             entry = entry.parent;
         }
         return handles;
-    }
-    
-    public long getRecency() {
-        return this.recency;
-    }
+    }    
 
     public void setBlocker(RightTuple blocker) {
         this.blocker = blocker;
@@ -360,12 +467,12 @@ public class LeftTuple
         this.activation = activation;
     }
 
-    public int hashCode() {
-        return this.hashCode;
-    }
+//    public int hashCode() {        
+//        return this.hashCode;
+//    }
 
     public String toString() {
-        final StringBuffer buffer = new StringBuffer();
+        final StringBuilder buffer = new StringBuilder();
 
         LeftTuple entry = this;
         while ( entry != null ) {
@@ -376,6 +483,10 @@ public class LeftTuple
         return buffer.toString();
     }
 
+    
+    public int hashCode() {
+        return this.handle.hashCode();
+    }
     /**
      * We use this equals method to avoid the cast
      * @param tuple
@@ -385,10 +496,12 @@ public class LeftTuple
         // we know the object is never null and always of the  type LeftTuple
         if ( other == this ) {
             return true;
+        } else if( other == null ) {
+            return false;
         }
 
         // A LeftTuple is  only the same if it has the same hashCode, factId and parent
-        if ( this.hashCode != other.hashCode ) {
+        if ( this.hashCode() != other.hashCode() ) {
             return false;
         }
 
@@ -461,4 +574,37 @@ public class LeftTuple
     public LeftTuple getParent() {
         return parent;
     }
+    
+    public String toTupleTree(int indent) {
+        StringBuilder buf = new StringBuilder();
+        char[] spaces = new char[indent];
+        Arrays.fill( spaces, ' ' );
+        String istr = new String( spaces );
+        buf.append( istr );
+        buf.append( this.toExternalString() );
+        buf.append( "\n" );
+        for( LeftTuple leftTuple = this.firstChild; leftTuple != null; leftTuple = leftTuple.getLeftParentNext() ) {
+            buf.append( leftTuple.toTupleTree( indent+4 ) );
+        }
+        return buf.toString();
+    }
+
+    private String toExternalString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append( String.format( "%08X", System.identityHashCode( this ) ) ).append( ":" );
+        int[] ids = new int[this.index+1];
+        LeftTuple entry = this;
+        while( entry != null ) {
+            ids[entry.index] = entry.getLastHandle().getId();
+            entry = entry.parent;
+        }
+        builder.append( Arrays.toString( ids ) )
+               .append( " activation=" )
+               .append( this.activation != null ? ((AgendaItem)this.activation).toExternalForm() : "null" )
+               .append( " sink=" )
+               .append( this.sink.getClass().getSimpleName() )
+               .append( "(" ).append( sink.getId() ).append( ")" );
+        return  builder.toString();
+    }
+    
 }

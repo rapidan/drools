@@ -138,10 +138,10 @@ public abstract class BaseMannersTest extends TestCase {
         
         this.pkg.addRule( getAssignFirstSeatRule() );
         this.pkg.addRule( getFindSeating() );
+        this.pkg.addRule( getMakePath() );        
         this.pkg.addRule( getPathDone() );
-        this.pkg.addRule( getMakePath() );
-        this.pkg.addRule( getContinueProcessing() );
-        this.pkg.addRule( getAreWeDone() );
+        this.pkg.addRule( getContinueProcessing() );        
+        this.pkg.addRule( getAreWeDone() );        
         this.pkg.addRule( getAllDone() );
 
     }
@@ -250,12 +250,11 @@ public abstract class BaseMannersTest extends TestCase {
                     drools.update( tuple.get( countDeclaration ),
                                    count );
 
-                    drools.modifyRetract( context );;
                     context.setState( Context.ASSIGN_SEATS );
                     //                    drools.update( tuple.get( contextDeclaration ),
                     //                            context );
 
-                    drools.modifyInsert( context );
+                    drools.update( context );
 
                     //                    System.err.println( "assign first seat :  " + seating + " : " + path );
 
@@ -273,6 +272,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );
@@ -549,7 +552,7 @@ public abstract class BaseMannersTest extends TestCase {
                     drools.update( tuple.get( contextDeclaration ),
                                    context );
 
-                    //                    System.err.println( "find seating : " + seating + " : " + path + " : " + chosen );
+                    System.err.println( "find seating : " + seating + " : " + path + " : " + chosen );
 
                 } catch ( Exception e ) {
                     e.printStackTrace();
@@ -565,6 +568,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );
@@ -718,6 +725,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );
@@ -794,13 +805,12 @@ public abstract class BaseMannersTest extends TestCase {
                     Context context = (Context) drools.get( contextDeclaration );
                     Seating seating = (Seating) drools.get( seatingDeclaration );
 
-                    drools.modifyRetract( seating );
                     seating.setPathDone( true );
 
                     //                    if ( seating.getId() == 6 ) {
                     //                        System.err.println( "pause" );
                     //                    }
-                    drools.modifyInsert( seating );
+                    drools.update( seating );
 
                     context.setState( Context.CHECK_DONE );
                     drools.update( tuple.get( contextDeclaration ),
@@ -820,6 +830,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );
@@ -921,6 +935,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );
@@ -994,6 +1012,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );
@@ -1056,6 +1078,10 @@ public abstract class BaseMannersTest extends TestCase {
             public void writeExternal(ObjectOutput out) throws IOException {
 
             }
+            
+            public String getName() {
+                return "default";
+            }            
         };
 
         rule.setConsequence( consequence );

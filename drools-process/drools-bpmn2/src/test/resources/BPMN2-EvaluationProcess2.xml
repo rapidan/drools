@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<definitions id="Definition"
+             targetNamespace="http://www.jboss.org/drools"
+             typeLanguage="http://www.java.com/javaTypes"
+             expressionLanguage="http://www.mvel.org/2.0"
+             xmlns="http://schema.omg.org/spec/BPMN/2.0"
+             xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+             xs:schemaLocation="http://schema.omg.org/spec/BPMN/2.0 BPMN20.xsd"
+             xmlns:g="http://www.jboss.org/drools/flow/gpd"
+             xmlns:tns="http://www.jboss.org/drools">
+
+  <itemDefinition id="employeeItem" structureRef="java.lang.Object" />
+
+  <resource id="Actor" name="Human Actor" />
+
+  <process id="com.sample.evaluation" name="Evaluation" >
+
+    <!-- process variables -->
+    <property id="employee" itemSubjectRef="tns:employeeItem"/>
+
+    <!-- nodes -->
+    <startEvent id="_1" name="StartProcess" g:x="16" g:y="56" g:width="48" g:height="48" />
+    <userTask id="_2" name="Self Evaluation" g:x="96" g:y="56" g:width="100" g:height="48" >
+      <ioSpecification>
+        <dataInput id="_2_CommentInput" name="Comment" />
+        <dataInput id="_2_TaskNameInput" name="TaskName" />
+        <dataInput id="_2_PriorityInput" name="Priority" />
+        <dataInput id="_2_ContentInput" name="Content" />
+        <dataInput id="_2_SkippableInput" name="Skippable" />
+        <inputSet>
+          <dataInputRefs>_2_CommentInput</dataInputRefs>
+          <dataInputRefs>_2_TaskNameInput</dataInputRefs>
+          <dataInputRefs>_2_PriorityInput</dataInputRefs>
+          <dataInputRefs>_2_ContentInput</dataInputRefs>
+          <dataInputRefs>_2_SkippableInput</dataInputRefs>
+        </inputSet>
+        <outputSet>
+        </outputSet>
+      </ioSpecification>
+      <property id="_2_Comment" />
+      <property id="_2_TaskName" />
+      <property id="_2_Priority" />
+      <property id="_2_Content" />
+      <property id="_2_Skippable" />
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">You need to perform a self evaluation</from>
+          <to xs:type="tFormalExpression">_2_CommentInput</to>
+        </assignment>
+        <sourceRef>_2_Comment</sourceRef>
+        <targetRef>_2_CommentInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">Performance Evaluation</from>
+          <to xs:type="tFormalExpression">_2_TaskNameInput</to>
+        </assignment>
+        <sourceRef>_2_TaskName</sourceRef>
+        <targetRef>_2_TaskNameInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">1</from>
+          <to xs:type="tFormalExpression">_2_PriorityInput</to>
+        </assignment>
+        <sourceRef>_2_Priority</sourceRef>
+        <targetRef>_2_PriorityInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>org.w3c.dom.Node nameNode = xmlNode.getAttributes().getNamedItem("name");
+        		if (nameNode != null) {
+        			String name = nameNode.getNodeValue();
+        			sequenceFlow.setName(name);
+        		}
+        		
+          <from xs:type="tFormalExpression"></from>
+          <to xs:type="tFormalExpression">_2_ContentInput</to>
+        </assignment>
+        <sourceRef>_2_Content</sourceRef>
+        <targetRef>_2_ContentInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">false</from>
+          <to xs:type="tFormalExpression">_2_SkippableInput</to>
+        </assignment>
+        <sourceRef>_2_Skippable</sourceRef>
+        <targetRef>_2_SkippableInput</targetRef>
+      </dataInputAssociation>
+      <potentialOwner resourceRef="tns:Actor" >
+        <resourceAssignmentExpression>
+          <formalExpression>#{employee}</formalExpression>
+        </resourceAssignmentExpression>
+      </potentialOwner>
+    </userTask>
+    <parallelGateway id="_3" name="Diverge" g:x="228" g:y="56" g:width="49" g:height="49" gatewayDirection="diverging" />
+    <userTask id="_4" name="Project Manager" g:x="309" g:y="16" g:width="122" g:height="48" >
+      <ioSpecification>
+        <dataInput id="_4_CommentInput" name="Comment" />
+        <dataInput id="_4_TaskNameInput" name="TaskName" />
+        <dataInput id="_4_PriorityInput" name="Priority" />
+        <dataInput id="_4_ContentInput" name="Content" />
+        <dataInput id="_4_SkippableInput" name="Skippable" />
+        <inputSet>
+          <dataInputRefs>_4_CommentInput</dataInputRefs>
+          <dataInputRefs>_4_TaskNameInput</dataInputRefs>
+          <dataInputRefs>_4_PriorityInput</dataInputRefs>
+          <dataInputRefs>_4_ContentInput</dataInputRefs>
+          <dataInputRefs>_4_SkippableInput</dataInputRefs>
+        </inputSet>
+        <outputSet>
+        </outputSet>
+      </ioSpecification>
+      <property id="_4_Comment" />
+      <property id="_4_TaskName" />
+      <property id="_4_Priority" />
+      <property id="_4_Content" />
+      <property id="_4_Skippable" />
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">You need to perform an evaluation for employee #{employee}</from>
+          <to xs:type="tFormalExpression">_4_CommentInput</to>
+        </assignment>
+        <sourceRef>_4_Comment</sourceRef>
+        <targetRef>_4_CommentInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">Performance Evaluation</from>
+          <to xs:type="tFormalExpression">_4_TaskNameInput</to>
+        </assignment>
+        <sourceRef>_4_TaskName</sourceRef>
+        <targetRef>_4_TaskNameInput</targetRef>
+      </dataInputAssociation>org.w3c.dom.Node nameNode = xmlNode.getAttributes().getNamedItem("name");
+        		if (nameNode != null) {
+        			String name = nameNode.getNodeValue();
+        			sequenceFlow.setName(name);
+        		}
+        		
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">1</from>
+          <to xs:type="tFormalExpression">_4_PriorityInput</to>
+        </assignment>
+        <sourceRef>_4_Priority</sourceRef>
+        <targetRef>_4_PriorityInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression"></from>
+          <to xs:type="tFormalExpression">_4_ContentInput</to>
+        </assignment>
+        <sourceRef>_4_Content</sourceRef>
+        <targetRef>_4_ContentInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">false</from>
+          <to xs:type="tFormalExpression">_4_SkippableInput</to>
+        </assignment>
+        <sourceRef>_4_Skippable</sourceRef>
+        <targetRef>_4_SkippableInput</targetRef>
+      </dataInputAssociation>
+      <potentialOwner resourceRef="tns:Actor" >
+        <resourceAssignmentExpression>
+          <formalExpression>john</formalExpression>
+        </resourceAssignmentExpression>
+      </potentialOwner>
+    </userTask>
+    <userTask id="_5" name="HR Manager" g:x="309" g:y="96" g:width="122" g:height="48" >
+      <ioSpecification>
+        <dataInput id="_5_CommentInput" name="Comment" />
+        <dataInput id="_5_TaskNameInput" name="TaskName" />
+        <dataInput id="_5_PriorityInput" name="Priority" />
+        <dataInput id="_5_ContentInput" name="Content" />
+        <dataInput id="_5_SkippableInput" name="Skippable" />
+        <inputSet>
+          <dataInputRefs>_5_CommentInput</dataInputRefs>
+          <dataInputRefs>_5_TaskNameInput</dataInputRefs>
+          <dataInputRefs>_5_PriorityInput</dataInputRefs>
+          <dataInputRefs>_5_ContentInput</dataInputRefs>
+          <dataInputRefs>_5_SkippableInput</dataInputRefs>
+        </inputSet>
+        <outputSet>
+        </outputSet>
+      </ioSpecification>
+      <property id="_5_Comment" />
+      <property id="_5_TaskName" />
+      <property id="_5_Priority" />
+      <property id="_5_Content" />
+      <property id="_5_Skippable" />
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">You need to perform an evaluation for employee #{employee}</from>
+          <to xs:type="tFormalExpression">_5_CommentInput</to>
+        </assignment>
+        <sourceRef>_5_Comment</sourceRef>
+        <targetRef>_5_CommentInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">Performance Evaluation</from>
+          <to xs:type="tFormalExpression">_5_TaskNameInput</to>
+        </assignment>
+        <sourceRef>_5_TaskName</sourceRef>
+        <targetRef>_5_TaskNameInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">1</from>
+          <to xs:type="tFormalExpression">_5_PriorityInput</to>
+        </assignment>
+        <sourceRef>_5_Priority</sourceRef>
+        <targetRef>_5_PriorityInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression"></from>
+          <to xs:type="tFormalExpression">_5_ContentInput</to>
+        </assignment>
+        <sourceRef>_5_Content</sourceRef>
+        <targetRef>_5_ContentInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <assignment>
+          <from xs:type="tFormalExpression">false</from>
+          <to xs:type="tFormalExpression">_5_SkippableInput</to>
+        </assignment>
+        <sourceRef>_5_Skippable</sourceRef>
+        <targetRef>_5_SkippableInput</targetRef>
+      </dataInputAssociation>
+      <potentialOwner resourceRef="tns:Actor" >
+        <resourceAssignmentExpression>
+          <formalExpression>mary</formalExpression>
+        </resourceAssignmentExpression>
+      </potentialOwner>
+    </userTask>
+    <parallelGateway id="_6" name="Converge" g:x="463" g:y="56" g:width="49" g:height="49" gatewayDirection="converging" />
+    <endEvent id="_7" name="EndProcess" g:x="547" g:y="56" g:width="48" g:height="48" >
+      <terminateEventDefinition/>
+    </endEvent>
+
+    <!-- connections -->
+    <sequenceFlow sourceRef="_6" targetRef="_7" />
+    <sequenceFlow sourceRef="_1" targetRef="_2" />
+    <sequenceFlow sourceRef="_4" targetRef="_6" />
+    <sequenceFlow sourceRef="_5" targetRef="_6" />
+    <sequenceFlow sourceRef="_3" targetRef="_4" />
+    <sequenceFlow sourceRef="_3" targetRef="_5" />
+    <sequenceFlow sourceRef="_2" targetRef="_3" />
+
+  </process>
+
+</definitions>

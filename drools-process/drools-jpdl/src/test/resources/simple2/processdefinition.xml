@@ -6,7 +6,7 @@
    <start-state name="start">
 		<transition to="fork1"></transition>
 	</start-state>
-   <node name="node1">
+        <node name="node1">
 		<action name="Sysout" class="org.drools.SysoutHandler"></action>
 		<transition to="join1"></transition>
 	</node>

@@ -16,23 +16,29 @@ package org.drools.guvnor.client.rulelist;
  * limitations under the License.
  */
 
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.MissingResourceException;
+import java.util.Stack;
 
 import org.drools.guvnor.client.common.GenericCallback;
 import org.drools.guvnor.client.common.LoadingPopup;
+import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
 import org.drools.guvnor.client.rpc.TableConfig;
 import org.drools.guvnor.client.rpc.TableDataResult;
 import org.drools.guvnor.client.rpc.TableDataRow;
 import org.drools.guvnor.client.ruleeditor.EditorLauncher;
-import org.drools.guvnor.client.messages.Constants;
+import org.drools.guvnor.client.ruleeditor.MultiViewRow;
 
-import com.google.gwt.i18n.client.DateTimeFormat;
-import com.google.gwt.user.client.*;
-import com.google.gwt.user.client.ui.Composite;
-import com.google.gwt.user.client.ui.SimplePanel;
-import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.i18n.client.DateTimeFormat;
+import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.SimplePanel;
 import com.gwtext.client.core.EventObject;
 import com.gwtext.client.data.ArrayReader;
 import com.gwtext.client.data.DateFieldDef;
@@ -43,7 +49,11 @@ import com.gwtext.client.data.RecordDef;
 import com.gwtext.client.data.Store;
 import com.gwtext.client.data.StringFieldDef;
 import com.gwtext.client.util.Format;
-import com.gwtext.client.widgets.*;
+import com.gwtext.client.widgets.Button;
+import com.gwtext.client.widgets.Toolbar;
+import com.gwtext.client.widgets.ToolbarButton;
+import com.gwtext.client.widgets.ToolbarItem;
+import com.gwtext.client.widgets.ToolbarTextItem;
 import com.gwtext.client.widgets.event.ButtonListenerAdapter;
 import com.gwtext.client.widgets.grid.CellMetadata;
 import com.gwtext.client.widgets.grid.ColumnConfig;
@@ -62,9 +72,9 @@ public class AssetItemGrid extends Composite {
     public static final String  RULE_LIST_TABLE_ID          = "rulelist";
     public static final String  PACKAGEVIEW_LIST_TABLE_ID   = "packageviewlist";
     public static final String  ARCHIVED_RULE_LIST_TABLE_ID = "archivedrulelist";
-    private static final Map    columnConfigs               = new HashMap();
-    private static final Map    recordDefs                  = new HashMap();
-    private static final Map    rowsPerPage                 = new HashMap();
+    private static final Map<String, ColumnModel>    columnConfigs               = new HashMap<String, ColumnModel>();
+    private static final Map<String, RecordDef>    recordDefs                  = new HashMap<String, RecordDef>();
+    private static final Map<String, Integer>    rowsPerPage                 = new HashMap<String, Integer>();
 
     private final EditItemEvent editEvent;
     private SimplePanel         layout;
@@ -79,10 +89,29 @@ public class AssetItemGrid extends Composite {
 
     protected Store             store;
     private GridPanel           currentGrid;
-    private Constants constants = GWT.create(Constants.class);
-    private String feedURL
-            ;
+    private static Constants constants = GWT.create(Constants.class);
+    private String feedURL;
+    private Command unloadHook;
 
+
+    /**
+     * Call this to set up a table config instead of loading it from the server. You then pass in the config name for later use.
+     * Can save a round trip.
+     */
+    public static void registerTableConf(TableConfig conf, String tableConfig) {
+       if (columnConfigs.containsKey(tableConfig)) return;
+       ColumnModel cm = createColumnModel( conf );
+       columnConfigs.put( tableConfig, cm );
+       RecordDef rd = createRecordDef( conf );
+       recordDefs.put( tableConfig, rd );
+       rowsPerPage.put( tableConfig, new Integer( conf.rowsPerPage ) );
+    }
+
+
+    /**
+     * Create a grid using the given config - config will be loaded from the server if it is not already cached.
+     * You can use registerTableConf to register it to avoid a server hit.
+     */
     public AssetItemGrid(final EditItemEvent event,
                          final String tableConfig,
                          final AssetItemGridDataLoader source) {
@@ -91,20 +120,12 @@ public class AssetItemGrid extends Composite {
         this.layout = new SimplePanel();
         if ( !columnConfigs.containsKey( tableConfig ) ) {
             RepositoryServiceFactory.getService().loadTableConfig( tableConfig,
-                                                                   new GenericCallback() {
-                                                                       public void onSuccess(Object data) {
-                                                                           TableConfig conf = (TableConfig) data;
-                                                                           ColumnModel cm = createColumnModel( conf );
-                                                                           columnConfigs.put( tableConfig,
-                                                                                              cm );
-                                                                           RecordDef rd = createRecordDef( conf );
-                                                                           recordDefs.put( tableConfig,
-                                                                                           rd );
-                                                                           rowsPerPage.put( tableConfig,
-                                                                                            new Integer( conf.rowsPerPage ) );
+                                                                   new GenericCallback<TableConfig>() {
+                                                                       public void onSuccess(TableConfig conf) {
+                                                                           registerTableConf(conf, tableConfig);
                                                                            doGrid( source,
-                                                                                   cm,
-                                                                                   rd,
+                                                                                   columnConfigs.get(tableConfig),
+                                                                                   recordDefs.get(tableConfig),
                                                                                    conf.rowsPerPage );
                                                                        }
                                                                    } );
@@ -118,13 +139,18 @@ public class AssetItemGrid extends Composite {
         initWidget( layout );
     }
 
-        public AssetItemGrid(final EditItemEvent event,
-                         final String tableConfig,
-                         final AssetItemGridDataLoader source,
-                         String feedURL) {
-            this(event, tableConfig, source);
-            this.feedURL = feedURL;
-        }
+
+    /**
+     * Similar to the other constructor, but takes an optional feelURL to show with an atom icon in the top right.
+     */
+    public AssetItemGrid(final EditItemEvent event,
+                     final String tableConfig,
+                     final AssetItemGridDataLoader source,
+                     String feedURL) {
+        this(event, tableConfig, source);
+        this.feedURL = feedURL;
+    }
+    
 
     private Stack<Integer> getPositionStack() {
         Stack<Integer> cursorPositions = new Stack<Integer>();
@@ -140,7 +166,17 @@ public class AssetItemGrid extends Composite {
                         final RecordDef rd,
                         final int pageSize) {
         final int numFlds = rd.getFields().length;
-        LoadingPopup.showMessage( "Loading data..." );
+
+        final boolean[] loaded = {false};
+        Timer t = new Timer() {
+            public void run() {
+                if (!loaded[0]) LoadingPopup.showMessage( constants.PleaseWait() );
+            }
+        };
+
+        t.schedule(90);
+
+
         source.loadData( cursorPositions.peek(),
                          pageSize,
                          new GenericCallback<TableDataResult>() {
@@ -154,8 +190,11 @@ public class AssetItemGrid extends Composite {
                                      for ( int j = 2; j < numFlds; j++ ) {
                                          if (rd.getFields()[j] instanceof DateFieldDef) {
                                             Date dt = new Date(Long.parseLong(row.values[j - 2]));
-                                            //DateTimeFormat format = DateTimeFormat.getFormat( "MMM d, yyyy");
-                                             DateTimeFormat format = DateTimeFormat.getFullDateFormat();
+                                            //NOTE, GWTEXT only understands certain date formats, for example "yyyy/MM/dd"
+                                            //works but other formats such as "yyyy/MM/dd" or localized formats  is not recognizable 
+                                            //by GWTEXT. See http://code.google.com/p/gwt-ext/issues/detail?id=459&start=100.
+                                            DateTimeFormat format = DateTimeFormat.getFormat( "yyyy/MM/dd");
+                                             //DateTimeFormat format = DateTimeFormat.getFullDateFormat();
                                             rowData[j] = format.format(dt);
                                          } else {
                                             rowData[j] = row.values[j - 2];
@@ -227,15 +266,36 @@ public class AssetItemGrid extends Composite {
 
 
                                  ToolbarButton openSelected = new ToolbarButton();
-                                 openSelected.setText(constants.openSelected());
+                                 openSelected.setText( constants.openSelected() );
                                  openSelected.addListener( new ButtonListenerAdapter() {
                                      public void onClick(Button button,
                                                          EventObject e) {
-                                                 String uuid = currentGrid.getSelectionModel().getSelected().getAsString( "uuid" );
-                                                 editEvent.open( uuid );
+                                         Record[] selections = currentGrid.getSelectionModel().getSelections();
+                                         for ( Record record : selections ) {
+                                             String uuid = record.getAsString( "uuid" );
+                                             editEvent.open( uuid );
+                                         }
                                      }
                                  } );
                                  tb.addButton( openSelected );
+                                 ToolbarButton openSelectedToSingleTab = new ToolbarButton();
+                                 openSelectedToSingleTab.setText( constants.openSelectedToSingleTab() );
+                                 openSelectedToSingleTab.addListener( new ButtonListenerAdapter() {
+                                     public void onClick(Button button,
+                                                         EventObject e) {
+                                         Record[] selections = currentGrid.getSelectionModel().getSelections();
+                                         MultiViewRow[] rows = new MultiViewRow[selections.length];
+                                         for ( int i = 0; i < selections.length; i++ ) {
+                                             MultiViewRow row = new MultiViewRow();
+                                             row.uuid = selections[i].getAsString( "uuid" );
+                                             row.name = selections[i].getAsString( "Name" );
+                                             row.format = selections[i].getAsString( "format" );
+                                             rows[i] = row;
+                                         }
+                                         editEvent.open( rows );
+                                     }
+                                 } );
+                                 tb.addButton( openSelectedToSingleTab );
 
 
                                  if (feedURL != null) {
@@ -260,6 +320,7 @@ public class AssetItemGrid extends Composite {
                                  layout.add( currentGrid );
                                  //store the end position
                                  currentCursorPosition = (int) result.currentPosition;
+                                 loaded[0] = true;
                                  LoadingPopup.close();
                              }
 
@@ -268,14 +329,26 @@ public class AssetItemGrid extends Composite {
 
     public String getSelectedRowUUID() {
         Record r = currentGrid.getSelectionModel().getSelected();
-        if ( r != null ) {
-            return r.getAsString( "uuid" );
+        if ( r != null) {
+            return r.getAsString("uuid");
         } else {
             return null;
         }
-
     }
 
+    public String[] getSelectedRowUUIDs() {
+        Record[] records = currentGrid.getSelectionModel().getSelections();
+        if ( records != null && records.length !=0) {
+            String[] rtn = new String[records.length];
+            for(int i=0; i<records.length; i++) {
+                rtn[i] = records[i].getAsString("uuid");
+            }
+            return rtn;
+        } else {
+            return null;
+        }
+    }
+    
     private void navButton(final AssetItemGridDataLoader source,
                            final ColumnModel cm,
                            final RecordDef rd,
@@ -330,7 +403,7 @@ public class AssetItemGrid extends Composite {
         }
     }
 
-    private RecordDef createRecordDef(TableConfig conf) {
+    private static RecordDef createRecordDef(TableConfig conf) {
         FieldDef[] fd = new FieldDef[conf.headers.length + 2]; //2 as we have format and UUID to tack on.
         fd[0] = new StringFieldDef( "uuid" );                 //NON-NLS
         fd[1] = new StringFieldDef( "format" );              //NON-NLS
@@ -346,13 +419,14 @@ public class AssetItemGrid extends Composite {
         return new RecordDef( fd );
     }
 
-    private ColumnModel createColumnModel(TableConfig conf) {
+    private static ColumnModel createColumnModel(TableConfig conf) {
         ColumnConfig[] cfgs = new ColumnConfig[conf.headers.length + 1];
 
         //first the UUID
         cfgs[0] = new ColumnConfig() {
             {
                 setHidden( true );
+                setHeader( "uuid" );
                 setDataIndex( "uuid" );   //NON-NLS
             }
         };
@@ -364,8 +438,6 @@ public class AssetItemGrid extends Composite {
 
             cfgs[i + 1] = new ColumnConfig() {
                 {
-                    if ( !header.equals( "Description" ) ) {
-
                         setupHeader();
                         setSortable( true );
                         setDataIndex( header );
@@ -396,14 +468,14 @@ public class AssetItemGrid extends Composite {
                                                      int colNum,
                                                      Store store) {
                                     DateTimeFormat format = DateTimeFormat.getMediumDateFormat();// DateTimeFormat.getFormat( "MMM d, yyyy");
+                                    //System.out.println("----format.format( (Date) value  )" + format.format( (Date) value  ));
                                     return format.format( (Date) value  );
                                 }
                             } );
+                        } else if ( header.equals( "Description" ) ) {
+                            setHidden( true ); //don't want to show a separate description
                         }
-                    } else {
-                        setHidden( true ); //don't want to show a separate description
-                    }
-
+                    
                 }
 
                 /**
@@ -428,4 +500,17 @@ public class AssetItemGrid extends Composite {
         this.refresh.execute();
     }
 
+    /**
+     * To be used when unloading.
+     * @param command
+     */
+    public void addUnloadListener(Command command) {
+        this.unloadHook = command;
+    }
+
+    @Override
+    protected void onUnload() {
+        super.onUnload();
+        if (unloadHook != null) unloadHook.execute();
+    }
 }

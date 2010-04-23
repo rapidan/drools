@@ -6,6 +6,7 @@ import org.drools.guvnor.client.explorer.ExplorerViewCenterPanel;
 import org.drools.guvnor.client.rpc.PackageConfigData;
 import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
 import org.drools.guvnor.client.rpc.ValidatedResponse;
+import org.drools.guvnor.client.ruleeditor.MultiViewRow;
 import org.drools.guvnor.client.rulelist.AssetItemGrid;
 import org.drools.guvnor.client.rulelist.AssetItemGridDataLoader;
 import org.drools.guvnor.client.rulelist.EditItemEvent;
@@ -49,6 +50,12 @@ public class ArchivedAssetManager extends Composite {
         EditItemEvent edit = new EditItemEvent () {
             public void open(String key) {
             	tab.openAsset(key);
+            }
+
+            public void open(MultiViewRow[] rows) {
+                for ( MultiViewRow row : rows ) {
+                    tab.openAsset( row.uuid );
+                }
             }
         };
         grid = new AssetItemGrid(edit, AssetItemGrid.ARCHIVED_RULE_LIST_TABLE_ID, new AssetItemGridDataLoader() {
@@ -105,11 +112,11 @@ public class ArchivedAssetManager extends Composite {
         tb.addButton(restoreAsset);
         restoreAsset.addListener(new ButtonListenerAdapter() {
         			public void onClick(com.gwtext.client.widgets.Button button, EventObject e) {
-                    	if (grid.getSelectedRowUUID() == null) {
+                    	if (grid.getSelectedRowUUIDs() == null) {
                     		Window.alert(constants.PleaseSelectAnItemToRestore());
                     		return;
                     	}
-                        RepositoryServiceFactory.getService().archiveAsset( grid.getSelectedRowUUID(), false, new GenericCallback() {
+                        RepositoryServiceFactory.getService().archiveAssets( grid.getSelectedRowUUIDs(), false, new GenericCallback() {
                             public void onSuccess(Object arg0) {
                                 Window.alert(constants.ItemRestored());
                                 grid.refreshGrid();
@@ -128,14 +135,14 @@ public class ArchivedAssetManager extends Composite {
         			public void onClick(
         					com.gwtext.client.widgets.Button button,
         					EventObject e) {
-                    	if (grid.getSelectedRowUUID() == null) {
+                    	if (grid.getSelectedRowUUIDs() == null) {
                     		Window.alert(constants.PleaseSelectAnItemToPermanentlyDelete());
                     		return;
                     	}
                     	if (!Window.confirm(constants.AreYouSureDeletingAsset())) {
                     		return;
                     	}
-                        RepositoryServiceFactory.getService().removeAsset( grid.getSelectedRowUUID(), new GenericCallback() {
+                        RepositoryServiceFactory.getService().removeAssets( grid.getSelectedRowUUIDs(), new GenericCallback() {
 
                             public void onSuccess(Object arg0) {
                                 Window.alert(constants.ItemDeleted());

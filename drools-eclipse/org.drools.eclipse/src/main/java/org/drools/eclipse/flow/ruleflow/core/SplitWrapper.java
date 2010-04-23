@@ -21,16 +21,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.drools.definition.process.Connection;
 import org.drools.eclipse.flow.common.editor.core.DefaultElementWrapper;
 import org.drools.eclipse.flow.common.editor.core.ElementConnection;
 import org.drools.eclipse.flow.common.editor.core.ElementWrapper;
 import org.drools.eclipse.flow.ruleflow.view.property.constraint.ConstraintsPropertyDescriptor;
-import org.drools.definition.process.Connection;
 import org.drools.workflow.core.Constraint;
 import org.drools.workflow.core.Node;
 import org.drools.workflow.core.WorkflowProcess;
+import org.drools.workflow.core.impl.ConnectionRef;
 import org.drools.workflow.core.node.Split;
-import org.drools.workflow.core.node.Split.ConnectionRef;
 import org.eclipse.ui.views.properties.ComboBoxPropertyDescriptor;
 import org.eclipse.ui.views.properties.IPropertyDescriptor;
 
@@ -88,8 +88,8 @@ public class SplitWrapper extends AbstractNodeWrapper {
     }
      
     private void setDescriptors() {
-        descriptors = new IPropertyDescriptor[DefaultElementWrapper.descriptors.length + 1];
-        System.arraycopy(DefaultElementWrapper.descriptors, 0, descriptors, 0, DefaultElementWrapper.descriptors.length);
+        descriptors = new IPropertyDescriptor[DefaultElementWrapper.DESCRIPTORS.length + 1];
+        System.arraycopy(DefaultElementWrapper.DESCRIPTORS, 0, descriptors, 0, DefaultElementWrapper.DESCRIPTORS.length);
         descriptors[descriptors.length - 1] = 
             new ComboBoxPropertyDescriptor(TYPE, "Type", 
                 new String[] { "", "AND", "XOR", "OR" });
@@ -123,8 +123,8 @@ public class SplitWrapper extends AbstractNodeWrapper {
         if (CONSTRAINTS.equals(id)) {
         	return getSplit().getType() == Split.TYPE_XOR
         		|| getSplit().getType() == Split.TYPE_OR
-        		? new MyHashMap<Split.ConnectionRef, Constraint>(getSplit().getConstraints())
-	            : new MyHashMap<Split.ConnectionRef, Constraint>();
+        		? new MyHashMap<ConnectionRef, Constraint>(getSplit().getConstraints())
+	            : new MyHashMap<ConnectionRef, Constraint>();
         }
         return super.getPropertyValue(id);
     }
@@ -151,10 +151,10 @@ public class SplitWrapper extends AbstractNodeWrapper {
             notifyListeners(CHANGE_TYPE);
             updateConnectionLabels();
         } else if (CONSTRAINTS.equals(id)) {
-        	Iterator<Map.Entry<Split.ConnectionRef, Constraint>> iterator = ((Map<Split.ConnectionRef, Constraint>) value).entrySet().iterator();
+        	Iterator<Map.Entry<ConnectionRef, Constraint>> iterator = ((Map<ConnectionRef, Constraint>) value).entrySet().iterator();
         	while (iterator.hasNext()) {
-				Map.Entry<Split.ConnectionRef, Constraint> element = iterator.next();
-				Split.ConnectionRef connectionRef = element.getKey();
+				Map.Entry<ConnectionRef, Constraint> element = iterator.next();
+				ConnectionRef connectionRef = element.getKey();
 				Connection outgoingConnection = null; 
 				for (Connection out: getSplit().getDefaultOutgoingConnections()) {
 				    if (out.getToType().equals(connectionRef.getToType())

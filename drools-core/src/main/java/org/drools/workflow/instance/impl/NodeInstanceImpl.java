@@ -17,6 +17,7 @@ package org.drools.workflow.instance.impl;
  */
 
 import java.io.Serializable;
+import java.util.List;
 
 import org.drools.WorkingMemory;
 import org.drools.common.EventSupport;
@@ -32,6 +33,7 @@ import org.drools.runtime.process.NodeInstance;
 import org.drools.runtime.process.NodeInstanceContainer;
 import org.drools.workflow.core.impl.NodeImpl;
 import org.drools.workflow.instance.WorkflowProcessInstance;
+import org.drools.workflow.instance.node.CompositeNodeInstance;
 
 /**
  * Default implementation of a RuleFlow node instance.
@@ -64,7 +66,8 @@ public abstract class NodeInstanceImpl implements org.drools.workflow.instance.N
     }
     
     public String getNodeName() {
-    	return getNode().getName();
+    	Node node = getNode();
+    	return node == null ? "" : node.getName();
     }
 
     public void setProcessInstance(final WorkflowProcessInstance processInstance) {
@@ -118,14 +121,25 @@ public abstract class NodeInstanceImpl implements org.drools.workflow.instance.N
     
     protected void triggerCompleted(String type, boolean remove) {
         if (remove) {
-            ((org.drools.workflow.instance.NodeInstanceContainer) getNodeInstanceContainer()).removeNodeInstance(this);
+            ((org.drools.workflow.instance.NodeInstanceContainer) getNodeInstanceContainer())
+            	.removeNodeInstance(this);
         }
-        for (Connection connection: getNode().getOutgoingConnections(type)) {
-        	// stop if this process instance has been aborted / completed
-        	if (getProcessInstance().getState() != ProcessInstance.STATE_ACTIVE) {
-        		return;
-        	}
-    		triggerConnection(connection);
+        Node node = getNode();
+        List<Connection> connections = null;
+        if (node != null) {
+        	connections = node.getOutgoingConnections(type);
+        }
+        if (connections == null || connections.isEmpty()) {
+        	((org.drools.workflow.instance.NodeInstanceContainer) getNodeInstanceContainer())
+        		.nodeInstanceCompleted(this, type);
+        } else {
+	        for (Connection connection: connections) {
+	        	// stop if this process instance has been aborted / completed
+	        	if (getProcessInstance().getState() != ProcessInstance.STATE_ACTIVE) {
+	        		return;
+	        	}
+	    		triggerConnection(connection);
+	        }
         }
     }
     
@@ -192,6 +206,17 @@ public abstract class NodeInstanceImpl implements org.drools.workflow.instance.N
     			return null;
     		}
     	}
+    }
+    
+    public String getUniqueId() {
+    	String result = "" + getId();
+    	NodeInstanceContainer parent = getNodeInstanceContainer();
+    	while (parent instanceof CompositeNodeInstance) {
+    		CompositeNodeInstance nodeInstance = (CompositeNodeInstance) parent;
+    		result = nodeInstance.getId() + ":" + result;
+    		parent = nodeInstance.getNodeInstanceContainer();
+    	}
+    	return result;
     }
     
 }

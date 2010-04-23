@@ -7,6 +7,7 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -24,13 +25,13 @@ public class MVELDialectRuntimeData
 
     private Map<Wireable, MVELCompileable> invokerLookups;
 
-    private CompositeClassLoader           rootClassLoader;
+    private DroolsCompositeClassLoader           rootClassLoader;
 
     private List<Wireable>                 wireList = Collections.<Wireable> emptyList();
 
     public MVELDialectRuntimeData() {
         this.functionFactory = new MapFunctionResolverFactory();
-        invokerLookups = new HashMap<Wireable, MVELCompileable>();
+        invokerLookups = new IdentityHashMap<Wireable, MVELCompileable>();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -69,7 +70,7 @@ public class MVELDialectRuntimeData
     }
 
     public DialectRuntimeData clone(DialectRuntimeRegistry registry,
-                                    CompositeClassLoader rootClassLoader) {
+                                    DroolsCompositeClassLoader rootClassLoader) {
         DialectRuntimeData clone = new MVELDialectRuntimeData();
         clone.merge( registry,
                      this );
@@ -79,7 +80,7 @@ public class MVELDialectRuntimeData
     }
 
     public void onAdd(DialectRuntimeRegistry registry,
-                      CompositeClassLoader rootClassLoader) {
+                      DroolsCompositeClassLoader rootClassLoader) {
         this.rootClassLoader = rootClassLoader;
 
         //        for (Entry<Wireable, MVELCompilable> entry : this.invokerLookups.entrySet() ) {

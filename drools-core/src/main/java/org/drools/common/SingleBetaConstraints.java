@@ -21,20 +21,21 @@ import java.io.ObjectOutput;
 
 import org.drools.RuleBaseConfiguration;
 import org.drools.base.evaluators.Operator;
+import org.drools.core.util.LeftTupleIndexHashTable;
+import org.drools.core.util.LeftTupleList;
+import org.drools.core.util.LinkedList;
+import org.drools.core.util.LinkedListEntry;
+import org.drools.core.util.RightTupleIndexHashTable;
+import org.drools.core.util.RightTupleList;
+import org.drools.core.util.AbstractHashTable.FieldIndex;
 import org.drools.reteoo.BetaMemory;
 import org.drools.reteoo.LeftTuple;
 import org.drools.reteoo.LeftTupleMemory;
 import org.drools.reteoo.RightTupleMemory;
 import org.drools.rule.ContextEntry;
+import org.drools.rule.UnificationRestriction;
 import org.drools.rule.VariableConstraint;
 import org.drools.spi.BetaNodeFieldConstraint;
-import org.drools.util.LeftTupleIndexHashTable;
-import org.drools.util.LeftTupleList;
-import org.drools.util.LinkedList;
-import org.drools.util.LinkedListEntry;
-import org.drools.util.RightTupleIndexHashTable;
-import org.drools.util.RightTupleList;
-import org.drools.util.AbstractHashTable.FieldIndex;
 
 public class SingleBetaConstraints
     implements
@@ -97,13 +98,15 @@ public class SingleBetaConstraints
         out.writeObject(conf);
     }
 
-    private boolean isIndexable(final BetaNodeFieldConstraint constraint) {
-        if ( constraint instanceof VariableConstraint ) {
+    public  static boolean isIndexable(final BetaNodeFieldConstraint constraint) {
+        if ( constraint instanceof VariableConstraint  ) {
             final VariableConstraint variableConstraint = (VariableConstraint) constraint;
-            return (variableConstraint.getEvaluator().getOperator() == Operator.EQUAL);
-        } else {
-            return false;
-        }
+            if ( (!(variableConstraint.getRestriction() instanceof UnificationRestriction )) ) {
+                return (variableConstraint.getEvaluator().getOperator() == Operator.EQUAL);
+            }
+        } 
+        
+        return false;
     }
 
     public ContextEntry[] createContext() {

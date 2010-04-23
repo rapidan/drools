@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.drools.base.ClassObjectType;
+import org.drools.base.DroolsQuery;
 import org.drools.base.FieldFactory;
 import org.drools.base.ValueType;
 import org.drools.base.evaluators.EvaluatorDefinition;
@@ -32,6 +33,7 @@ import org.drools.base.evaluators.EvaluatorDefinition.Target;
 import org.drools.base.field.ObjectFieldImpl;
 import org.drools.compiler.DescrBuildError;
 import org.drools.compiler.Dialect;
+import org.drools.core.util.StringUtils;
 import org.drools.facttemplates.FactTemplate;
 import org.drools.facttemplates.FactTemplateFieldExtractor;
 import org.drools.facttemplates.FactTemplateObjectType;
@@ -66,11 +68,14 @@ import org.drools.rule.OrConstraint;
 import org.drools.rule.Pattern;
 import org.drools.rule.PatternSource;
 import org.drools.rule.PredicateConstraint;
+import org.drools.rule.Query;
 import org.drools.rule.ReturnValueConstraint;
 import org.drools.rule.ReturnValueRestriction;
+import org.drools.rule.Rule;
 import org.drools.rule.RuleConditionElement;
 import org.drools.rule.SlidingLengthWindow;
 import org.drools.rule.SlidingTimeWindow;
+import org.drools.rule.UnificationRestriction;
 import org.drools.rule.VariableConstraint;
 import org.drools.rule.VariableRestriction;
 import org.drools.rule.builder.dialect.mvel.MVELDialect;
@@ -83,7 +88,6 @@ import org.drools.spi.ObjectType;
 import org.drools.spi.PatternExtractor;
 import org.drools.spi.Restriction;
 import org.drools.spi.Constraint.ConstraintType;
-import org.drools.util.StringUtils;
 import org.mvel2.ParserContext;
 import org.mvel2.compiler.ExpressionCompiler;
 
@@ -142,11 +146,24 @@ public class PatternBuilder
                 objectType = new ClassObjectType( userProvidedClass,
                                                   isEvent );
             } catch ( final ClassNotFoundException e ) {
+                // swallow as we'll do another check in a moment and then record the problem
+            }
+        }
+        
+        // lets see if it maps to a query
+        if ( objectType == null ) {
+            Rule rule = context.getPkg().getRule( patternDescr.getObjectType() );            
+            if ( rule != null && rule instanceof Query ) {
+                // it's a query so delegate to the QueryElementBuilder
+                QueryElementBuilder qeBuilder = new QueryElementBuilder();
+                return qeBuilder.build( context, descr, prefixPattern );
+            } else { 
+                // this isn't a query either, so log an error
                 context.getErrors().add( new DescrBuildError( context.getParentDescr(),
                                                               patternDescr,
                                                               null,
                                                               "Unable to resolve ObjectType '" + patternDescr.getObjectType() + "'" ) );
-                return null;
+                return null;                
             }
         }
 
@@ -210,14 +227,22 @@ public class PatternBuilder
         }
 
         for ( BehaviorDescr behaviorDescr : patternDescr.getBehaviors() ) {
-            if ( Behavior.BehaviorType.TIME_WINDOW.matches( behaviorDescr.getType() ) ) {
-                SlidingWindowDescr swd = (SlidingWindowDescr) behaviorDescr;
-                SlidingTimeWindow window = new SlidingTimeWindow( swd.getLength() );
-                pattern.addBehavior( window );
-            } else if ( Behavior.BehaviorType.LENGTH_WINDOW.matches( behaviorDescr.getType() ) ) {
-                SlidingWindowDescr swd = (SlidingWindowDescr) behaviorDescr;
-                SlidingLengthWindow window = new SlidingLengthWindow( (int) swd.getLength() );
-                pattern.addBehavior( window );
+            if( pattern.getObjectType().isEvent() ) {
+                if ( Behavior.BehaviorType.TIME_WINDOW.matches( behaviorDescr.getType() ) ) {
+                    SlidingWindowDescr swd = (SlidingWindowDescr) behaviorDescr;
+                    SlidingTimeWindow window = new SlidingTimeWindow( swd.getLength() );
+                    pattern.addBehavior( window );
+                } else if ( Behavior.BehaviorType.LENGTH_WINDOW.matches( behaviorDescr.getType() ) ) {
+                    SlidingWindowDescr swd = (SlidingWindowDescr) behaviorDescr;
+                    SlidingLengthWindow window = new SlidingLengthWindow( (int) swd.getLength() );
+                    pattern.addBehavior( window );
+                }
+            } else {
+                // Some behaviors can only be assigned to patterns declared as events
+                context.getErrors().add( new DescrBuildError( context.getParentDescr(),
+                                                              patternDescr,
+                                                              null,
+                                                              "A Sliding Window behavior can only be assigned to patterns declared with @role( event ). The pattern '" + pattern.getObjectType() + "' in the rule '" + context.getRule().getName() + "' is not declared as an Event." ) );
             }
         }
 
@@ -374,17 +399,17 @@ public class PatternBuilder
                                   pattern.getObjectType(),
                                   fieldName,
                                   (LiteralRestriction) restriction );
-        } else if ( restriction instanceof VariableRestriction ) {
+        } else if ( restriction instanceof VariableRestriction ||  restriction instanceof UnificationRestriction ) {
             constraint = new VariableConstraint( extractor,
-                                                 (VariableRestriction) restriction );
+                                                 restriction );
             registerReadAccessor( context,
                                   pattern.getObjectType(),
                                   fieldName,
-                                  (VariableRestriction) restriction );
+                                  (AcceptsReadAccessor) restriction );
             registerReadAccessor( context,
                                   pattern.getObjectType(),
                                   fieldName,
-                                  (VariableRestriction) restriction );
+                                  (AcceptsReadAccessor) restriction );
         } else if ( restriction instanceof ReturnValueRestriction ) {
             constraint = new ReturnValueConstraint( extractor,
                                                     (ReturnValueRestriction) restriction );
@@ -735,7 +760,7 @@ public class PatternBuilder
         return restriction;
     }
 
-    private VariableRestriction buildRestriction(final RuleBuildContext context,
+    private Restriction buildRestriction(final RuleBuildContext context,
                                                  final InternalReadAccessor extractor,
                                                  final FieldConstraintDescr fieldConstraintDescr,
                                                  final VariableRestrictionDescr variableRestrictionDescr) {
@@ -780,10 +805,17 @@ public class PatternBuilder
         if ( evaluator == null ) {
             return null;
         }
+        
+        Restriction restriction = new VariableRestriction( extractor,
+                                                           declaration,
+                                                           evaluator );
+        
+        if ( declaration.getPattern().getObjectType().equals( new ClassObjectType( DroolsQuery.class ) ) )  {
+            // declaration is query argument, so allow for unification.
+            restriction = new UnificationRestriction( ( VariableRestriction ) restriction );
+        }
 
-        return new VariableRestriction( extractor,
-                                        declaration,
-                                        evaluator );
+        return restriction;
     }
 
     private LiteralRestriction buildRestriction(final RuleBuildContext context,
@@ -798,7 +830,8 @@ public class PatternBuilder
             }
 
             field = FieldFactory.getFieldValue( value,
-                                                extractor.getValueType() );
+                                                extractor.getValueType(),
+                                                context.getPackageBuilder().getDateFormats() );
         } catch ( final Exception e ) {
             context.getErrors().add( new DescrBuildError( context.getParentDescr(),
                                                           literalRestrictionDescr,
@@ -891,7 +924,8 @@ public class PatternBuilder
         try {
             final Class staticClass = context.getDialect().getTypeResolver().resolveType( className );
             field = FieldFactory.getFieldValue( staticClass.getField( fieldName ).get( null ),
-                                                extractor.getValueType() );
+                                                extractor.getValueType(),
+                                                context.getPackageBuilder().getDateFormats()  );
             if ( field.isObjectField() ) {
                 ((ObjectFieldImpl) field).setEnum( true );
                 ((ObjectFieldImpl) field).setEnumName( staticClass.getName() );

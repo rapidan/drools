@@ -63,6 +63,16 @@ font-size: small;
 font-style: italics;
 }
 
+
+.error-title {
+    font-size: small;
+    
+}
+
+.error-long-message {
+    font-size: small;
+}
+
 .successBar {border: 1px; solid #aa9; }
 
 .gwt-DialogBox {
@@ -216,8 +226,33 @@ select {
     background-image: url( images/analyze.gif ) !important;
 }
 
-
-
+.bg_rule_asset {
+    background-image: url( images/rule_asset.gif ) !important;
+}
+.bg_technical_rule_assets {
+    background-image: url( images/technical_rule_assets.gif ) !important;
+}
+.bg_function_assets {
+    background-image: url( images/function_assets.gif ) !important;
+}
+.bg_model_asset {
+    background-image: url( images/model_asset.gif ) !important;
+}
+.bg_business_rule {
+    background-image: url( images/business_rule.gif ) !important;
+}
+.bg_ruleflow_small {
+    background-image: url( images/ruleflow_small.gif ) !important;
+}
+.bg_test_manager {
+    background-image: url( images/test_manager.gif ) !important;
+}
+.bg_enumeration {
+    background-image: url( images/enumeration.gif ) !important;
+}
+.bg_gdst {
+    background-image: url( images/gdst.gif ) !important;
+}
 
 
 
@@ -436,7 +471,7 @@ select:focus,input:focus,input:active,.constraint-value-Editor:focus,.constraint
 	border-color:#000!important;
 }
 .gwt-MenuBar .gwt-MenuItem-selected,.modeller-fact-TypeHeader {
-	background:#f6f6f6;
+	/* background:#f6f6f6; */
 }
 input,.constraint-value-Editor {
 	border:1px solid #aa9;
@@ -469,8 +504,22 @@ input,.constraint-value-Editor {
 .rule-ListEvenRow,.DatePicker .weekheader {
 	background:#FFFFF0;
 }
+
+.discussion-header {
+    background: #FFFFF0;    
+}
+
+.fact-model-fact-edit-selections {
+	border-bottom: 1px solid #aa9;
+}
+
 .DatePicker,.DatePicker .cell .gwt-HTML,.DatePicker .day .gwt-HTML {
 	border: 1px solid #aa9;
 }
 
 div.smallish-progress-wrapper { /* Don't change the following lines. */ position: relative; border: 1px solid black; } div.smallish-progress-bar { /* Don't change the following lines. */ position: absolute; top: 0; left: 0; height: 100%; } div.smallish-progress-text { /* Don't change the following lines. */ text-align: center; position: relative; /* Add your customizations after this line. */ }
+
+.editor-disabled-widget{
+    background-color: #F7F7F8;
+    color: #868686;
+}

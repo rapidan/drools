@@ -1,4 +1,5 @@
 package org.drools;
+
 /*
  * Copyright 2005 JBoss Inc
  * 
@@ -15,6 +16,7 @@ package org.drools;
  * limitations under the License.
  */
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -23,35 +25,46 @@ import java.util.NoSuchElementException;
 
 import org.drools.rule.Declaration;
 import org.drools.rule.Query;
-import org.drools.WorkingMemory;
-import org.drools.spi.Tuple;
 
 /**
  * Returned QueryResults instance for a requested named query. from here you can iterate the returned data, or
  * get a specific row. All the available Declarations used in the query can also be accessed.
  *
  */
-public class QueryResults implements Iterable<QueryResult>{
-    private Query           query;
+public class QueryResults
+    implements
+    Iterable<QueryResult> {
+    private Map<String, Declaration> declarations;
 
-    private Map             declarations;
+    protected List<FactHandle[]>     results;
+    protected WorkingMemory          workingMemory;
 
-    protected List          results;
-    protected WorkingMemory workingMemory;
+    public QueryResults() {
+    }
 
-    public QueryResults(final List results,
-                        final Query query,
+    public QueryResults(final List<FactHandle[]> results,
+                        final Declaration[] declArray,
                         final WorkingMemory workingMemory) {
         this.results = results;
-        this.query = query;
         this.workingMemory = workingMemory;
+
+        if ( declArray.length > 0 ) {
+            final Map<String, Declaration> map = new HashMap<String, Declaration>( declArray.length );
+            for ( int i = 0, length = declArray.length; i < length; i++ ) {
+                map.put( declArray[i].getIdentifier(),
+                         declArray[i] );
+            }
+            this.declarations = map;
+        } else {
+            this.declarations = Collections.emptyMap();
+        }
     }
 
     public QueryResult get(final int i) {
         if ( i > this.results.size() ) {
             throw new NoSuchElementException();
         }
-        return new QueryResult( (Tuple) this.results.get( i ),
+        return new QueryResult( this.results.get( i ),
                                 this.workingMemory,
                                 this );
     }
@@ -65,23 +78,7 @@ public class QueryResults implements Iterable<QueryResult>{
         return new QueryResultsIterator( this.results.iterator() );
     }
 
-    /**
-     * Return a map of Declarations where the key is the identifier and the value
-     * is the Declaration.
-     * 
-     * @return
-     *      The Map of Declarations.
-     */
-    public Map getDeclarations() {
-
-        final Declaration[] declarations = this.query.getDeclarations();
-        final Map map = new HashMap( declarations.length );
-        for ( int i = 0, length = declarations.length; i < length; i++ ) {
-            map.put( declarations[i].getIdentifier(),
-                     declarations[i] );
-        }
-        this.declarations = map;
-
+    public Map<String, Declaration> getDeclarations() {
         return this.declarations;
     }
 
@@ -95,10 +92,10 @@ public class QueryResults implements Iterable<QueryResult>{
 
     private class QueryResultsIterator
         implements
-        Iterator {
-        private Iterator iterator;
+        Iterator<QueryResult> {
+        private Iterator<FactHandle[]> iterator;
 
-        public QueryResultsIterator(final Iterator iterator) {
+        public QueryResultsIterator(final Iterator<FactHandle[]> iterator) {
             this.iterator = iterator;
         }
 
@@ -106,8 +103,8 @@ public class QueryResults implements Iterable<QueryResult>{
             return this.iterator.hasNext();
         }
 
-        public Object next() {
-            return new QueryResult( (Tuple) this.iterator.next(),
+        public QueryResult next() {
+            return new QueryResult( this.iterator.next(),
                                     QueryResults.this.workingMemory,
                                     QueryResults.this );
         }

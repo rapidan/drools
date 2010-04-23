@@ -4,35 +4,32 @@ package org.drools.verifier.components;
  * 
  * @author Toni Rikkola
  */
-public class VerifierFromDescr extends VerifierComponent {
+public class VerifierFromDescr extends PatternComponentSource {
 
-	private static int index = 0;
+    private VerifierComponentType dataSourceType;
+    private String                dataSourcePath;
 
-	private VerifierComponentType dataSourceType;
-	private int dataSourceId;
+    public VerifierFromDescr(Pattern pattern) {
+        super( pattern );
+    }
 
-	public VerifierFromDescr() {
-		super(index++);
-	}
+    public String getDataSourcePath() {
+        return dataSourcePath;
+    }
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.FROM;
-	}
+    public void setDataSourcePath(String path) {
+        this.dataSourcePath = path;
+    }
 
-	public int getDataSourceId() {
-		return dataSourceId;
-	}
+    public VerifierComponentType getDataSourceType() {
+        return dataSourceType;
+    }
 
-	public void setDataSourceId(int dataSourceId) {
-		this.dataSourceId = dataSourceId;
-	}
+    public void setDataSourceType(VerifierComponentType dataSourceType) {
+        this.dataSourceType = dataSourceType;
+    }
 
-	public VerifierComponentType getDataSourceType() {
-		return dataSourceType;
-	}
-
-	public void setDataSourceType(VerifierComponentType dataSourceType) {
-		this.dataSourceType = dataSourceType;
-	}
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.FROM;
+    }
 }

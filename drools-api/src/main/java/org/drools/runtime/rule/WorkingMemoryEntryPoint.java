@@ -33,6 +33,13 @@ import org.drools.runtime.ObjectFilter;
 public interface WorkingMemoryEntryPoint {
 
     /**
+     * Returns the String Id of this entry point
+     * 
+     * @return
+     */
+    public String getEntryPointId();
+
+    /**
      * Inserts a new fact into this entry point
      * 
      * @param object 
@@ -84,7 +91,18 @@ public interface WorkingMemoryEntryPoint {
     Object getObject(FactHandle factHandle);
 
     /**
-     * Returns all facts from the current session.
+     * <p>
+     * Returns all facts from the current session as a Collection.
+     * </p>
+     * 
+     * <p>This class is <i>not</i> a general-purpose <tt>Collection</tt>
+     * implementation!  While this class implements the <tt>Collection</tt> interface, it
+     * intentionally violates <tt>Collection</tt> general contract, which mandates the
+     * use of the <tt>equals</tt> method when comparing objects.</p>
+     * 
+     * <p>Instead the approach used when comparing objects with the <tt>contains(Object)</tt>
+     * method is dependent on the WorkingMemory configuration, where it can be configured for <tt>Identity</tt>
+     * or for <tt>Equality</tt>.</p> 
      * 
      * @return
      */
@@ -115,4 +133,12 @@ public interface WorkingMemoryEntryPoint {
      * @return
      */
     <T extends FactHandle> Collection< T > getFactHandles(ObjectFilter filter);    
+    
+    /**
+     * Returns the total number of facts currently in this entry point
+     * 
+     * @return
+     */
+    public long getFactCount();
+    
 }

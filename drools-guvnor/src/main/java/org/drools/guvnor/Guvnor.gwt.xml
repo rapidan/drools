@@ -3,12 +3,12 @@
 	<!-- Inherit the core Web Toolkit stuff.                  -->
 
     <inherits name="com.google.gwt.i18n.I18N"/>
-    <inherits name='com.google.gwt.user.User'/>
+    <inherits name="com.google.gwt.user.User"/>
     <inherits name="com.gwtext.GwtExt"/>
     <inherits name="com.gwtext.Pagebus"/>
-	<inherits name='pl.balon.gwt.diagrams.Diagrams'/>
-	<inherits name='org.cobogw.gwt.user.User'/>
-
+	<inherits name="pl.balon.gwt.diagrams.Diagrams"/>
+	<inherits name="org.cobogw.gwt.user.User"/>
+	<inherits name="org.drools.factconstraints.FactConstraints"/>
 
     <!-- Here we put different locales (translations)
      There are of the form values="xx_YY" - which match to Constants_xx_YY.properties which contain the content.
@@ -19,6 +19,10 @@
     -->
 
     <extend-property name="locale" values="es_ES"/>
+    <extend-property name="locale" values="zh_CN"/>
+    <extend-property name="locale" values="ja_JP"/>
+    <extend-property name="locale" values="pt_BR"/>
+
 
     <!-- Specify the app entry point class.                   -->
 	<!-- <entry-point class='org.drools.guvnor.client.JBRMS'/> -->
@@ -37,6 +41,8 @@
     <servlet path="/webdav" class="org.drools.guvnor.server.files.WebdavServlet"/>
     <servlet path="/api" class="org.drools.guvnor.server.files.RestAPIServlet"/>
     <servlet path="/feed" class="org.drools.guvnor.server.files.FeedServlet"/>
+    <servlet path="/workflowmanager" class="org.gridcc.mce.mceworkflow.servlets.WorkflowManagerServlet"/>
+    <servlet path="/wsdlparser" class="org.gridcc.mce.mceworkflow.servlets.WSDLParserServlet"/>
 
 
 	<set-property name="gwt.suppressNonStaticFinalFieldWarnings" value="true" />

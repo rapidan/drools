@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.drools.eclipse.DroolsEclipsePlugin;
 import org.drools.eclipse.flow.common.editor.core.ElementConnectionFactory;
+import org.drools.eclipse.flow.common.editor.editpart.figure.ElementContainerFigure;
 import org.drools.eclipse.flow.ruleflow.core.ActionWrapper;
 import org.drools.eclipse.flow.ruleflow.core.CompositeContextNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.ConnectionWrapper;
@@ -15,10 +16,10 @@ import org.drools.eclipse.flow.ruleflow.core.FaultNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.ForEachNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.HumanTaskNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.JoinWrapper;
-import org.drools.eclipse.flow.ruleflow.core.MilestoneWrapper;
 import org.drools.eclipse.flow.ruleflow.core.RuleSetNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.SplitWrapper;
 import org.drools.eclipse.flow.ruleflow.core.StartNodeWrapper;
+import org.drools.eclipse.flow.ruleflow.core.StateNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.SubProcessWrapper;
 import org.drools.eclipse.flow.ruleflow.core.TimerWrapper;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.ActionEditPart;
@@ -31,6 +32,7 @@ import org.drools.eclipse.flow.ruleflow.editor.editpart.MilestoneEditPart;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.RuleSetNodeEditPart;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.SplitEditPart;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.StartNodeEditPart;
+import org.drools.eclipse.flow.ruleflow.editor.editpart.StateNodeEditPart;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.SubFlowEditPart;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.TimerEditPart;
 import org.drools.eclipse.flow.ruleflow.editor.editpart.WorkItemEditPart;
@@ -54,7 +56,7 @@ public class DefaultSkinProvider implements SkinProvider {
     	
     	String flowNodes = DroolsEclipsePlugin.getDefault().getPluginPreferences().getString(IDroolsConstants.FLOW_NODES);
 
-        PaletteDrawer drawer = new PaletteDrawer("Components", null);
+    	PaletteDrawer drawer = new PaletteDrawer("Components", null);
 
         List<PaletteEntry> entries = new ArrayList<PaletteEntry>();
 
@@ -116,10 +118,10 @@ public class DefaultSkinProvider implements SkinProvider {
                         
         if (flowNodes.charAt(3) == '1') {
 	        combined = new CombinedTemplateCreationEntry(
-	            "Event Wait",
-	            "Create a new Event Wait",
-	            MilestoneWrapper.class,
-	            new SimpleFactory(MilestoneWrapper.class),
+	            "Wait State",
+	            "Create a new Wait State",
+	            StateNodeWrapper.class,
+	            new SimpleFactory(StateNodeWrapper.class),
 	            ImageDescriptor.createFromURL(DroolsEclipsePlugin.getDefault().getBundle().getEntry("icons/question.gif")), 
 	            ImageDescriptor.createFromURL(DroolsEclipsePlugin.getDefault().getBundle().getEntry("icons/question.gif"))
 	        );
@@ -289,6 +291,10 @@ public class DefaultSkinProvider implements SkinProvider {
 		return new SubFlowEditPart.SubFlowNodeFigure();
 	}
 
+	public IFigure createStateFigure() {
+		return new StateNodeEditPart.StateFigure();
+	}
+
 	public WorkItemFigureInterface createWorkItemFigure() {
 		return new WorkItemEditPart.WorkItemFigure();
 	}
@@ -297,4 +303,12 @@ public class DefaultSkinProvider implements SkinProvider {
 		return new CompositeNodeEditPart.CompositeNodeFigure();
 	}
 
+	public IFigure createForEachNodeFigure() {
+		return new ElementContainerFigure();
+	}
+
+    public String getWorkItemsName() {
+        return "Work Items";
+    }
+    
 }

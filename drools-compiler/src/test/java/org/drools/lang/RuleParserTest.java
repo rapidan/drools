@@ -2207,6 +2207,58 @@ public class RuleParserTest extends TestCase {
                       at.getValue() );
     }
 
+    public void testCalendars() throws Exception {
+        final RuleDescr rule = (RuleDescr) parseResource( "rule",
+                                                          "rule",
+                                                          "rule_calendars_attribute.drl" );
+        assertEquals( "simple_rule",
+                      rule.getName() );
+        assertEqualsIgnoreWhitespace( "bar();",
+                                      (String) rule.getConsequence() );
+
+        final Map<String, AttributeDescr> attrs = rule.getAttributes();
+        assertEquals( 2,
+                      attrs.size() );
+
+        AttributeDescr at = (AttributeDescr) attrs.get( "calendars" );
+        assertEquals( "calendars",
+                      at.getName() );
+        assertEquals( "[ \"cal1\" ]",
+                      at.getValue() );
+
+        at = (AttributeDescr) attrs.get( "lock-on-active" );
+        assertEquals( "lock-on-active",
+                      at.getName() );
+        assertEquals( "true",
+                      at.getValue() );
+    }
+
+    public void testCalendars2() throws Exception {
+        final RuleDescr rule = (RuleDescr) parseResource( "rule",
+                                                          "rule",
+                                                          "rule_calendars_attribute2.drl" );
+        assertEquals( "simple_rule",
+                      rule.getName() );
+        assertEqualsIgnoreWhitespace( "bar();",
+                                      (String) rule.getConsequence() );
+
+        final Map<String, AttributeDescr> attrs = rule.getAttributes();
+        assertEquals( 2,
+                      attrs.size() );
+
+        AttributeDescr at = (AttributeDescr) attrs.get( "calendars" );
+        assertEquals( "calendars",
+                      at.getName() );
+        assertEquals( "[ \"cal 1\", \"cal 2\", \"cal 3\" ]",
+                      at.getValue() );
+
+        at = (AttributeDescr) attrs.get( "lock-on-active" );
+        assertEquals( "lock-on-active",
+                      at.getName() );
+        assertEquals( "true",
+                      at.getValue() );
+    }
+
     public void testAttributes_alternateSyntax() throws Exception {
         final RuleDescr rule = (RuleDescr) parseResource( "rule",
                                                           "rule",
@@ -4008,6 +4060,54 @@ public class RuleParserTest extends TestCase {
                       qualifiedIdentifierRestrictionDescr.getText() );
     }
 
+    public void testAndRestrictionConnective() throws Exception {
+        final String source = "rule \"Test\" when ( $r :Person( $n : name == 'Bob' && $a : age == 20) ) then end";
+
+        parse( "compilation_unit",
+               "compilation_unit",
+               source );
+
+        RuleDescr rule = (RuleDescr) this.walker.getPackageDescr().getRules().get( 0 );
+        assertFalse( parser.hasErrors() );
+
+        assertEquals( "Test",
+                      rule.getName() );
+        assertEquals( 1,
+                      rule.getLhs().getDescrs().size() );
+        PatternDescr patternDescr = (PatternDescr) rule.getLhs().getDescrs().get( 0 );
+        assertEquals( "$r",
+                      patternDescr.getIdentifier() );
+        assertEquals( 4,
+                      patternDescr.getDescrs().size() );
+        FieldBindingDescr nameBind = (FieldBindingDescr) patternDescr.getDescrs().get( 0 );
+        assertEquals( "$n", nameBind.getIdentifier() );
+        assertEquals( "name", nameBind.getFieldName() );
+        FieldConstraintDescr fieldConstraintDescr = (FieldConstraintDescr) patternDescr.getDescrs().get( 1 );
+        assertEquals( "name",
+                      fieldConstraintDescr.getFieldName() );
+        assertEquals( 1,
+                      fieldConstraintDescr.getRestriction().getRestrictions().size() );
+        LiteralRestrictionDescr literalRestrictionDescr = (LiteralRestrictionDescr) fieldConstraintDescr.getRestriction().getRestrictions().get( 0 );
+        assertEquals( "==",
+                      literalRestrictionDescr.getEvaluator() );
+        assertEquals( "Bob",
+                      literalRestrictionDescr.getText() );
+        
+        FieldBindingDescr ageBind = (FieldBindingDescr) patternDescr.getDescrs().get( 2 );
+        assertEquals( "$a", ageBind.getIdentifier() );
+        assertEquals( "age", ageBind.getFieldName() );
+        fieldConstraintDescr = (FieldConstraintDescr) patternDescr.getDescrs().get( 3 );
+        assertEquals( "age",
+                      fieldConstraintDescr.getFieldName() );
+        assertEquals( 1,
+                      fieldConstraintDescr.getRestriction().getRestrictions().size() );
+        literalRestrictionDescr = (LiteralRestrictionDescr) fieldConstraintDescr.getRestriction().getRestrictions().get( 0 );
+        assertEquals( "==",
+                      literalRestrictionDescr.getEvaluator() );
+        assertEquals( "20",
+                      literalRestrictionDescr.getText() );
+    }
+
     public void testTypeWithMetaData() throws Exception {
 
         parseResource( "compilation_unit",
@@ -4052,7 +4152,7 @@ public class RuleParserTest extends TestCase {
         // System.err.println( getClass().getResource( name ) );
         final Reader reader = getReader( name );
 
-        final StringBuffer text = new StringBuffer();
+        final StringBuilder text = new StringBuilder();
 
         final char[] buf = new char[1024];
         int len = 0;

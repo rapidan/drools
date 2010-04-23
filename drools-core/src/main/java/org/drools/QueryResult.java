@@ -19,21 +19,24 @@ import java.util.Map;
 
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
+import org.drools.reteoo.LeftTuple;
 import org.drools.rule.Declaration;
 import org.drools.FactHandle;
 import org.drools.WorkingMemory;
 import org.drools.spi.Tuple;
 
+import com.sun.xml.bind.v2.runtime.unmarshaller.XsiNilLoader.Array;
+
 public class QueryResult {
 
-    protected Tuple       tuple;
+    protected FactHandle[] factHandles;
     private WorkingMemory workingMemory;
     private QueryResults  queryResults;
 
-    public QueryResult(final Tuple tuple,
+    public QueryResult(final FactHandle[] factHandles,
                        final WorkingMemory workingMemory,
                        final QueryResults queryResults) {
-        this.tuple = tuple;
+        this.factHandles = factHandles;
         this.workingMemory = workingMemory;
         this.queryResults = queryResults;
     }
@@ -57,18 +60,17 @@ public class QueryResult {
      *     The Object
      */
     public Object get(final int i) {
-        //adjust for the DroolsQuery object
-        return getObject( this.tuple.get( i + 1 ));
+        return getObject( this.factHandles[ i + 1]); // Add one, as we hide root DroolsQuery
     }
 
     /** 
-     * Return the Object for the given Declaration identifer.
+     * Return the Object for the given Declaration identifier.
      * @param identifier
      * @return
      *      The Object
      */
     public Object get(final String identifier) {
-        return get( (Declaration) this.queryResults.getDeclarations().get( identifier ) );
+        return get( this.queryResults.getDeclarations().get( identifier ) );
     }
 
     /** 
@@ -78,31 +80,28 @@ public class QueryResult {
      *      The Object
      */    
     public Object get(final Declaration declaration) {
-        return declaration.getValue( (InternalWorkingMemory) workingMemory, getObject( this.tuple.get( declaration ) ) );
+        return declaration.getValue( (InternalWorkingMemory) workingMemory, getObject( getFactHandle( declaration ) ) );
     }
     
     public FactHandle getFactHandle(String identifier) {
-        return this.tuple.get( ( Declaration ) this.queryResults.getDeclarations().get( identifier ) );
+        return getFactHandle( this.queryResults.getDeclarations().get( identifier ) );
     }
     
     public FactHandle getFactHandle(Declaration declr) {
-        return this.tuple.get( declr );
-    }    
+        return this.factHandles[  declr.getPattern().getOffset() ]; // -1 because we shifted the array left
+                                                                       // when removing the query object
+    }     
 
     /**
      * Return the FactHandles for the Tuple.
      * @return
      */
     public FactHandle[] getFactHandles() {
-        // Strip the DroolsQuery fact
-        final FactHandle[] src = this.tuple.getFactHandles();
-        final FactHandle[] dst = new FactHandle[src.length - 1];
-        System.arraycopy( src,
-                          1,
-                          dst,
-                          0,
-                          dst.length );
-        return dst;
+        int size = size();
+        FactHandle[] subArray = new FactHandle[ size];
+        
+        System.arraycopy( this.factHandles, 1, subArray, 0, size );
+        return subArray;
     }
 
     /**
@@ -110,8 +109,7 @@ public class QueryResult {
      * @return
      */
     public int size() {
-        // Adjust for the DroolsQuery object
-        return this.tuple.getFactHandles().length - 1;
+        return this.factHandles.length -1;
     }
     
     /**

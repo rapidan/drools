@@ -22,55 +22,84 @@ import org.drools.guvnor.client.common.ErrorPopup;
 import org.drools.guvnor.client.common.FormStylePopup;
 import org.drools.guvnor.client.common.GenericCallback;
 import org.drools.guvnor.client.common.LoadingPopup;
+import org.drools.guvnor.client.common.RulePackageSelector;
+import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.packages.SuggestionCompletionCache;
 import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
 import org.drools.guvnor.client.rpc.RuleAsset;
-import org.drools.guvnor.client.messages.Constants;
+import org.drools.guvnor.client.rulelist.EditItemEvent;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ClickListener;
-import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.core.client.GWT;
+import com.gwtext.client.util.Format;
 
 /**
  * The main layout parent/controller the rule viewer.
  *
  * @author Michael Neale
  */
-public class RuleViewer extends Composite {
+public class RuleViewer extends GuvnorEditor {
 
-    private Command            closeCommand;
-    protected RuleAsset        asset;
+    private Command                    closeCommand;
+    private Command                    archiveCommand;
+    public Command                     checkedInCommand;
+    public ActionToolbar.CheckinAction checkInCommand;
+    protected RuleAsset                asset;
 
-    private boolean            readOnly;
+    private boolean                    readOnly;
 
-    private MetaDataWidget     metaWidget;
-    private RuleDocumentWidget doco;
-    private Widget             editor;
+    private boolean                    metaVisible = true;
+    private boolean                    docoVisible = true;
+    private MetaDataWidget             metaWidget;
+    private RuleDocumentWidget         doco;
+    private Widget                     editor;
 
-    private ActionToolbar      toolbar;
-    private VerticalPanel      layout;
-    private HorizontalPanel    hsp;
+    private ActionToolbar              toolbar;
+    private VerticalPanel              layout;
+    private HorizontalPanel            hsp;
 
-    private long               lastSaved = System.currentTimeMillis();
-    private Constants          constants = ((Constants) GWT.create( Constants.class ));
+    private long                       lastSaved   = System.currentTimeMillis();
+    private Constants                  constants   = ((Constants) GWT.create( Constants.class ));
 
-    public RuleViewer(RuleAsset asset) {
+    private final EditItemEvent        editEvent;
+
+    /**
+     * @param historicalReadOnly true if this is a read only view for historical purposes.
+     */
+    public RuleViewer(RuleAsset asset,
+                      final EditItemEvent event) {
         this( asset,
+              event,
               false );
+    }
+
+    public void setDocoVisible(boolean docoVisible) {
+        this.docoVisible = docoVisible;
+        this.doco.setVisible( docoVisible );
+    }
+
+    public void setMetaVisible(boolean metaVisible) {
+        this.metaVisible = metaVisible;
+        this.metaWidget.setVisible( metaVisible );
     }
 
     /**
      * @param historicalReadOnly true if this is a read only view for historical purposes.
      */
     public RuleViewer(RuleAsset asset,
+                      final EditItemEvent event,
                       boolean historicalReadOnly) {
+        this.editEvent = event;
         this.asset = asset;
         this.readOnly = historicalReadOnly && asset.isreadonly;
 
@@ -79,15 +108,31 @@ public class RuleViewer extends Composite {
         layout.setWidth( "100%" );
         layout.setHeight( "100%" );
 
+        this.checkInCommand = new ActionToolbar.CheckinAction() {
+            public void doCheckin(String comment) {
+                if ( editor instanceof SaveEventListener ) {
+                    ((SaveEventListener) editor).onSave();
+                }
+                performCheckIn( comment );
+                if ( editor instanceof SaveEventListener ) {
+                    ((SaveEventListener) editor).onAfterSave();
+                }
+                if ( checkedInCommand != null ) {
+                    checkedInCommand.execute();
+                }
+                lastSaved = System.currentTimeMillis();
+                resetDirty();
+            }
+        };
+
         initWidget( layout );
 
-        doWidgets();
+        doWidgets( null );
 
         LoadingPopup.close();
     }
 
     public boolean isDirty() {
-        if ( readOnly ) return false;
         return (System.currentTimeMillis() - lastSaved) > 3600000;
     }
 
@@ -96,7 +141,7 @@ public class RuleViewer extends Composite {
      * when we get the data back from the server,
      * also determines what widgets to load up).
      */
-    private void doWidgets() {
+    private void doWidgets(Widget messageWidget) {
         layout.clear();
 
         editor = EditorLauncher.getEditorViewer( asset,
@@ -104,31 +149,34 @@ public class RuleViewer extends Composite {
 
         //the action widgets (checkin/close etc).
         toolbar = new ActionToolbar( asset,
-                                     new ActionToolbar.CheckinAction() {
-                                         public void doCheckin(String comment) {
-                                             if ( editor instanceof SaveEventListener ) {
-                                                 ((SaveEventListener) editor).onSave();
-                                             }
-                                             performCheckIn( comment );
-                                             if ( editor instanceof SaveEventListener ) {
-                                                 ((SaveEventListener) editor).onAfterSave();
-                                             }
-                                             lastSaved = System.currentTimeMillis();
+                                     readOnly,
+                                     editor,
+                                     checkInCommand,
+                                     new Command() {
+                                         public void execute() {
+                                             doArchive();
                                          }
                                      },
-                                     new ActionToolbar.CheckinAction() {
-                                         public void doCheckin(String comment) {
-                                             doArchive( comment );
-                                         }
-
-                                     },
-
                                      new Command() {
                                          public void execute() {
                                              doDelete();
                                          }
                                      },
-                                     readOnly );
+                                     new Command() {
+                                         public void execute() {
+                                             close();
+                                         }
+                                     },
+                                     new Command() {
+                                         public void execute() {
+                                             doCopy();
+                                         }
+                                     },
+                                     new Command() {
+                                         public void execute() {
+                                             doPromptToGlobal();
+                                         }
+                                     } );
 
         //layout.add(toolbar, DockPanel.NORTH);
         layout.add( toolbar );
@@ -139,6 +187,10 @@ public class RuleViewer extends Composite {
         layout.setCellWidth( toolbar,
                              "100%" );
 
+        if ( messageWidget != null ) {
+            layout.add( messageWidget );
+        }
+
         doMetaWidget();
 
         hsp = new HorizontalPanel();
@@ -146,12 +198,13 @@ public class RuleViewer extends Composite {
         layout.add( hsp );
 
         //the document widget
-        doco = new RuleDocumentWidget( asset.metaData );
+        doco = new RuleDocumentWidget( asset );
+        doco.setVisible( docoVisible );
 
         VerticalPanel vert = new VerticalPanel();
         vert.add( editor );
         editor.setHeight( "100%" );
-        vert.add( doco );
+        //vert.add( doco );
 
         vert.setWidth( "100%" );
         vert.setHeight( "100%" );
@@ -168,6 +221,7 @@ public class RuleViewer extends Composite {
         //hsp.setSplitPosition("80%");
         hsp.setHeight( "100%" );
 
+        layout.add( doco );
     }
 
     private void doMetaWidget() {
@@ -184,6 +238,7 @@ public class RuleViewer extends Composite {
                                                  refreshDataAndView();
                                              }
                                          } );
+        metaWidget.setVisible( metaVisible );
     }
 
     protected boolean hasDirty() {
@@ -191,30 +246,45 @@ public class RuleViewer extends Composite {
         return false;
     }
 
+    /** closes itself */
+    private void close() {
+        closeCommand.execute();
+    }
+
     void doDelete() {
+        readOnly = true; //set to not cause the extra confirm popup
         RepositoryServiceFactory.getService().deleteUncheckedRule( this.asset.uuid,
                                                                    this.asset.metaData.packageName,
-                                                                   new GenericCallback() {
-                                                                       public void onSuccess(Object o) {
-                                                                           closeCommand.execute();
+                                                                   new GenericCallback<Void>() {
+                                                                       public void onSuccess(Void o) {
+                                                                           close();
                                                                        }
                                                                    } );
     }
 
-    /**
-     * This responds to the checkin command.
-     */
-
-    private void doArchive(String comment) {
-        this.asset.archived = true;
-        this.performCheckIn( comment );
-        this.closeCommand.execute();
+    private void doArchive() {
+        RepositoryServiceFactory.getService().archiveAsset( asset.uuid,
+                                                            new GenericCallback<Void>() {
+                                                                public void onSuccess(Void o) {
+                                                                    if ( archiveCommand != null ) {
+                                                                        archiveCommand.execute();
+                                                                    }
+                                                                    close();
+                                                                }
+                                                            } );
     }
 
     private void performCheckIn(String comment) {
         //layout.clear();
         this.asset.metaData.checkinComment = comment;
-        LoadingPopup.showMessage( constants.SavingPleaseWait() );
+        final boolean[] saved = {false};
+        Timer t = new Timer() {
+            public void run() {
+                if ( !saved[0] ) LoadingPopup.showMessage( constants.SavingPleaseWait() );
+            }
+        };
+        t.schedule( 500 );
+
         RepositoryServiceFactory.getService().checkinVersion( this.asset,
                                                               new GenericCallback<String>() {
 
@@ -237,8 +307,12 @@ public class RuleViewer extends Composite {
 
                                                                       doco.resetDirty();
 
-                                                                      refreshMetaWidgetOnly();
+                                                                      refreshMetaWidgetOnly( false );
 
+                                                                      LoadingPopup.close();
+                                                                      saved[0] = true;
+
+                                                                      toolbar.showSavedConfirmation();
                                                                   }
                                                               } );
     }
@@ -263,22 +337,30 @@ public class RuleViewer extends Composite {
      * This will reload the contents from the database, and refresh the widgets.
      */
     public void refreshDataAndView() {
+        refreshDataAndView( null );
+    }
+
+    public void refreshDataAndView(final Widget messageWidget) {
         LoadingPopup.showMessage( constants.RefreshingItem() );
         RepositoryServiceFactory.getService().loadRuleAsset( asset.uuid,
                                                              new GenericCallback<RuleAsset>() {
                                                                  public void onSuccess(RuleAsset asset_) {
                                                                      asset = asset_;
-                                                                     doWidgets();
+                                                                     doWidgets( messageWidget );
                                                                      LoadingPopup.close();
                                                                  }
                                                              } );
     }
 
     /**
-     * This will only
+     * This will only refresh the meta data widget if necessary.
      */
     public void refreshMetaWidgetOnly() {
-        LoadingPopup.showMessage( constants.RefreshingItem() );
+        refreshMetaWidgetOnly( true );
+    }
+
+    private void refreshMetaWidgetOnly(final boolean showBusy) {
+        if ( showBusy ) LoadingPopup.showMessage( constants.RefreshingItem() );
         RepositoryServiceFactory.getService().loadRuleAsset( asset.uuid,
                                                              new GenericCallback<RuleAsset>() {
                                                                  public void onSuccess(RuleAsset asset_) {
@@ -288,7 +370,7 @@ public class RuleViewer extends Composite {
                                                                      hsp.add( metaWidget );
                                                                      hsp.setCellWidth( metaWidget,
                                                                                        "25%" );
-                                                                     LoadingPopup.close();
+                                                                     if ( showBusy ) LoadingPopup.close();
                                                                  }
                                                              } );
     }
@@ -299,6 +381,18 @@ public class RuleViewer extends Composite {
      */
     public void setCloseCommand(Command c) {
         this.closeCommand = c;
+    }
+
+    /**
+     * This is called when this viewer saves something.
+     * @param c
+     */
+    public void setCheckedInCommand(Command c) {
+        this.checkedInCommand = c;
+    }
+
+    public void setArchiveCommand(Command c) {
+        this.archiveCommand = c;
     }
 
     /**
@@ -333,4 +427,87 @@ public class RuleViewer extends Composite {
         pop.show();
     }
 
+    private void doCopy() {
+        final FormStylePopup form = new FormStylePopup( "images/rule_asset.gif",
+                                                        constants.CopyThisItem() );
+        final TextBox newName = new TextBox();
+        form.addAttribute( constants.NewName(),
+                           newName );
+        final RulePackageSelector sel = new RulePackageSelector();
+        form.addAttribute( constants.NewPackage(),
+                           sel );
+
+        Button ok = new Button( constants.CreateCopy() );
+        ok.addClickListener( new ClickListener() {
+            public void onClick(Widget w) {
+                if ( newName.getText() == null || newName.getText().equals( "" ) ) {
+                    Window.alert( constants.AssetNameMustNotBeEmpty() );
+                    return;
+                }
+                String name = newName.getText().trim();
+                if ( !NewAssetWizard.validatePathPerJSR170( name ) ) {
+                    return;
+                }
+                RepositoryServiceFactory.getService().copyAsset( asset.uuid,
+                                                                 sel.getSelectedPackage(),
+                                                                 name,
+                                                                 new GenericCallback<String>() {
+                                                                     public void onSuccess(String data) {
+                                                                         completedCopying( newName.getText(),
+                                                                                           sel.getSelectedPackage(),
+                                                                                           data );
+                                                                         form.hide();
+                                                                     }
+
+                                                                     @Override
+                                                                     public void onFailure(Throwable t) {
+                                                                         if ( t.getMessage().indexOf( "ItemExistsException" ) > -1 ) { //NON-NLS
+                                                                             Window.alert( constants.ThatNameIsInUsePleaseTryAnother() );
+                                                                         } else {
+                                                                             super.onFailure( t );
+                                                                         }
+                                                                     }
+                                                                 } );
+            }
+        } );
+        form.addAttribute( "",
+                           ok );
+
+        //form.setPopupPosition((DirtyableComposite.getWidth() - form.getOffsetWidth()) / 2, 100);
+        form.show();
+    }
+
+    private void completedCopying(String name,
+                                  String pkg,
+                                  String newAssetUUID) {
+        Window.alert( Format.format( constants.CreatedANewItemSuccess(),
+                                     name,
+                                     pkg ) );
+        if ( editEvent != null ) {
+            editEvent.open( newAssetUUID );
+        }
+    }
+
+    private void doPromptToGlobal() {
+        if ( asset.metaData.packageName.equals( "globalArea" ) ) {
+            Window.alert( constants.ItemAlreadyInGlobalArea() );
+            return;
+        }
+        if ( Window.confirm( constants.PromoteAreYouSure() ) ) {
+            RepositoryServiceFactory.getService().promoteAssetToGlobalArea( asset.uuid,
+                                                                            new GenericCallback<Void>() {
+                                                                                public void onSuccess(Void data) {
+                                                                                    Window.alert( constants.Promoted() );
+                                                                                    refreshMetaWidgetOnly();
+                                                                                }
+
+                                                                                @Override
+                                                                                public void onFailure(Throwable t) {
+                                                                                    super.onFailure( t );
+                                                                                }
+                                                                            } );
+
+        };
+
+    }
 }

@@ -1,50 +1,76 @@
 package org.drools.verifier.components;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+
+import org.drools.verifier.data.VerifierComponent;
 
 /**
  * @author Toni Rikkola
  * 
  */
-public class ObjectType implements Serializable {
-	private static final long serialVersionUID = -783733402566313623L;
+public class ObjectType extends VerifierComponent
+    implements
+    Serializable {
+    private static final long   serialVersionUID = -783733402566313623L;
 
-	private static int index = 0;
+    private int                 offset           = 0;
 
-	private int id = index++;
-	private int offset =0;
-	
-	private String name;
+    private String              fullName;
 
-	private Set<Field> fields = new HashSet<Field>();
+    private String              name;
 
-	public String getName() {
-		return name;
-	}
-	
-	public int getOffset(){ 
-	    return offset + id % 2;
-	}
+    private Set<Field>          fields           = new HashSet<Field>();
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    private Map<String, String> metadata         = new HashMap<String, String>();
 
-	public int getId() {
-		return id;
-	}
+    public int getOffset() {
+        offset++;
+        return offset % 2;
+    }
 
-	public void setId(int id) {
-		this.id = id;
-	}
+    @Override
+    public String getPath() {
+        return String.format( "objectType[name=%s]",
+                              getName() );
+    }
 
-	public Set<Field> getFields() {
-		return fields;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setFields(Set<Field> fields) {
-		this.fields = fields;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Set<Field> getFields() {
+        return fields;
+    }
+
+    public void setFields(Set<Field> fields) {
+        this.fields = fields;
+    }
+
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.OBJECT_TYPE;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String toString() {
+        return "ObjectType: " + fullName;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
 }

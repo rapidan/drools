@@ -2,7 +2,7 @@ package org.drools.guvnor.client.modeldriven.brl;
 
 
 /**
- * This represents a contraint on a fact - involving a SINGLE FIELD.
+ * This represents a constraint on a fact - involving a SINGLE FIELD.
  * 
  * Can also include optional "connective constraints" that extend the options for matches.
  * @author Michael Neale
@@ -14,6 +14,12 @@ public class SingleFieldConstraint extends ISingleFieldConstraint implements Fie
     public String                 operator;
     public String                 fieldType;
     public FieldConstraint  parent;
+
+    /**
+     * Used instead of "value" when constraintValueType = TYPE_EXPR_BUILDER.
+     * Esteban Aliverti
+     */
+    private ExpressionFormLine expression = new ExpressionFormLine();
 
     public ConnectiveConstraint[] connectives;
 
@@ -41,13 +47,13 @@ public class SingleFieldConstraint extends ISingleFieldConstraint implements Fie
      */
     public void addNewConnective() {
         if ( this.connectives == null ) {
-            this.connectives = new ConnectiveConstraint[]{new ConnectiveConstraint()};
+            this.connectives = new ConnectiveConstraint[]{new ConnectiveConstraint(this.fieldName, this.fieldType, null, null)};
         } else {
             final ConnectiveConstraint[] newList = new ConnectiveConstraint[this.connectives.length + 1];
             for ( int i = 0; i < this.connectives.length; i++ ) {
                 newList[i] = this.connectives[i];
             }
-            newList[this.connectives.length] = new ConnectiveConstraint();
+            newList[this.connectives.length] = new ConnectiveConstraint(this.fieldName, this.fieldType, null, null);
             this.connectives = newList;
         }
     }
@@ -56,11 +62,14 @@ public class SingleFieldConstraint extends ISingleFieldConstraint implements Fie
      * Returns true of there is a field binding.
      */
     public boolean isBound() {
-        if ( this.fieldBinding != null && !"".equals( this.fieldBinding ) ) {
-            return true;
-        } else {
-            return false;
-        }
+        return this.fieldBinding != null && this.fieldBinding.length() > 0 ;
     }
 
+    public ExpressionFormLine getExpression() {
+        return expression;
+    }
+
+    public void setExpression(ExpressionFormLine expression) {
+        this.expression = expression;
+    }
 }

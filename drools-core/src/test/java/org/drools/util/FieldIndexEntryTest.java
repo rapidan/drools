@@ -11,9 +11,10 @@ import org.drools.base.evaluators.EqualityEvaluatorsDefinition;
 import org.drools.base.evaluators.Operator;
 import org.drools.common.DefaultFactHandle;
 import org.drools.common.InternalFactHandle;
+import org.drools.core.util.RightTupleList;
+import org.drools.core.util.AbstractHashTable.FieldIndex;
+import org.drools.core.util.AbstractHashTable.SingleIndex;
 import org.drools.reteoo.RightTuple;
-import org.drools.util.AbstractHashTable.FieldIndex;
-import org.drools.util.AbstractHashTable.SingleIndex;
 
 public class FieldIndexEntryTest extends TestCase {
     EqualityEvaluatorsDefinition equals = new EqualityEvaluatorsDefinition();
@@ -98,9 +99,9 @@ public class FieldIndexEntryTest extends TestCase {
         // test add
         index.add( h1RightTuple );
         index.add( h2RightTuple );
-        assertEquals( h2,
-                      index.first.getFactHandle() );
         assertEquals( h1,
+                      index.first.getFactHandle() );
+        assertEquals( h2,
                       ((RightTuple) index.first.getNext()).getFactHandle() );
 
         // test get
@@ -159,11 +160,11 @@ public class FieldIndexEntryTest extends TestCase {
         index.add( h1RightTuple );
         index.add( h2RightTuple );
         index.add( h3RightTuple );
-        assertEquals( h3,
+        assertEquals( h1,
                       index.first.getFactHandle() );
         assertEquals( h2,
                       ((RightTuple) index.first.getNext()).getFactHandle() );
-        assertEquals( h1,
+        assertEquals( h3,
                       ((RightTuple) index.first.getNext().getNext()).getFactHandle() );
 
         // test get
@@ -177,23 +178,23 @@ public class FieldIndexEntryTest extends TestCase {
         // test removal for combinations
         //remove first
         index.remove( h3RightTuple );
-        assertEquals( h2,
-                      index.first.getFactHandle() );
         assertEquals( h1,
+                      index.first.getFactHandle() );
+        assertEquals( h2,
                       ((RightTuple) index.first.getNext()).getFactHandle() );
 
         index.add( h3RightTuple );
         index.remove( h2RightTuple );
-        assertEquals( h3,
-                      index.first.getFactHandle() );
         assertEquals( h1,
+                      index.first.getFactHandle() );
+        assertEquals( h3,
                       ((RightTuple) index.first.getNext()).getFactHandle() );
 
         index.add( h2RightTuple );
         index.remove( h1RightTuple );
-        assertEquals( h2,
-                      index.first.getFactHandle() );
         assertEquals( h3,
+                      index.first.getFactHandle() );
+        assertEquals( h2,
                       ((RightTuple) index.first.getNext()).getFactHandle() );
 
         index.remove( index.first );

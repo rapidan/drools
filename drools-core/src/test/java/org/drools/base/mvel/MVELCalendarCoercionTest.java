@@ -6,7 +6,8 @@ import java.util.Date;
 
 import junit.framework.TestCase;
 
-import org.drools.util.DateUtils;
+import org.drools.core.util.DateUtils;
+import org.drools.type.DateFormatsImpl;
 
 public class MVELCalendarCoercionTest extends TestCase {
 
@@ -27,7 +28,8 @@ public class MVELCalendarCoercionTest extends TestCase {
 
         String dt = df.format(df.parse("10-Jul-1974"));
 
-        Date dt_ = DateUtils.parseDate( dt );
+        Date dt_ = DateUtils.parseDate( dt,
+                                        new DateFormatsImpl() );
         Calendar cal = Calendar.getInstance();
         cal.setTime( dt_ );
         assertEquals(cal, co.convertFrom( dt ));

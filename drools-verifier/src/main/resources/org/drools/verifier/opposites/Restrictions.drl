@@ -3,23 +3,23 @@ package org.drools.verifier.opposites
 
 #list any import classes here.
 import org.drools.verifier.components.LiteralRestriction;
+import org.drools.verifier.components.NumberRestriction;
 import org.drools.verifier.components.VariableRestriction;
-import org.drools.verifier.components.Field.FieldType;
+import org.drools.verifier.components.Field;
 
 import org.drools.verifier.report.components.Cause;
 import org.drools.verifier.report.components.MissingRange;
-import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
 import org.drools.verifier.report.components.Opposites;
 import org.drools.verifier.report.components.MissingRange;
 
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
 
 import org.drools.base.evaluators.Operator;
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 #
 # If two LiteralRestrictions are in conflict.
@@ -36,14 +36,13 @@ rule "Opposite LiteralRestrictions"
 		)
 
 		$right :LiteralRestriction(
-			fieldId == $left.fieldId,
+			fieldPath == $left.fieldPath,
 			valueType == $left.valueType,
-			id != $left.id,
+			path != $left.path,
 			# Operator needs to be reversed to what the other one has.
-			eval( operator == MissingRange.getReversedOperator( $left.getOperator() ))
+			eval( operator == MissingRange.getReversedOperator( $left.getOperator() )),
+			valueAsString == valueAsString
 		)
-
-		eval( $left.compareValues( $right ) == 0 )
 
 		# Check that there is not already a pair with these values.
 		not Opposites( 
@@ -72,17 +71,16 @@ rule "Opposite LiteralRestrictions with ranges, greater or equal - less"
 
 		$right :LiteralRestriction(
 			restrictionType == $left.restrictionType,
-			fieldId == $left.fieldId,
+			fieldPath == $left.fieldPath,
 			valueType == $left.valueType,
 			operator == Operator.LESS,
-			id != $left.id
+			path != $left.path,
+			valueAsString == $left.valueAsString
 		)
 		
-		eval( $left.compareValues( $right ) == 0 )
-
 		# Check that there is not already a pair with these values.
 		not Opposites( 
-			left == $left, 
+	        left == $left,
 			right == $right 
 		)
 		not Opposites( 
@@ -107,13 +105,12 @@ rule "Opposite LiteralRestrictions with ranges, greater - less or equal"
 
 		$right :LiteralRestriction(
 			restrictionType == $left.restrictionType,
-			fieldId == $left.fieldId,
+			fieldPath == $left.fieldPath,
 			valueType == $left.valueType,
 			operator == Operator.LESS_OR_EQUAL,
-			id != $left.id
+			path != $left.path,
+			valueAsString == $left.valueAsString 
 		)
-		
-		eval( $left.compareValues( $right ) == 0 )
 
 		# Check that there is not already a pair with these values.
 		not Opposites( 
@@ -137,20 +134,19 @@ end
 #
 rule "Opposite LiteralRestrictions with ranges, less - greater for ints and dates"
 	when
-		$left :LiteralRestriction(
+		$left :NumberRestriction(
 			operator == Operator.LESS,
-			( valueType == Field.FieldType.INT || == Field.FieldType.DATE )
+			( valueType == Field.INT || == Field.DATE )
 		)
 
-		$right :LiteralRestriction(
+		$right :NumberRestriction(
 			restrictionType == $left.restrictionType,
-			fieldId == $left.fieldId,
+			fieldPath == $left.fieldPath,
 			valueType == $left.valueType,
 			operator == Operator.GREATER,
-			id != $left.id
+			path != $left.path,
+			value < $left.value
 		)
-		
-		eval( $left.compareValues( $right ) == 1 )
 		
 		# Check that there is not already a pair with these values.
 		not Opposites( 
@@ -173,20 +169,19 @@ end
 #
 rule "Opposite LiteralRestrictions with ranges, less or equal - greater or equal for ints and dates"
 	when
-		$left :LiteralRestriction(
+		$left :NumberRestriction(
 			operator == Operator.GREATER_OR_EQUAL,
-			( valueType == Field.FieldType.INT || == Field.FieldType.DATE )
+			( valueType == Field.INT || == Field.DATE )
 		)
 
-		$right :LiteralRestriction(
+		$right :NumberRestriction(
 			restrictionType == $left.restrictionType,
-			fieldId == $left.fieldId,
+			fieldPath == $left.fieldPath,
 			valueType == $left.valueType,
 			operator == Operator.LESS_OR_EQUAL,
-			id != $left.id
+			path != $left.path,
+			value < $left.value
 		)
-		
-		eval( $left.compareValues( $right ) == 1 )
 		
 		# Check that there is not already a pair with these values.
 		not Opposites( 
@@ -212,10 +207,10 @@ rule "Opposite VariableRestrictions"
 		$r1 :VariableRestriction()
 
 		$r2 :VariableRestriction(
-			fieldId == $r1.fieldId,
-			id != $r1.id,
-			variable.objectId == $r1.variable.objectId,
-			variable.objectType == $r1.variable.objectType,
+			fieldPath == $r1.fieldPath,
+			path != $r1.path,
+			variable.objectTypePath == $r1.variable.objectTypePath,
+			variable.objectTypeType == $r1.variable.objectTypeType,
 			# Operator needs to be reverse to what the other one has.
 			eval( operator == MissingRange.getReversedOperator( $r1.getOperator() ))
 		)
@@ -232,3 +227,4 @@ rule "Opposite VariableRestrictions"
 	then
 		insert( new Opposites( $r1, $r2 ) );
 end
+

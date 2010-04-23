@@ -1,11 +1,11 @@
 package org.drools.persistence.jpa;
 
 import org.drools.KnowledgeBase;
-import org.drools.ProviderInitializationException;
+import org.drools.KnowledgeBaseFactoryService;
 import org.drools.runtime.Environment;
 import org.drools.runtime.KnowledgeSessionConfiguration;
 import org.drools.runtime.StatefulKnowledgeSession;
-import org.drools.util.ProviderLocator;
+import org.drools.util.ServiceRegistryImpl;
 
 /**
  * <p>
@@ -84,7 +84,7 @@ import org.drools.util.ProviderLocator;
  * java.naming.factory.initial=bitronix.tm.jndi.BitronixInitialContextFactory
  * </pre>
  */
-public class JPAKnowledgeService extends ProviderLocator {
+public class JPAKnowledgeService {
     private static JPAKnowledgeServiceProvider provider;
 
     public static StatefulKnowledgeSession newStatefulKnowledgeSession(KnowledgeBase kbase,
@@ -123,7 +123,7 @@ public class JPAKnowledgeService extends ProviderLocator {
             Class<JPAKnowledgeServiceProvider> cls = (Class<JPAKnowledgeServiceProvider>) Class.forName( "org.drools.persistence.jpa.impl.JPAKnowledgeServiceProviderImpl" );
             setJPAKnowledgeServiceProvider( cls.newInstance() );
         } catch ( Exception e ) {
-            throw new ProviderInitializationException( "Provider org.drools.persistence.jpa.impl.JPAKnowledgeServiceProviderImpl could not be set.",
+            throw new RuntimeException( "Provider org.drools.persistence.jpa.impl.JPAKnowledgeServiceProviderImpl could not be set.",
                                                        e );
         }
     }

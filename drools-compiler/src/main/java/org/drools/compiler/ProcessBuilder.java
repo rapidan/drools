@@ -24,13 +24,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.parsers.FactoryConfigurationError;
+
+import org.drools.compiler.xml.XmlProcessReader;
+import org.drools.compiler.xml.processes.RuleFlowMigrator;
 import org.drools.definition.process.Connection;
 import org.drools.definition.process.Node;
 import org.drools.definition.process.NodeContainer;
 import org.drools.definition.process.Process;
 import org.drools.definition.process.WorkflowProcess;
-import org.drools.io.InternalResource;
 import org.drools.io.Resource;
+import org.drools.io.internal.InternalResource;
 import org.drools.lang.descr.ActionDescr;
 import org.drools.lang.descr.ProcessDescr;
 import org.drools.process.builder.ProcessNodeBuilder;
@@ -47,15 +51,15 @@ import org.drools.rule.builder.ProcessBuildContext;
 import org.drools.ruleflow.core.RuleFlowProcess;
 import org.drools.ruleflow.core.validation.RuleFlowProcessValidator;
 import org.drools.workflow.core.Constraint;
+import org.drools.workflow.core.impl.ConnectionRef;
 import org.drools.workflow.core.impl.DroolsConsequenceAction;
 import org.drools.workflow.core.impl.WorkflowProcessImpl;
 import org.drools.workflow.core.node.ConstraintTrigger;
 import org.drools.workflow.core.node.MilestoneNode;
 import org.drools.workflow.core.node.Split;
 import org.drools.workflow.core.node.StartNode;
+import org.drools.workflow.core.node.StateNode;
 import org.drools.workflow.core.node.Trigger;
-import org.drools.xml.XmlProcessReader;
-import org.drools.xml.processes.RuleFlowMigrator;
 
 /**
  * A ProcessBuilder can be used to build processes based on XML files
@@ -68,9 +72,6 @@ public class ProcessBuilder {
     private PackageBuilder                packageBuilder;
     private final List<DroolsError>       errors                         = new ArrayList<DroolsError>();
     private Map<String, ProcessValidator> processValidators              = new HashMap<String, ProcessValidator>();
-    private static final String           XSL_FROM_4_TO_5                = "/org/drools/xml/processes/RuleFlowFrom4To5.xsl";
-    private static final String           PROCESS_ELEMENT_WITH_NAMESPACE = "<process xmlns=\"http://drools.org/drools-5.0/process\"\n" + "    xmlns:xs=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
-                                                                           + "    xs:schemaLocation=\"http://drools.org/drools-5.0/process drools-processes-5.0.xsd\"\n";
 
     public ProcessBuilder(PackageBuilder packageBuilder) {
         this.packageBuilder = packageBuilder;
@@ -105,6 +106,7 @@ public class ProcessBuilder {
         if ( !hasErrors ) {
             // generate and add rule for process
             String rules = generateRules( process );
+//            System.out.println(rules);
             try {
                 packageBuilder.addPackageFromDrl( new StringReader( rules ) );
             } catch ( IOException e ) {
@@ -225,13 +227,17 @@ public class ProcessBuilder {
                 // @TODO could we maybe add something a bit more informative about what is wrong with the XML ?
                 this.errors.add( new RuleFlowLoadError( "unable to parse xml", null ) );
             }
+        } catch ( FactoryConfigurationError e1 ) {
+            this.errors.add( new RuleFlowLoadError( "FactoryConfigurationError ", e1.getException()) );
+        } catch ( Exception e2 ) {
+        	e2.printStackTrace();
+            this.errors.add( new RuleFlowLoadError( "unable to parse xml", e2 ) );
         } finally {
             Thread.currentThread().setContextClassLoader( oldLoader );
         }
         reader.close();
     }
-
-    
+                                   
   
     /*************************************************************************
      * Converts a drools version 4 .rf or .rfm ruleflow to a version 5 .rf.
@@ -265,7 +271,7 @@ public class ProcessBuilder {
 
 
     private String generateRules(final Process process) {
-        StringBuilder builder = new StringBuilder();
+        StringBuffer builder = new StringBuffer();
 
         if ( process instanceof WorkflowProcessImpl ) {
             WorkflowProcessImpl ruleFlow = (WorkflowProcessImpl) process;
@@ -290,64 +296,116 @@ public class ProcessBuilder {
             }
 
             Node[] nodes = ruleFlow.getNodes();
-            for ( int i = 0; i < nodes.length; i++ ) {
-                if ( nodes[i] instanceof Split ) {
-                    Split split = (Split) nodes[i];
-                    if ( split.getType() == Split.TYPE_XOR || split.getType() == Split.TYPE_OR ) {
-                        for ( Connection connection : split.getDefaultOutgoingConnections() ) {
-                            Constraint constraint = split.getConstraint( connection );
-                            if ( "rule".equals( constraint.getType() ) ) {
-                                builder.append( createSplitRule( process,
-                                                                 connection,
-                                                                 split.getConstraint( connection ).getConstraint() ) );
-                            }
-                        }
-                    }
-                } else if ( nodes[i] instanceof MilestoneNode ) {
-                    MilestoneNode milestone = (MilestoneNode) nodes[i];
-                    builder.append( createMilestoneRule( process,
-                                                         milestone ) );
-                } else if ( nodes[i] instanceof StartNode ) {
-                    StartNode startNode = (StartNode) nodes[i];
-                    List<Trigger> triggers = startNode.getTriggers();
-                    if ( triggers != null ) {
-                        for ( Trigger trigger : triggers ) {
-                            if ( trigger instanceof ConstraintTrigger ) {
-                                builder.append( createStartConstraintRule( process,
-                                                                           (ConstraintTrigger) trigger ) );
-                            }
+            generateRules(nodes, process, builder);
+        }
+        return builder.toString();
+    }
+ 
+    private void generateRules(Node[] nodes, Process process, StringBuffer builder) {
+        for ( int i = 0; i < nodes.length; i++ ) {
+            if ( nodes[i] instanceof Split ) {
+                Split split = (Split) nodes[i];
+                if ( split.getType() == Split.TYPE_XOR || split.getType() == Split.TYPE_OR ) {
+                    for ( Connection connection : split.getDefaultOutgoingConnections() ) {
+                        Constraint constraint = split.getConstraint( connection );
+                        if ( "rule".equals( constraint.getType() ) ) {
+                            builder.append( createSplitRule( process,
+                                                             connection,
+                                                             split.getConstraint( connection ).getConstraint() ) );
                         }
                     }
                 }
+            } else if ( nodes[i] instanceof MilestoneNode ) {
+                MilestoneNode milestone = (MilestoneNode) nodes[i];
+                builder.append( createMilestoneRule( process,
+                                                     milestone ) );
+            } else if ( nodes[i] instanceof StateNode ) {
+                StateNode state = (StateNode) nodes[i];
+                builder.append( createStateRules(process, state) );
+            } else if ( nodes[i] instanceof StartNode ) {
+                StartNode startNode = (StartNode) nodes[i];
+                List<Trigger> triggers = startNode.getTriggers();
+                if ( triggers != null ) {
+                    for ( Trigger trigger : triggers ) {
+                        if ( trigger instanceof ConstraintTrigger ) {
+                            builder.append( createStartConstraintRule( process,
+                                                                       (ConstraintTrigger) trigger ) );
+                        }
+                    }
+                }
+            } else if ( nodes[i] instanceof NodeContainer ) {
+                generateRules( ((NodeContainer) nodes[i]).getNodes(), process, builder);
             }
         }
-        return builder.toString();
     }
 
     private String createSplitRule(Process process,
                                    Connection connection,
                                    String constraint) {
-        return "rule \"RuleFlow-Split-" + process.getId() + "-" + connection.getFrom().getId() + "-" + connection.getTo().getId() + "\" \n" + "      ruleflow-group \"DROOLS_SYSTEM\" \n" + "    when \n" + "      " + constraint + "\n" + "    then \n"
-               + "end \n\n";
+        return 
+        	"rule \"RuleFlow-Split-" + process.getId() + "-" +
+        		((org.drools.workflow.core.Node) connection.getFrom()).getUniqueId() + "-" + 
+        		((org.drools.workflow.core.Node) connection.getTo()).getUniqueId() + "-" +
+        		connection.getToType() + "\" \n" +
+        	"      ruleflow-group \"DROOLS_SYSTEM\" \n" + 
+        	"    when \n" + 
+        	"      " + constraint + "\n" + 
+        	"    then \n" +
+            "end \n\n";
     }
 
     private String createMilestoneRule(Process process,
                                        MilestoneNode milestone) {
-        return "rule \"RuleFlow-Milestone-" + process.getId() + "-" + milestone.getId() + "\" \n" + "      ruleflow-group \"DROOLS_SYSTEM\" \n" + "    when \n" + "      " + milestone.getConstraint() + "\n" + "    then \n" + "end \n\n";
+        return 
+        	"rule \"RuleFlow-Milestone-" + process.getId() + "-" + milestone.getUniqueId() + "\" \n" + 
+        	"      ruleflow-group \"DROOLS_SYSTEM\" \n" + 
+        	"    when \n" + 
+        	"      " + milestone.getConstraint() + "\n" + 
+        	"    then \n" + 
+        	"end \n\n";
+    }
+    
+    private String createStateRule(Process process, StateNode state, ConnectionRef key, Constraint constraint) {
+    	if (constraint.getConstraint() == null
+    			|| constraint.getConstraint().trim().length() == 0) {
+    		return "";
+    	} else {
+	        return 
+	        	"rule \"RuleFlowStateNode-" + process.getId() + "-" + state.getUniqueId() + "-" + 
+	        		key.getNodeId() + "-" + key.getToType() + "\" \n" + 
+	    		"      ruleflow-group \"DROOLS_SYSTEM\" \n" + 
+	    		"    when \n" + 
+	    		"      " + state.getConstraints().get(key).getConstraint() + "\n" + 
+	    		"    then \n" + 
+	    		"end \n\n";
+    	}
+	}
+    
+    private String createStateRules(Process process, StateNode state) {
+        String result = "";
+        for (Map.Entry<ConnectionRef, Constraint> entry: state.getConstraints().entrySet()) {
+    		result += createStateRule(process, state, entry.getKey(), entry.getValue());
+        }
+        return result;
     }
 
     private String createStartConstraintRule(Process process,
                                              ConstraintTrigger trigger) {
-        String result = "rule \"RuleFlow-Start-" + process.getId() + "\" \n" + "    when\n" + "        " + trigger.getConstraint() + "\n" + "    then\n";
+        String result = 
+        	"rule \"RuleFlow-Start-" + process.getId() + "\" \n" + 
+        	(trigger.getHeader() == null ? "" : "        " + trigger.getHeader() + " \n") + 
+        	"    when\n" + 
+        	"        " + trigger.getConstraint() + "\n" + 
+        	"    then\n";
         Map<String, String> inMappings = trigger.getInMappings();
         if ( inMappings != null && !inMappings.isEmpty() ) {
             result += "        java.util.Map params = new java.util.HashMap();\n";
             for ( Map.Entry<String, String> entry : inMappings.entrySet() ) {
                 result += "        params.put(\"" + entry.getKey() + "\", " + entry.getValue() + ");\n";
             }
-            result += "        drools.getWorkingMemory().startProcess(\"" + process.getId() + "\", params);\n" + "end\n\n";
+            result += "        kcontext.getKnowledgeRuntime().startProcess(\"" + process.getId() + "\", params);\n" + "end\n\n";
         } else {
-            result += "        drools.getWorkingMemory().startProcess(\"" + process.getId() + "\");\n" + "end\n\n";
+            result += "        kcontext.getKnowledgeRuntime().startProcess(\"" + process.getId() + "\");\n" + "end\n\n";
         }
         return result;
     }

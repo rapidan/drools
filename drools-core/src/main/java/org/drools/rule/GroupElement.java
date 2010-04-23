@@ -28,20 +28,23 @@ import java.util.List;
 import java.util.Map;
 
 import org.drools.RuntimeDroolsException;
+import org.drools.spi.ObjectType;
 
 public class GroupElement extends ConditionalElement
     implements
     Externalizable {
 
-    private static final long serialVersionUID = 400L;
+    private static final long serialVersionUID     = 510L;
 
-    public static final Type AND = Type.AND;
-    public static final Type OR = Type.OR;
-    public static final Type NOT = Type.NOT;
-    public static final Type EXISTS = Type.EXISTS;
+    public static final Type  AND                  = Type.AND;
+    public static final Type  OR                   = Type.OR;
+    public static final Type  NOT                  = Type.NOT;
+    public static final Type  EXISTS               = Type.EXISTS;
+    public static final Type  FORALL_NOT           = Type.FORALL_NOT;
 
-    private Type              type             = null;
-    private List              children         = new ArrayList();
+    private Type              type                 = null;
+    private List              children             = new ArrayList();
+    private ObjectType        forallBaseObjectType = null;
 
     public GroupElement() {
         this( Type.AND );
@@ -113,6 +116,14 @@ public class GroupElement extends ConditionalElement
         return (Declaration) this.type.getInnerDeclarations( this.children ).get( identifier );
     }
 
+    public void setForallBaseObjectType(ObjectType objectType) {
+        this.forallBaseObjectType = objectType;
+    }
+
+    public ObjectType getForallBaseObjectType() {
+        return this.forallBaseObjectType;
+    }
+
     /**
      * Optimize the group element subtree by removing redundancies
      * like an AND inside another AND, OR inside OR, single branches
@@ -141,6 +152,25 @@ public class GroupElement extends ConditionalElement
                 this.type = group.getType();
                 this.children.clear();
                 this.children.addAll( group.getChildren() );
+            }
+        }
+        
+        // if after packing, this is a NOT GE with an EXISTS child
+        // or this is an EXISTS GE with a NOT child, eliminate the redundant 
+        // child and make this a NOT GE
+        if ( this.isNot() && this.children.size() == 1 && this.getChildren().get( 0 ) instanceof GroupElement ) {
+            final GroupElement child = (GroupElement) this.getChildren().get( 0 );
+            if ( child.isExists() ) {
+                this.children.clear();
+                this.children.addAll( child.getChildren() );
+            }
+        }
+        if ( this.isExists() && this.children.size() == 1 && this.getChildren().get( 0 ) instanceof GroupElement ) {
+            final GroupElement child = (GroupElement) this.getChildren().get( 0 );
+            if ( child.isNot() ) {
+                this.setType( NOT );
+                this.children.clear();
+                this.children.addAll( child.getChildren() );
             }
         }
 
@@ -301,7 +331,7 @@ public class GroupElement extends ConditionalElement
     }
 
     public boolean isNot() {
-        return NOT.equals( this.type );
+        return NOT.equals( this.type ) || FORALL_NOT.equals( this.type );
     }
 
     public boolean isExists() {
@@ -328,7 +358,8 @@ public class GroupElement extends ConditionalElement
         AND(false), 
         OR(false), 
         NOT(true), 
-        EXISTS(true);
+        EXISTS(true), 
+        FORALL_NOT(true);
 
         private final boolean scopeDelimiter;
 

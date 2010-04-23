@@ -44,9 +44,13 @@ public class AsyncCompositeObjectSinkAdapter extends CompositeObjectSinkAdapter 
             // same partition, so synchronous propagation is fine
             sink.assertObject( factHandle, context, workingMemory );
         } else {
+            int priority = org.drools.reteoo.PartitionTaskManager.Action.PRIORITY_HIGH;
+            if( this.partitionId.equals( RuleBasePartitionId.MAIN_PARTITION ) ) {
+                priority = org.drools.reteoo.PartitionTaskManager.Action.PRIORITY_NORMAL;
+            }
             // different partition, so use asynchronous propagation
-            PartitionTaskManager manager = workingMemory.getPartitionManager( sink.getPartitionId() );
-            manager.enqueue( new PartitionTaskManager.FactAssertAction(factHandle, context, sink ) );
+            PartitionTaskManager manager = workingMemory.getPartitionTaskManager( sink.getPartitionId() );
+            manager.enqueue( new PartitionTaskManager.FactAssertAction(factHandle, context, sink, priority ) );
         }
     }
 }

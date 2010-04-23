@@ -21,6 +21,9 @@ import org.drools.spi.AcceptsWriteAccessor;
 public class ClassFieldAccessorStore
     implements
     Externalizable {
+	
+    private static final long serialVersionUID = 400L;
+    
     private Map<AccessorKey, BaseLookupEntry> lookup;
 
     private ClassFieldAccessorCache           cache;
@@ -229,7 +232,7 @@ public class ClassFieldAccessorStore
     public ClassObjectType getClassObjectType(final ClassObjectType objectType,
                                               final AcceptsClassObjectType target) {
         return getClassObjectType( objectType,
-                                   false,
+                                   objectType.isEvent(),
                                    target );
     }
 
@@ -285,6 +288,12 @@ public class ClassFieldAccessorStore
                             }
                             lookupEntry.addAccessorTarget( target );
                         }
+                        if (lookupEntry.getClassFieldReader() != null) {
+                            wire(((FieldLookupEntry)entry.getValue()).getClassFieldReader());
+                        }
+                        if (lookupEntry.getClassFieldWriter() != null) {
+                            wire(((FieldLookupEntry)entry.getValue()).getClassFieldWriter());
+                        }                        
                     }
                     break;
                 }

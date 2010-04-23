@@ -39,9 +39,8 @@ import org.drools.guvnor.server.builder.BRMSPackageBuilder;
 import org.drools.guvnor.server.builder.ContentPackageAssembler;
 import org.drools.guvnor.server.contenthandler.ContentHandler;
 import org.drools.guvnor.server.contenthandler.ContentManager;
+import org.drools.guvnor.server.contenthandler.ICanHasAttachment;
 import org.drools.guvnor.server.contenthandler.IRuleAsset;
-import org.drools.guvnor.server.contenthandler.ModelContentHandler;
-import org.drools.guvnor.server.contenthandler.RuleFlowHandler;
 import org.drools.guvnor.server.repository.MigrateRepository;
 import org.drools.guvnor.server.security.AdminType;
 import org.drools.guvnor.server.security.RoleTypes;
@@ -72,7 +71,7 @@ import org.jboss.seam.security.Identity;
 public class FileManagerUtils {
 
     @In
-    public RulesRepository repository;
+    private RulesRepository repository;
 
     /**
      * This attach a file to an asset.
@@ -111,16 +110,18 @@ public class FileManagerUtils {
 
         // Special treatment for model and ruleflow attachments.
         ContentHandler handler = ContentManager.getHandler( item.getFormat() );
-        if ( handler instanceof ModelContentHandler ) {
-            ((ModelContentHandler) handler).modelAttached( item );
-        } else if ( handler instanceof RuleFlowHandler ) {
-            ((RuleFlowHandler) handler).ruleFlowAttached( item );
+        if ( handler instanceof ICanHasAttachment ) {
+            ((ICanHasAttachment) handler).onAttachmentAdded( item );
         }
 
     }
 
     public RulesRepository getRepository() {
         return this.repository;
+    }
+
+    public void setRepository(RulesRepository repository) {
+        this.repository = repository;
     }
 
     /**
@@ -262,6 +263,7 @@ public class FileManagerUtils {
             if ( MigrateRepository.needsRuleflowMigration( repository ) ) {
                 MigrateRepository.migrateRuleflows( repository );
             }
+            ServiceImplementation.ruleBaseCache.clear();
         } catch ( RepositoryException e ) {
             e.printStackTrace();
             throw new RulesRepositoryException( e );
@@ -271,16 +273,16 @@ public class FileManagerUtils {
     @Restrict("#{identity.loggedIn}")
     public void importPackageToRepository(byte[] data,
                                           boolean importAsNew) {
-
-        repository.importPackageToRepository( data,
-                                              importAsNew );
-
-        //
-        //Migrate v4 ruleflows to v5
-        //This section checks if the repository contains drools v4
-        //ruleflows that need to be migrated to drools v5
-        //
         try {
+            repository.importPackageToRepository( data,
+                                                  importAsNew );
+
+            //
+            //Migrate v4 ruleflows to v5
+            //This section checks if the repository contains drools v4
+            //ruleflows that need to be migrated to drools v5
+            //
+
             if ( MigrateRepository.needsRuleflowMigration( repository ) ) {
                 MigrateRepository.migrateRuleflows( repository );
             }
@@ -296,15 +298,25 @@ public class FileManagerUtils {
      * If it does, it will be "merged" in the sense that any new rules in the drl
      * will be created as new assets in the repo, everything else will stay as it was
      * in the repo.
+     * 
+     * @param packageName Name for this package. Overrides the one in the DRL.
      */
     @Restrict("#{identity.loggedIn}")
-    public void importClassicDRL(InputStream drlStream) throws IOException,
-                                                       DroolsParserException {
+    public void importClassicDRL(InputStream drlStream,
+                                 String packageName) throws IOException,
+                                                    DroolsParserException {
 
         ClassicDRLImporter imp = new ClassicDRLImporter( drlStream );
         PackageItem pkg = null;
 
-        String packageName = imp.getPackageName();
+        if ( packageName == null ) {
+            packageName = imp.getPackageName();
+        }
+
+        if ( packageName == null || "".equals( packageName ) ) {
+            throw new IllegalArgumentException( "Missing package name." );
+        }
+
         boolean existing = repository.containsPackage( packageName );
 
         // Check if the package is archived

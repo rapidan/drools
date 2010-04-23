@@ -14,6 +14,8 @@ import java.util.Map;
 import org.drools.KnowledgeBase;
 import org.drools.RuleBase;
 import org.drools.SessionConfiguration;
+import org.drools.command.CommandService;
+import org.drools.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.common.InternalRuleBase;
 import org.drools.definition.KnowledgePackage;
 import org.drools.definition.process.Process;
@@ -50,8 +52,6 @@ import org.drools.event.knowlegebase.impl.BeforeKnowledgePackageAddedEventImpl;
 import org.drools.event.knowlegebase.impl.BeforeKnowledgePackageRemovedEventImpl;
 import org.drools.event.knowlegebase.impl.BeforeRuleAddedEventImpl;
 import org.drools.event.knowlegebase.impl.BeforeRuleRemovedEventImpl;
-import org.drools.process.command.CommandService;
-import org.drools.process.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.reteoo.ReteooRuleBase;
 import org.drools.reteoo.ReteooStatefulSession;
 import org.drools.rule.Package;
@@ -172,6 +172,12 @@ public class KnowledgeBaseImpl
                                   ruleName );
     }
 
+    public void removeFunction(String packageName,
+                           String ruleName) {
+        this.ruleBase.removeFunction( packageName,
+                                  ruleName );
+    }
+
     public void removeProcess(String processId) {
         this.ruleBase.removeProcess( processId );
     }
@@ -182,7 +188,12 @@ public class KnowledgeBaseImpl
     }
 
     public KnowledgePackage getKnowledgePackage(String packageName) {
-        return new KnowledgePackageImp( this.ruleBase.getPackage( packageName ) );
+        Package pkg = this.ruleBase.getPackage( packageName );
+        if ( pkg != null ) {
+            return new KnowledgePackageImp( pkg );
+        } else {
+            return null; 
+        }
     }
 
     public Process getProcess(String processId) {

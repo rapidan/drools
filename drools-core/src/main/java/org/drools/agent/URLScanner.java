@@ -21,7 +21,10 @@ public class URLScanner extends PackageProvider {
 
     //this is the URLs we are managing
     URL[]       urls;
-
+    String username;
+    String password;
+    boolean enableBasicAuthentication = false;
+    
     //this is only set if we are using a local cache - only fall back on this
     //when URL connection is not available.
     FileScanner localCacheFileScanner;
@@ -34,7 +37,11 @@ public class URLScanner extends PackageProvider {
 
     File        localCacheDir;
 
-    void configure(Properties config) {
+    void configure(Properties config) {   	
+        username = config.getProperty( RuleAgent.USER_NAME );
+        password = config.getProperty( RuleAgent.PASSWORD );
+        enableBasicAuthentication = Boolean.parseBoolean(config.getProperty( RuleAgent.ENABLE_BASIC_AUTHENTICATION ));
+
         List uriList = RuleAgent.list( config.getProperty( RuleAgent.URLS ) );
         urls = new URL[uriList.size()];
         for ( int i = 0; i < uriList.size(); i++ ) {
@@ -111,7 +118,7 @@ public class URLScanner extends PackageProvider {
     private PackageChangeInfo getChangeSet() throws IOException, ClassNotFoundException {
     	
     	PackageChangeInfo info = new PackageChangeInfo();
-    	
+
         if ( this.urls == null ) return info;
         
         for ( int i = 0; i < urls.length; i++ ) {
@@ -145,7 +152,7 @@ public class URLScanner extends PackageProvider {
     }
 
     private Package readPackage(URL u) throws IOException, ClassNotFoundException {
-        return httpClient.fetchPackage( u );
+        return httpClient.fetchPackage( u, enableBasicAuthentication, username, password );
     }
 
     private boolean hasChanged(URL u, Map updates) throws IOException {

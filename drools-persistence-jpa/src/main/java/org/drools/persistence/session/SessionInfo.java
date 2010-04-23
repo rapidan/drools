@@ -23,22 +23,15 @@ public class SessionInfo {
     @GeneratedValue(strategy = GenerationType.AUTO)
     int                        id;
 
-//    @Version
-//    @Column(name = "OPTLOCK")     
-//    private int                version;
+    @Version
+    @Column(name = "OPTLOCK")     
+    private int                version;
 
     private Date               startDate;
     private Date               lastModificationDate;    
-    private boolean            dirty;         
+    
     @Lob
     private byte[]             rulesByteArray;
-
-    @Transient
-    private int                versionShadow;
-    @Transient
-    private Date               lastModificationDateShadow;  
-    @Transient
-    private byte[]             rulesByteArrayShadow;
 
     @Transient
     JPASessionMarshallingHelper helper;
@@ -51,14 +44,18 @@ public class SessionInfo {
         return this.id;
     }
     
-//    public int getVersion() {
-//        return this.version;
-//    }
+    public int getVersion() {
+        return this.version;
+    }
 
     public void setJPASessionMashallingHelper(JPASessionMarshallingHelper helper) {
         this.helper = helper;
     }
 
+    public JPASessionMarshallingHelper getJPASessionMashallingHelper() {
+        return helper;
+    }
+    
     public byte[] getData() {
         return this.rulesByteArray;
     }
@@ -71,37 +68,15 @@ public class SessionInfo {
         return this.lastModificationDate;
     }
 
-    public void setDirty() {
-        this.dirty = true;
+    public void setLastModificationDate(Date date) {
+        this.lastModificationDate = date;
     }
     
-    @PostLoad
-    public void postLoad() {
-        this.lastModificationDateShadow = this.lastModificationDate;       
-        this.rulesByteArrayShadow = this.rulesByteArray;
-//        this.versionShadow = this.version;
-    }
-    
+
     @PrePersist 
     @PreUpdate 
     public void update() {
-        // we always increase the last modification date for each action, so we know there will be an update
-        byte[] newByteArray = this.helper.getSnapshot();
-        if ( !Arrays.equals( newByteArray,
-                             this.rulesByteArray ) ) {
-            this.lastModificationDate = new Date();
-            this.rulesByteArray = newByteArray;
-        }
-        this.lastModificationDateShadow = this.lastModificationDate;       
-        this.rulesByteArrayShadow = this.rulesByteArray;
-        this.dirty = false;
-    }
-    
-    public void rollback() {
-        this.dirty = false;
-        this.lastModificationDate = this.lastModificationDateShadow;
-        this.rulesByteArray = this.rulesByteArrayShadow;
-//        this.version = this.versionShadow;
+        this.rulesByteArray  = this.helper.getSnapshot();
     }
 
 }

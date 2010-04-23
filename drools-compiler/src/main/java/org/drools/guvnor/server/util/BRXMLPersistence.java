@@ -19,7 +19,7 @@ public class BRXMLPersistence
     private XStream                     xt;
     private static final BRLPersistence INSTANCE = new BRXMLPersistence();
 
-    private BRXMLPersistence() {
+    protected BRXMLPersistence() {
         this.xt = new XStream( new DomDriver() );
 
         this.xt.alias( "rule",
@@ -38,6 +38,12 @@ public class BRXMLPersistence
                        DSLSentence.class );
         this.xt.alias( "compositePattern",
                        CompositeFactPattern.class );
+        this.xt.alias( "fromCompositePattern",
+                       FromCompositeFactPattern.class );
+        this.xt.alias( "fromCollectCompositePattern",
+                       FromCollectCompositeFactPattern.class );
+        this.xt.alias( "fromAccumulateCompositePattern",
+                       FromAccumulateCompositeFactPattern.class );
         this.xt.alias( "metadata",
                        RuleMetadata.class );
         this.xt.alias( "attribute",
@@ -60,7 +66,31 @@ public class BRXMLPersistence
 
         this.xt.alias( "addToGlobal",
                        ActionGlobalCollectionAdd.class );
+        //Begin ExpressionFormLine
+        this.xt.alias( "expression",
+                ExpressionFormLine.class );
+        
+        this.xt.alias( "field",
+                ExpressionField.class );
+        
+        this.xt.alias( "method",
+                ExpressionMethod.class );
+        
+        this.xt.alias( "collection",
+                ExpressionCollection.class );
+        
+        this.xt.alias( "collectionIndex",
+                ExpressionCollectionIndex.class );
+        
+        this.xt.alias( "text",
+                ExpressionText.class );
 
+        this.xt.alias( "global",
+                ExpressionGlobalVariable.class );
+        
+        this.xt.alias( "variable",
+                ExpressionVariable.class );
+        //end ExpressionFormLine
     }
 
     public static BRLPersistence getInstance() {
@@ -78,11 +108,8 @@ public class BRXMLPersistence
      * @see org.drools.guvnor.server.util.BRLPersistence#toModel(java.lang.String)
      */
     public RuleModel unmarshal(final String xml) {
-        if ( xml == null ) {
-            return new RuleModel();
-        }
-        if ( xml.trim().equals( "" ) ) {
-            return new RuleModel();
+        if ( xml == null || xml.trim().length() == 0) {
+            return createEmptyModel();
         }
         RuleModel rm = (RuleModel) this.xt.fromXML( xml );
         //Fixme , hack for a upgrade to add Metadata
@@ -94,6 +121,10 @@ public class BRXMLPersistence
         
         return rm;
     }
+
+	protected RuleModel createEmptyModel() {
+		return new RuleModel();
+	}
 
     /**
      * 

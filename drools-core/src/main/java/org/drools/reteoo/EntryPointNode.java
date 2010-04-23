@@ -30,16 +30,15 @@ import org.drools.common.BaseNode;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.InternalWorkingMemoryEntryPoint;
-import org.drools.common.NodeMemory;
 import org.drools.common.PropagationContextImpl;
 import org.drools.common.RuleBasePartitionId;
+import org.drools.core.util.Iterator;
+import org.drools.core.util.ObjectHashSet;
+import org.drools.core.util.ObjectHashSet.ObjectEntry;
 import org.drools.reteoo.builder.BuildContext;
 import org.drools.rule.EntryPoint;
 import org.drools.spi.ObjectType;
 import org.drools.spi.PropagationContext;
-import org.drools.util.Iterator;
-import org.drools.util.ObjectHashSet;
-import org.drools.util.ObjectHashSet.ObjectEntry;
 
 /**
  * A node that is an entry point into the Rete network.
@@ -109,6 +108,7 @@ public class EntryPointNode extends ObjectSource
     // Instance methods
     // ------------------------------------------------------------
 
+    @SuppressWarnings("unchecked")
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
         super.readExternal( in );
@@ -148,6 +148,45 @@ public class EntryPointNode extends ObjectSource
                                          workingMemory );
         }
     }
+    
+    public void modifyObject(final InternalFactHandle handle,
+                             final PropagationContext context,
+                             final ObjectTypeConf objectTypeConf,
+                             final InternalWorkingMemory workingMemory) {
+        // checks if shadow is enabled
+        if ( objectTypeConf.isShadowEnabled() ) {
+            // the user has implemented the ShadowProxy interface, let their implementation
+            // know it is safe to update the information the engine can see.
+            ((ShadowProxy) handle.getObject()).updateProxy();
+        }
+        
+        ObjectTypeNode[] cachedNodes = objectTypeConf.getObjectTypeNodes();
+        
+        // make a reference to the previous tuples, then null then on the handle
+        ModifyPreviousTuples modifyPreviousTuples = new ModifyPreviousTuples(handle.getFirstLeftTuple(), handle.getFirstRightTuple() );
+        handle.setFirstLeftTuple( null );
+        handle.setFirstRightTuple( null );
+        handle.setLastLeftTuple( null );
+        handle.setLastRightTuple( null ); 
+        
+        for ( int i = 0, length = cachedNodes.length; i < length; i++ ) {
+            cachedNodes[i].modifyObject( handle,
+                                         modifyPreviousTuples,
+                                         context, workingMemory );
+        }     
+        modifyPreviousTuples.retractTuples( context, workingMemory );
+        
+      
+    }
+    
+    public void modifyObject(InternalFactHandle factHandle,
+                                   ModifyPreviousTuples modifyPreviousTuples,
+                                   PropagationContext context,
+                                   InternalWorkingMemory workingMemory) {
+        // this method was silently failing, so I am now throwing an exception to make
+        // sure no one calls it by mistake
+        throw new UnsupportedOperationException( "This method should NEVER EVER be called" );
+    }    
 
     /**
      * This is the entry point into the network for all asserted Facts. Iterates a cache
@@ -182,8 +221,6 @@ public class EntryPointNode extends ObjectSource
                               final PropagationContext context,
                               final ObjectTypeConf objectTypeConf,
                               final InternalWorkingMemory workingMemory) {
-        final Object object = handle.getObject();
-
         ObjectTypeNode[] cachedNodes = objectTypeConf.getObjectTypeNodes();
 
         if ( cachedNodes == null ) {
@@ -207,7 +244,7 @@ public class EntryPointNode extends ObjectSource
      *            <code>Objects</code>. Rete only accepts <code>ObjectTypeNode</code>s
      *            as parameters to this method, though.
      */
-    protected void addObjectSink(final ObjectSink objectSink) {
+    public void addObjectSink(final ObjectSink objectSink) {
         final ObjectTypeNode node = (ObjectTypeNode) objectSink;
         this.objectTypeNodes.put( node.getObjectType(),
                                   node );
@@ -227,6 +264,7 @@ public class EntryPointNode extends ObjectSource
 
         for ( int i = 0, length = workingMemories.length; i < length; i++ ) {
             final InternalWorkingMemory workingMemory = workingMemories[i];
+            workingMemory.updateEntryPointsCache();
             final PropagationContext propagationContext = new PropagationContextImpl( workingMemory.getNextPropagationIdCounter(),
                                                                                       PropagationContext.RULE_ADDITION,
                                                                                       null,
@@ -244,10 +282,6 @@ public class EntryPointNode extends ObjectSource
                             final InternalWorkingMemory[] workingMemories) {
         final ObjectTypeNode objectTypeNode = (ObjectTypeNode) node;
         removeObjectSink( objectTypeNode );
-        for ( int i = 0; i < workingMemories.length; i++ ) {
-            // clear the node memory for each working memory.
-            workingMemories[i].clearNodeMemory( (NodeMemory) node );
-        }
     }
 
     public Map<ObjectType, ObjectTypeNode> getObjectTypeNodes() {

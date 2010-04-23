@@ -23,6 +23,7 @@ import org.drools.builder.KnowledgeBuilder;
 import org.drools.builder.KnowledgeBuilderFactory;
 import org.drools.builder.ResourceType;
 import org.drools.conf.EventProcessingOption;
+import org.drools.conf.MBeansOption;
 import org.drools.examples.broker.events.Event;
 import org.drools.examples.broker.events.EventReceiver;
 import org.drools.examples.broker.model.Company;
@@ -41,7 +42,7 @@ import org.drools.runtime.rule.WorkingMemoryEntryPoint;
  * @author etirelli
  */
 public class Broker implements EventReceiver, BrokerServices {
-    private static final String RULES_FILE = "/broker.drl";
+    private static final String[] ASSET_FILES = { "/broker.drl", "/notify.drl", "/position.rf", "/position.drl" };
     
     private BrokerWindow window;
     private CompanyRegistry companies;
@@ -67,6 +68,7 @@ public class Broker implements EventReceiver, BrokerServices {
             this.session.fireAllRules();
             window.updateCompany( company.getSymbol() );
             window.updateTick( tick );
+            
         } catch ( Exception e ) {
             System.err.println("=============================================================");
             System.err.println("Unexpected exception caught: "+e.getMessage() );
@@ -89,10 +91,13 @@ public class Broker implements EventReceiver, BrokerServices {
     private KnowledgeBase loadRuleBase() {
         KnowledgeBuilder builder = KnowledgeBuilderFactory.newKnowledgeBuilder();
         try {
-            builder.add( ResourceFactory.newInputStreamResource( Broker.class.getResourceAsStream( RULES_FILE ) ),
-                         ResourceType.DRL);
+            for( int i = 0; i < ASSET_FILES.length; i++ ) {
+                builder.add( ResourceFactory.newInputStreamResource( Broker.class.getResourceAsStream( ASSET_FILES[i] ) ),
+                             ResourceType.determineResourceType( ASSET_FILES[i] ));
+            }
         } catch ( Exception e ) {
             e.printStackTrace();
+            System.exit( 0 );
         }
         if( builder.hasErrors() ) {
             System.err.println(builder.getErrors());
@@ -100,8 +105,8 @@ public class Broker implements EventReceiver, BrokerServices {
         }
         KnowledgeBaseConfiguration conf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
         conf.setOption( EventProcessingOption.STREAM );
-        //System.out.println(((RuleBaseConfiguration)conf).getEventProcessingMode());
-        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase( conf );
+        conf.setOption( MBeansOption.ENABLED );
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase( "Stock Broker", conf ); 
         kbase.addKnowledgePackages( builder.getKnowledgePackages() );
         return kbase;
     }

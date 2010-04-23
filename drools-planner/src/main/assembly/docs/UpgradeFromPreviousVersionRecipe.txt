@@ -1,0 +1,265 @@
+Introduction
+============
+
+Drools Planner isn't always backwards compatible at this time.
+This file describes how can you upgrade from earlier versions to the latest.
+
+From 5.0.0-m2 to 5.0.0
+----------------------
+
+No backwards incompatible changes.
+
+From 5.0.0 to 5.0.1
+-------------------
+
+A score is no longer a double, now it's a Score instance,
+because a SimpleScore is now just an int and a HardAndSoftScore is now 2 separated ints.
+
+
+In the Solver interface, the return type of the getBestScore() method changed:
+Before:
+    double score = solver.getBestScore();
+After:
+    Score score = solver.getBestScore();
+
+
+Simple scores are written "-999", and hard and soft scores are written "-999hard/-999soft".
+You will see this in the examples GUI.
+In the *ScoreConfig.xml, configuring a feasableScore also reflects this.
+Before with simple score:
+    <finish>
+        <feasableScore>-123456789.0</feasableScore>
+    </finish>
+After:
+    <finish>
+        <feasableScore>-123456789</feasableScore>
+    </finish>
+Before with hard and soft score (Note that the hard part started from 1000000):
+    <finish>
+        <feasableScore>-123456789.0</feasableScore>
+    </finish>
+After:
+    <finish>
+        <feasableScore>-123hard/-456789soft</feasableScore>-->
+    </finish>
+
+
+In the *ScoreConfig.xml, you no longer configure a ScoreCalculator,
+but now you configure a ScoreDefinition instead.
+
+Before:
+    <scoreCalculator>
+        <scoreCalculatorType>SIMPLE</scoreCalculatorType>
+    </scoreCalculator>
+After:
+    <scoreDefinition>
+        <scoreDefinitionType>SIMPLE</scoreDefinitionType>
+    </scoreDefinition>
+
+Before:
+    <scoreCalculator>
+        <scoreCalculatorType>HARD_AND_SOFT_CONSTRAINTS</scoreCalculatorType>
+    </scoreCalculator>
+After:
+    <scoreDefinition>
+        <scoreDefinitionType>HARD_AND_SOFT</scoreDefinitionType>
+    </scoreDefinition>
+
+DYNAMIC_HARD_AND_SOFT_CONSTRAINTS was bugged and has been removed, but will be replaced
+by shiftingPenalty support.
+Before:
+    <scoreCalculator>
+        <scoreCalculatorType>DYNAMIC_HARD_AND_SOFT_CONSTRAINTS</scoreCalculatorType>
+    </scoreCalculator>
+After:
+    <scoreDefinition>
+        <scoreDefinitionType>HARD_AND_SOFT</scoreDefinitionType>
+    </scoreDefinition>
+
+From 5.0.1 to 5.1.0.m1
+----------------------
+
+In 5.1.0.m2, Drools Solver has been renamed to Drools Planner,
+and it's best to do that first. See "From 5.1.0.m1 to 5.1.0.m2".
+
+
+The method Solver.cancel() has been renamed to Solver.terminateEarly()
+because it does not undo the solving but terminates it early and there's a best solution.
+Before:
+    solver.cancel();
+After:
+    solver.terminateEarly();
+
+Likewise, Solver.isCancelled() has been renamed to Solver.isTerminatedEarly().
+Before:
+    solver.isCancelled();
+After:
+    solver.isTerminatedEarly();
+
+
+The interface Finish has been renamed to Termination
+because Termination seems the defacto standard name for it in the literature.
+Before:
+   ... extends Finish
+After:
+   ... extends Termination
+Before in solver config xml's and benchmarker config xml's :
+    <finish>
+        ...
+    </finish>
+After:
+    <termination>
+        ...
+    </termination>
+
+Likewise FinishCompositionStyle has been renamed to TerminationCompositionStyle.
+Before in solver config xml's and benchmarker config xml's :
+        <finishCompositionStyle>...</finishCompositionStyle>
+After:
+        <terminationCompositionStyle>...</terminationCompositionStyle>
+
+The Finish.isFinished(...) has been renamed to Termination.isTerminated().
+Before:
+   .isFinished(...)
+After:
+   .isTerminated(...)
+
+
+The class FeasableScoreTermination has been renamed to ScoreAttainedTermination.
+Its property feasableScore has been renamed to scoreAttained.
+Before in solver config xml's and benchmarker config xml's :
+    <termination>
+        <feasableScore>...</feasableScore>
+    </termination>
+After:
+    <termination>
+        <scoreAttained>...</scoreAttained>
+    </termination>
+
+
+The interface Solution now has a Score property: Solution.getScore() and Solution.getScore()
+Before:
+    public class ... implements Solution {
+        ...
+    }
+After if you use a SimpleScore:
+    public class ... implements Solution {
+        ...
+        private SimpleScore score;
+        ...
+        public SimpleScore getScore() {
+            return score;
+        }
+        public void setScore(Score score) {
+            this.score = (SimpleScore) score;
+        }
+        ...
+    }
+After if you use a HardAndSoftScore:
+    public class ... implements Solution {
+        ...
+        private HardAndSoftScore score;
+        ...
+        public HardAndSoftScore getScore() {
+            return score;
+        }
+        public void setScore(Score score) {
+            this.score = (HardAndSoftScore) score;
+        }
+        ...
+    }
+
+The score property of a Solution needs to be cloned:
+Before:
+    public X cloneSolution() {
+        X clone = new X();
+        ...
+        return clone;
+    }
+After:
+    public X cloneSolution() {
+        X clone = new X();
+        ...
+        clone.score = score;
+        return clone;
+    }
+
+The Solver interface no longer has a method Solver.getBestScore().
+Before:
+     solver.getBestScore()
+After:
+     solver.getBestSolution().getScore()
+
+
+From 5.1.0.m1 to 5.1.0.m2
+-------------------------
+
+Drools Solver has been renamed to Drools Planner.
+
+The maven dependency has been renamed to drools-planner-core.
+Before in pom.xml:
+    <dependency>
+        <groupId>org.drools.solver</groupId>
+        <artifactId>drools-solver-core</artifactId>
+        ...
+    </dependency>
+After in pom.xml:
+    <dependency>
+        <groupId>org.drools.planner</groupId>
+        <artifactId>drools-planner-core</artifactId>
+        ...
+    </dependency>
+And resync your IDE (IntelliJ, Eclipse, Netbeans) from the pom.xml files.
+If you're still using ANT, replace drools-solver-core-?.jar with drools-planner-core-?.jar
+and adjust your ANT script and your IDE's classpath accordingly.
+
+The package has been renamed to org.drools.planner
+Before in *.java, *.drl:
+    import org.drools.solver...
+After in *.java, *.drl:
+    import org.drools.planner...
+
+Note that the Solver interface and several related classes have NOT been renamed to Planner (yet).
+
+
+TerminationConfig's maximumHouresSpend renamed to maximumHoursSpend
+Before:
+     <maximumHouresSpend>2</maximumHouresSpend>
+After:
+     <maximumHoursSpend>2</maximumHoursSpend>
+
+
+Accepter has been renamed to Acceptor
+Before:
+    <accepter>
+        ...
+    </accepter>
+After:
+    <acceptor>
+        ...
+    </acceptor>
+
+
+The method DefaultDecider.setAssertUndoMoveIsUncorrupted() has been renamed.
+Use the EnvironmentMode debug instead.
+Before in *.java:
+    (DefaultDecider ((DefaultLocalSearchSolver) solver).getDecider()).setVerifyUndoMoveIsUncorrupted(true);
+Before in *.xml:
+    <localSearchSolver>
+        ...
+    </localSearchSolver>
+After in *.xml:
+    <localSearchSolver>
+        <environmentMode>DEBUG</environmentMode>
+        ...
+    </localSearchSolver>
+
+
+True modify has been implemented.
+Before in *.java:
+    workingMemory.modifyRetract(xHandle); // before changes are made
+    x.set...;
+    workingMemory.modifyInsert(xHandle, x); // after changes are made
+After in *.java:
+    x.set...;
+    workingMemory.update(queenHandle, queen); // after changes are made

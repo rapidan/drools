@@ -112,7 +112,7 @@ public class ClassTypeResolver
     public Class resolveType(String className) throws ClassNotFoundException {
         Class clazz = null;
         boolean isArray = false;
-        final StringBuffer arrayClassName = new StringBuffer();
+        final StringBuilder arrayClassName = new StringBuilder();
 
         //is the class a primitive type ?
         if ( internalNamesMap.containsKey( className ) ) {
@@ -163,7 +163,7 @@ public class ClassTypeResolver
             // If there are more than one possible resolutions, complain about
             // the ambiguity
             if ( validClazzCandidates.size() > 1 ) {
-                final StringBuffer sb = new StringBuffer();
+                final StringBuilder sb = new StringBuilder();
                 final Iterator clazzCandIter = validClazzCandidates.iterator();
                 while ( clazzCandIter.hasNext() ) {
                     if ( 0 != sb.length() ) {
@@ -294,5 +294,12 @@ public class ClassTypeResolver
         if ( clz == null ) throw new IllegalArgumentException( "Unable to resolve the full type name for " + shortName );
         return clz.getName();
 
+    }
+    
+    public void clearImports() {
+        if( this.imports != Collections.EMPTY_SET) {
+            this.imports.clear();
+            this.cachedImports.clear();
+        }
     }
 }

@@ -25,6 +25,7 @@ import org.drools.builder.ResourceType;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.TruthMaintenanceSystem;
 import org.drools.compiler.PackageBuilder;
+import org.drools.core.util.ObjectHashMap;
 import org.drools.definition.KnowledgePackage;
 import org.drools.event.DefaultWorkingMemoryEventListener;
 import org.drools.event.ObjectInsertedEvent;
@@ -36,7 +37,6 @@ import org.drools.io.ResourceFactory;
 import org.drools.rule.Package;
 import org.drools.runtime.StatefulKnowledgeSession;
 import org.drools.runtime.rule.FactHandle;
-import org.drools.util.ObjectHashMap;
 
 public class TruthMaintenanceTest extends TestCase {
     protected RuleBase getRuleBase() throws Exception {
@@ -787,7 +787,7 @@ public class TruthMaintenanceTest extends TestCase {
         assertEquals( 0, IteratorToList.convert( workingMemory.iterateObjects() ).size() );
     }
 
-    public void FIXME_testLogicalInsertionsModifySameRuleGivesDifferentLogicalInsertion() throws Exception {
+    public void testLogicalInsertionsModifySameRuleGivesDifferentLogicalInsertion() throws Exception {
         // TODO JBRULES-1804
         
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
@@ -814,9 +814,8 @@ public class TruthMaintenanceTest extends TestCase {
         assertEquals(2, temperatureList.size());
 
         
-        ((StatefulKnowledgeSessionImpl)session).session.modifyRetract( (org.drools.FactHandle) sensor1Handle);
         sensor1.setTemperature(150);
-        ((StatefulKnowledgeSessionImpl)session).session.modifyInsert( (org.drools.FactHandle) sensor1Handle, sensor1);
+        ((StatefulKnowledgeSessionImpl)session).session.update( (org.drools.FactHandle) sensor1Handle, sensor1);
         session.fireAllRules();
         
         temperatureList = new ArrayList( session.getObjects( new ClassObjectFilter(Integer.class) ) );

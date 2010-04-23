@@ -27,6 +27,7 @@ import org.drools.event.process.ProcessNodeTriggeredEvent;
 import org.drools.event.process.ProcessStartedEvent;
 import org.drools.io.ResourceFactory;
 import org.drools.io.impl.ClassPathResource;
+import org.drools.logger.KnowledgeRuntimeLoggerFactory;
 import org.drools.persistence.jpa.JPAKnowledgeService;
 import org.drools.process.instance.impl.demo.SystemOutWorkItemHandler;
 import org.drools.runtime.Environment;
@@ -118,9 +119,9 @@ public class PersistentStatefulSessionTest extends TestCase {
         str += "global java.util.List list\n";
         str += "rule rule1\n";
         str += "when\n";
-        str += "  Integer(intValue > 0)\n";
+        str += "  $i : Integer(intValue > 0)\n";
         str += "then\n";
-        str += "  list.add( 1 );\n";
+        str += "  list.add( $i );\n";
         str += "end\n";
         str += "\n";
 
@@ -143,7 +144,10 @@ public class PersistentStatefulSessionTest extends TestCase {
                  TransactionManagerServices.getTransactionManager() );
         env.set( EnvironmentName.GLOBALS, new MapGlobalResolver() );
 
+        UserTransaction ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
+        ut.begin();
         StatefulKnowledgeSession ksession = JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+        ut.commit();
 
         //      EntityManager em = emf.createEntityManager();
         //      SessionInfo sInfo = em.find( SessionInfo.class, 1 );
@@ -154,14 +158,14 @@ public class PersistentStatefulSessionTest extends TestCase {
         List list = new ArrayList();
 
         // insert and commit
-        UserTransaction ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
+        ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
         ut.begin();
         ksession.setGlobal( "list",
                             list );
         ksession.insert( 1 );
         ksession.insert( 2 );
         ut.commit();
-
+//
         // insert and rollback
         ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
         ut.begin();
@@ -169,7 +173,10 @@ public class PersistentStatefulSessionTest extends TestCase {
         ut.rollback();
 
         // check we rolled back the state changes from the 3rd insert
+        ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
+        ut.begin();        
         ksession.fireAllRules();
+        ut.commit();
         assertEquals( 2,
                       list.size() );
 
@@ -193,7 +200,10 @@ public class PersistentStatefulSessionTest extends TestCase {
                       list.size() );
         
         // now load the ksession
+        ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
+        ut.begin();
         ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( ksession.getId(), kbase, null, env );
+        ut.commit();
         
         ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
         ut.begin();
@@ -364,6 +374,116 @@ public class PersistentStatefulSessionTest extends TestCase {
         ProcessInstance processInstance = ksession.startProcess( "org.drools.test.TestProcess" );
         ksession.insert( "TestString" );
         assertEquals(ProcessInstance.STATE_COMPLETED, processInstance.getState());
+    }
+    
+    public void testPersistenceState() {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( new ClassPathResource( "StateProcess.rf" ),
+                      ResourceType.DRF );
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory( "org.drools.persistence.jpa" );
+        Environment env = KnowledgeBaseFactory.newEnvironment();
+        env.set( EnvironmentName.ENTITY_MANAGER_FACTORY, emf );
+        env.set( EnvironmentName.GLOBALS, new MapGlobalResolver() );
+
+        StatefulKnowledgeSession ksession = JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+        int id = ksession.getId();
+        
+        ProcessInstance processInstance = ksession.startProcess( "org.drools.test.TestProcess" );
+        System.out.println( "Started process instance " + processInstance.getId() );
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNotNull( processInstance );
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        ksession.insert(new ArrayList());
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNull( processInstance );
+    }
+    
+    public void testPersistenceRuleSet() {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( new ClassPathResource( "RuleSetProcess.rf" ),
+                      ResourceType.DRF );
+        kbuilder.add( new ClassPathResource( "RuleSetRules.drl" ),
+                	  ResourceType.DRL );
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory( "org.drools.persistence.jpa" );
+        Environment env = KnowledgeBaseFactory.newEnvironment();
+        env.set( EnvironmentName.ENTITY_MANAGER_FACTORY, emf );
+        env.set( EnvironmentName.GLOBALS, new MapGlobalResolver() );
+
+        StatefulKnowledgeSession ksession = JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+        int id = ksession.getId();
+        
+        ksession.insert(new ArrayList());
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        ProcessInstance processInstance = ksession.startProcess( "org.drools.test.TestProcess" );
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNotNull( processInstance );
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        ksession.fireAllRules();
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNull( processInstance );
+    }
+    
+    public void testPersistenceEvents() {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( new ClassPathResource( "EventsProcess.rf" ),
+                      ResourceType.DRF );
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory( "org.drools.persistence.jpa" );
+        Environment env = KnowledgeBaseFactory.newEnvironment();
+        env.set( EnvironmentName.ENTITY_MANAGER_FACTORY,
+                 emf );
+
+        env.set( EnvironmentName.GLOBALS, new MapGlobalResolver() );
+
+        StatefulKnowledgeSession ksession = JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+        int id = ksession.getId();
+        
+        ProcessInstance processInstance = ksession.startProcess( "org.drools.test.TestProcess" );
+        System.out.println( "Started process instance " + processInstance.getId() );
+
+        TestWorkItemHandler handler = TestWorkItemHandler.getInstance();
+        WorkItem workItem = handler.getWorkItem();
+        assertNotNull( workItem );
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNotNull( processInstance );
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        ksession.getWorkItemManager().completeWorkItem( workItem.getId(), null );
+        
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNotNull( processInstance );
+
+        ksession.signalEvent("MyEvent1", null, processInstance.getId());
+
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNotNull( processInstance );
+
+        ksession.signalEvent("MyEvent2", null, processInstance.getId());
+        
+        ksession = JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+        processInstance = ksession.getProcessInstance( processInstance.getId() );
+        assertNull( processInstance );
     }
     
     public void testProcessListener() {

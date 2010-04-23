@@ -1,86 +1,62 @@
 package org.drools.verifier.components;
 
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 
 /**
  *
  * @author Toni Rikkola
  */
-public class Constraint extends VerifierComponent implements Cause {
+public class Constraint extends PatternComponent
+    implements
+    Cause {
 
-	private static int index = 0;
+    private boolean patternIsNot;
+    private String  fieldPath;
+    private String  fieldName;
+    private int     lineNumber;
 
-	private int ruleId;
-	private int patternId;
-	private boolean patternIsNot;
-	private int fieldId;
-	private String fieldName;
-	private int lineNumber;
+    public Constraint(Pattern pattern) {
+        super( pattern );
+    }
 
-	public Constraint() {
-		super(index++);
-	}
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.CONSTRAINT;
+    }
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.CONSTRAINT;
-	}
+    public int getLineNumber() {
+        return lineNumber;
+    }
 
-	public CauseType getCauseType() {
-		return CauseType.CONSTRAINT;
-	}
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
 
-	public int getFieldId() {
-		return fieldId;
-	}
+    public boolean isPatternIsNot() {
+        return patternIsNot;
+    }
 
-	public void setFieldId(int fieldId) {
-		this.fieldId = fieldId;
-	}
+    public void setPatternIsNot(boolean patternIsNot) {
+        this.patternIsNot = patternIsNot;
+    }
 
-	public int getRuleId() {
-		return ruleId;
-	}
+    public String getFieldName() {
+        return fieldName;
+    }
 
-	public void setRuleId(int ruleId) {
-		this.ruleId = ruleId;
-	}
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
+    }
 
-	public int getLineNumber() {
-		return lineNumber;
-	}
+    @Override
+    public String toString() {
+        return "Constraint field name: " + fieldName;
+    }
 
-	public void setLineNumber(int lineNumber) {
-		this.lineNumber = lineNumber;
-	}
+    public void setFieldPath(String path) {
+        this.fieldPath = path;
+    }
 
-	public int getPatternId() {
-		return patternId;
-	}
-
-	public void setPatternId(int patternId) {
-		this.patternId = patternId;
-	}
-
-	public boolean isPatternIsNot() {
-		return patternIsNot;
-	}
-
-	public void setPatternIsNot(boolean patternIsNot) {
-		this.patternIsNot = patternIsNot;
-	}
-
-	public String getFieldName() {
-		return fieldName;
-	}
-
-	public void setFieldName(String fieldName) {
-		this.fieldName = fieldName;
-	}
-
-	@Override
-	public String toString() {
-		return "Constraint id: " + id + " field name: " + fieldName;
-	}
+    public String getFieldPath() {
+        return fieldPath;
+    }
 }

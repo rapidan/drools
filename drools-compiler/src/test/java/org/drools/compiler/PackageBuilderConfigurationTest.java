@@ -58,10 +58,10 @@ public class PackageBuilderConfigurationTest extends TestCase {
         System.getProperties().remove( "drools.dialect.default" );
     }
 
-    public void testIgnoreDetauls() {
+    public void testIgnoreDefaults() {
         // check standard chained properties, that includes defaults
-        ChainedProperties chainedProperties = new ChainedProperties( null,
-                                                                     "packagebuilder.conf",
+        ChainedProperties chainedProperties = new ChainedProperties( "packagebuilder.conf",
+                                                                     getClass().getClassLoader(),
                                                                      true );
         //System.out.println( chainedProperties.getProperty( "drools.dialect.java.compiler",
         //                                                   null ) );
@@ -70,8 +70,8 @@ public class PackageBuilderConfigurationTest extends TestCase {
 
 
         // now check that chained properties can ignore defaults
-        chainedProperties = new ChainedProperties( null,
-                                                   "packagebuilder.conf",
+        chainedProperties = new ChainedProperties( "packagebuilder.conf",
+                                                   getClass().getClassLoader(),
                                                    false );
         //System.out.println( chainedProperties.getProperty( "drools.dialect.java.compiler",
         //                                                   null ) );
@@ -80,8 +80,8 @@ public class PackageBuilderConfigurationTest extends TestCase {
 
 
         // now check it can find defaults again.
-        chainedProperties = new ChainedProperties( null,
-                                                   "packagebuilder.conf",
+        chainedProperties = new ChainedProperties( "packagebuilder.conf",
+                                                   getClass().getClassLoader(),
                                                    true );
         //System.out.println( chainedProperties.getProperty( "drools.dialect.java.compiler",
         //                                                   null ) );
@@ -144,7 +144,8 @@ public class PackageBuilderConfigurationTest extends TestCase {
     }
 
     public void testProgramaticProperties2() {
-        JavaDialectConfiguration javaConf =  new JavaDialectConfiguration();
+        JavaDialectConfiguration javaConf =  new JavaDialectConfiguration( );
+        javaConf.init(new PackageBuilderConfiguration());
         javaConf.setCompiler( JavaDialectConfiguration.ECLIPSE );
         PackageBuilderConfiguration cfg = new PackageBuilderConfiguration();
         cfg.setDialectConfiguration( "java", javaConf );
@@ -155,6 +156,7 @@ public class PackageBuilderConfigurationTest extends TestCase {
                       javaConf2.getCompiler() );
 
         javaConf =  new JavaDialectConfiguration();
+        javaConf.init(new PackageBuilderConfiguration());
         javaConf.setCompiler( JavaDialectConfiguration.JANINO );
         cfg = new PackageBuilderConfiguration();
         cfg.setDialectConfiguration( "java", javaConf );
@@ -474,7 +476,7 @@ public class PackageBuilderConfigurationTest extends TestCase {
         implements
         ConsequenceBuilder {
 
-        public void build(RuleBuildContext context) {
+        public void build(RuleBuildContext context, String name) {
             context.getRuleDescr().setConsequence( "consequence was built" );
         }
 

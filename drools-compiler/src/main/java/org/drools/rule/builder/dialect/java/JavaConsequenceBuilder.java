@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 
 import org.drools.compiler.DescrBuildError;
 import org.drools.compiler.Dialect;
+import org.drools.core.util.ClassUtils;
 import org.drools.lang.descr.RuleDescr;
 import org.drools.rule.Declaration;
 import org.drools.rule.builder.ConsequenceBuilder;
@@ -37,7 +38,6 @@ import org.drools.rule.builder.dialect.java.parser.JavaModifyBlockDescr;
 import org.drools.rule.builder.dialect.java.parser.JavaBlockDescr.BlockType;
 import org.drools.rule.builder.dialect.mvel.MVELDialect;
 import org.drools.spi.PatternExtractor;
-import org.drools.util.ClassUtils;
 import org.mvel2.compiler.ExecutableStatement;
 
 /**
@@ -53,12 +53,12 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
     /* (non-Javadoc)
      * @see org.drools.semantics.java.builder.ConsequenceBuilder#buildConsequence(org.drools.semantics.java.builder.BuildContext, org.drools.semantics.java.builder.BuildUtils, org.drools.lang.descr.RuleDescr)
      */
-    public void build(final RuleBuildContext context) {
+    public void build(final RuleBuildContext context, String consequenceName) {
 
         // pushing consequence LHS into the stack for variable resolution
         context.getBuildStack().push( context.getRule().getLhs() );
 
-        final String className = "consequence";
+        final String className = consequenceName + "Consequence";
 
         final RuleDescr ruleDescr = context.getRuleDescr();
 
@@ -75,7 +75,8 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
 
         String fixedConsequence = this.fixBlockDescr( context,
                                                       (JavaAnalysisResult) analysis,
-                                                      (String) ruleDescr.getConsequence() );
+                                                      ( "default".equals( consequenceName ) ) ? (String) ruleDescr.getConsequence() : (String) ruleDescr.getNamedConsequences().get( consequenceName )
+                                                       );
 
         if ( fixedConsequence == null ) {
             // not possible to rewrite the modify blocks
@@ -93,13 +94,13 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
         }
 
         final Map<String, Object> map = createVariableContext( className,
-                                                               null,
+                                                               fixedConsequence,
                                                                context,
                                                                declarations,
                                                                null,
                                                                (String[]) usedIdentifiers[1].toArray( new String[usedIdentifiers[1].size()] ) );
-        map.put( "text",
-                 fixedConsequence );
+        
+        map.put( "consequenceName", consequenceName );
 
         // Must use the rule declarations, so we use the same order as used in the generated invoker
         final List list = Arrays.asList( context.getRule().getDeclarations() );
@@ -131,8 +132,7 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
                           className,
                           map,
                           context.getRule(),
-                          ruleDescr );
-
+                          ruleDescr );      
         // popping Rule.getLHS() from the build stack
         context.getBuildStack().pop();
     }
@@ -254,13 +254,20 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
         consequence.append( ") " );
         consequence.append( d.getModifyExpression() );
         consequence.append( "; " );
-        // adding the modifyRetract call:
-        consequence.append( "modifyRetract( __obj__ ); " );
         
         // the following is a hack to preserve line breaks.
         String originalBlock = originalCode.substring( d.getStart() - 1,
                                                        d.getEnd() );
         int end = originalBlock.indexOf( "{" );
+        if( end == -1 ){
+            // no block
+            context.getErrors().add( new DescrBuildError( context.getParentDescr(),
+                                                          context.getRuleDescr(),
+                                                          null,
+                                                          "Block missing after modify" + d.getModifyExpression() + " ?\n" ) );
+            return;
+        }        
+
         addLineBreaks( consequence,
                        originalBlock.substring( 0,
                                                 end ) );
@@ -281,7 +288,7 @@ public class JavaConsequenceBuilder extends AbstractJavaRuleBuilder
         // adding the modifyInsert call:
         addLineBreaks( consequence,
                        originalBlock.substring( end ) );
-        consequence.append( "modifyInsert( __obj__ ); }" );
+        consequence.append( "update( __obj__ ); }" );
     }
 
     /**

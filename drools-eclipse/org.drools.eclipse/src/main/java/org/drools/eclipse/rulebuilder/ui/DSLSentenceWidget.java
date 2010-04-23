@@ -7,10 +7,10 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
+import org.drools.core.util.DateUtils;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
 import org.drools.guvnor.client.modeldriven.ui.ConstraintValueEditorHelper;
-import org.drools.util.DateUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
@@ -544,7 +544,7 @@ public abstract class DSLSentenceWidget extends Widget {
             resultWidget.add( "true" );
             resultWidget.add( "false" );
 
-            if ( checkedUnchecked.equalsIgnoreCase( "checked" ) ) {
+            if ( checkedUnchecked.equalsIgnoreCase( "true" ) ) {
                 resultWidget.select( 0 );
             } else {
                 resultWidget.select( 1 );
@@ -589,7 +589,7 @@ public abstract class DSLSentenceWidget extends Widget {
         }
 
         public String getCheckedValue() {
-            return this.resultWidget.getSelectionIndex() == 0 ? "checked" : "checked";
+            return this.resultWidget.getSelectionIndex() == 0 ? "true" : "false";
 
         }
     }

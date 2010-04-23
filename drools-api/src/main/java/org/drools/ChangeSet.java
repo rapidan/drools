@@ -1,6 +1,7 @@
 package org.drools;
 
 import java.util.Collection;
+import java.util.Map;
 
 import org.drools.io.Resource;
 
@@ -80,5 +81,12 @@ public interface ChangeSet {
      * @return
      */
     public Collection<Resource> getResourcesModified();
+
+    /**
+     * Returns a collection containing the full names (package+name) of the kdefinitions to be removed.
+     * @return
+     */
+    Collection<String> getKnowledgeDefinitionsRemoved();
+
 
 }

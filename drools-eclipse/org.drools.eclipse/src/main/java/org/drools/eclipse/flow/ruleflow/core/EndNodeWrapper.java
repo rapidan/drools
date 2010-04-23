@@ -29,14 +29,16 @@ import org.eclipse.ui.views.properties.IPropertyDescriptor;
  */
 public class EndNodeWrapper extends AbstractNodeWrapper {
 
+	public static final int CHANGE_TERMINATE = 5;
+
     public static final String TERMINATE = "terminate";
 
     private static final long serialVersionUID = 400L;
     private static IPropertyDescriptor[] descriptors;
 
     static {
-        descriptors = new IPropertyDescriptor[DefaultElementWrapper.descriptors.length + 1];
-        System.arraycopy(DefaultElementWrapper.descriptors, 0, descriptors, 0, DefaultElementWrapper.descriptors.length);
+        descriptors = new IPropertyDescriptor[DefaultElementWrapper.DESCRIPTORS.length + 1];
+        System.arraycopy(DefaultElementWrapper.DESCRIPTORS, 0, descriptors, 0, DefaultElementWrapper.DESCRIPTORS.length);
         descriptors[descriptors.length - 1] = 
             new ComboBoxPropertyDescriptor(TERMINATE, "Terminate", new String[] { "true", "false" });
     }
@@ -64,6 +66,7 @@ public class EndNodeWrapper extends AbstractNodeWrapper {
     public void resetPropertyValue(Object id) {
         if (TERMINATE.equals(id)) {
             getEndNode().setTerminate(true);
+            notifyListeners(CHANGE_TERMINATE);
         } else {
             super.resetPropertyValue(id);
         }
@@ -72,6 +75,7 @@ public class EndNodeWrapper extends AbstractNodeWrapper {
     public void setPropertyValue(Object id, Object value) {
         if (TERMINATE.equals(id)) {
             getEndNode().setTerminate(((Integer) value).intValue() == 0);
+            notifyListeners(CHANGE_TERMINATE);
         } else {
             super.setPropertyValue(id, value);
         }

@@ -2,7 +2,7 @@
 package org.drools.verifier.redundancy
 
 #list any import classes here.
-global VerifierResult result;
+global VerifierReport result;
 
 
 
@@ -10,15 +10,17 @@ global VerifierResult result;
 import java.util.Collection;
 import java.util.ArrayList;
 
-import org.drools.verifier.components.PatternPossibility;
-import org.drools.verifier.components.RulePossibility;
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.components.SubPattern;
+import org.drools.verifier.components.SubRule;
+import org.drools.verifier.data.VerifierReport;
 import org.drools.verifier.report.components.Redundancy;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
+
+import java.util.Map;
+import java.util.HashMap;
 
 
 #
@@ -32,22 +34,26 @@ import org.drools.verifier.report.components.MessageType;
 rule "Find redundant restrictions from pattern possibilities"
 	salience -100
 	when
-		$r :Redundancy(
-			left.causeType == CauseType.RESTRICTION
-		)
+		$r :Redundancy()
 
-		$pp :PatternPossibility(
-			items contains $r.left,
-			items contains $r.right
+		$pp :SubPattern(
+			items contains $r.items[0],
+			items contains $r.items[1]
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $pp.getRulePath(), $pp.getRuleName());
+		
 		Collection causes = new ArrayList();
-		causes.add( $r.getLeft() );
-		causes.add( $r.getRight() );
+		causes.addAll( $r.getItems() );
 
 		result.add(new VerifierMessage(
-						Severity.NOTE, MessageType.REDUNDANCY,
-						$r, "Same restriction exists twice.", causes ) );
+						impactedRules,
+						Severity.NOTE, 
+						MessageType.REDUNDANCY,
+						null, 
+						"Same restriction exists twice.", 
+						causes ) );
 end
 
 #
@@ -59,21 +65,25 @@ end
 rule "Find redundant pattern possibilities from rule possibilities"
 	salience -100
 	when
-		$r :Redundancy(
-			left.causeType == CauseType.PATTERN_POSSIBILITY
-		)
+		$r :Redundancy()
 
-		RulePossibility(
-			items contains $r.left,
-			items contains $r.right
+		$sr :SubRule(
+			items contains $r.items[0],
+			items contains $r.items[1]
 		)
 	then
+		Map<String,String> impactedRules = new HashMap<String,String>();
+		impactedRules.put( $sr.getRulePath(), $sr.getRuleName());
+		
 		Collection causes = new ArrayList();
-		causes.add( $r.getLeft() );
-		causes.add( $r.getRight() );
+		causes.addAll( $r.getItems() );
 
 		result.add(new VerifierMessage(
-						Severity.NOTE, MessageType.REDUNDANCY,
-						$r, "Two pattern possibilities with redundant restrictions exists twice in the same rule.", causes ) );
+						impactedRules,
+						Severity.NOTE, 
+						MessageType.REDUNDANCY,
+						null, 
+						"Two pattern possibilities with redundant restrictions exists twice in the same rule.", 
+						causes ) );
 end
 

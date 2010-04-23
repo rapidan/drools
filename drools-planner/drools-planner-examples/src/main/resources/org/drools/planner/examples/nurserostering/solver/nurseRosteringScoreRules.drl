@@ -1,0 +1,260 @@
+package org.drools.planner.examples.nurserostering.solver;
+    dialect "java"
+
+import org.drools.planner.core.score.calculator.HardAndSoftConstraintScoreCalculator;
+import org.drools.planner.core.score.constraint.IntConstraintOccurrence;
+import org.drools.planner.core.score.constraint.ConstraintType;
+
+import org.drools.planner.examples.nurserostering.domain.DayOfWeek;
+import org.drools.planner.examples.nurserostering.domain.Employee;
+import org.drools.planner.examples.nurserostering.domain.EmployeeAssignment;
+import org.drools.planner.examples.nurserostering.domain.NurseRoster;
+import org.drools.planner.examples.nurserostering.domain.Pattern;
+import org.drools.planner.examples.nurserostering.domain.Shift;
+import org.drools.planner.examples.nurserostering.domain.ShiftDate;
+import org.drools.planner.examples.nurserostering.domain.ShiftType;
+import org.drools.planner.examples.nurserostering.domain.ShiftTypeSkillRequirement;
+import org.drools.planner.examples.nurserostering.domain.Skill;
+import org.drools.planner.examples.nurserostering.domain.SkillProficiency;
+import org.drools.planner.examples.nurserostering.domain.contract.Contract;
+import org.drools.planner.examples.nurserostering.domain.contract.ContractLine;
+import org.drools.planner.examples.nurserostering.domain.contract.ContractLineType;
+import org.drools.planner.examples.nurserostering.domain.request.DayOffRequest;
+import org.drools.planner.examples.nurserostering.domain.request.DayOnRequest;
+import org.drools.planner.examples.nurserostering.domain.request.ShiftOffRequest;
+import org.drools.planner.examples.nurserostering.domain.request.ShiftOnRequest;
+
+// @author Geoffrey De Smet
+
+global HardAndSoftConstraintScoreCalculator scoreCalculator;
+
+// ############################################################################
+// Hard constraints
+// ############################################################################
+
+// All demanded shifts must be assigned to a nurse
+rule "requiredEmployeeSizePerShift"
+    when
+        $shift : Shift(requiredEmployeeSize > 0, $requiredEmployeeSize : requiredEmployeeSize);
+
+        $totalEmployeeSize : Number(intValue != $requiredEmployeeSize) from accumulate(
+            $assignment : EmployeeAssignment(shift == $shift),
+            count($assignment)
+        );
+
+        // HACK to fix wierd truth maintenance behavior in drools
+        // because making weight part of the equals/hashcode doesn't cut it
+        // Vote for https://jira.jboss.org/jira/browse/JBRULES-1804
+        not IntConstraintOccurrence(
+            ruleId == "requiredEmployeeSizePerShift",
+            constraintType == ConstraintType.NEGATIVE_HARD,
+            causes contains $shift,
+            eval(weight != Math.abs($requiredEmployeeSize - $totalEmployeeSize.intValue()))
+        );
+    then
+        insertLogical(new IntConstraintOccurrence("requiredEmployeeSizePerShift", ConstraintType.NEGATIVE_HARD,
+                Math.abs($requiredEmployeeSize - $totalEmployeeSize.intValue()),
+                $shift));
+end
+
+// a nurse can only work one shift per day, i.e. no two shift can be assigned to the same nurse on a day.
+rule "oneShiftPerDay"
+    when
+        $leftEmployeeAssignment : EmployeeAssignment($leftId : id, $employee : employee, $shiftDate : shiftDate);
+        $rightEmployeeAssignment : EmployeeAssignment(employee == $employee, shiftDate == $shiftDate, id > $leftId);
+    then
+        insertLogical(new IntConstraintOccurrence("oneShiftPerDay", ConstraintType.NEGATIVE_HARD,
+                1,
+                $leftEmployeeAssignment, $rightEmployeeAssignment));
+end
+
+// ############################################################################
+// Soft constraints
+// ############################################################################
+
+
+// Maximum number of assignments
+// TODO
+
+// Minimum number of assignments
+// TODO
+
+// Maximum number of consecutive working days // TODO too slow!
+rule "maximumConsecutiveWorkingDays"
+    when
+        $contractLine : ContractLine(
+            contractLineType == ContractLineType.CONSECUTIVE_WORKING_DAYS, maximumEnabled == true,
+            $contract : contract, $maximumIndexDiff : maximumIndexDiff
+        );
+        $employee : Employee(contract == $contract);
+
+        // The first day has no working day before it
+        EmployeeAssignment(
+            employee == $employee,
+            $firstDayIndex : shiftDateDayIndex
+        );
+        not EmployeeAssignment(employee == $employee, shiftDateDayIndex == ($firstDayIndex - 1));
+
+        // The last day has no working day after it
+        EmployeeAssignment(
+            employee == $employee,
+            shiftDateDayIndex > ($firstDayIndex + $maximumIndexDiff), // Too many days
+            $lastDayIndex : shiftDateDayIndex
+        );
+        not EmployeeAssignment(employee == $employee, shiftDateDayIndex == ($lastDayIndex + 1));
+
+        // There are no free days between the first and last day
+        not(
+            $shiftDate : ShiftDate(dayIndex > $firstDayIndex && < $lastDayIndex)
+            and not EmployeeAssignment(employee == $employee, shiftDate == $shiftDate)
+        );
+    then
+        insertLogical(new IntConstraintOccurrence("maximumConsecutiveWorkingDays", ConstraintType.NEGATIVE_SOFT,
+                ($lastDayIndex - $firstDayIndex - $maximumIndexDiff) * $contractLine.getMaximumWeight(),
+                $employee, $firstDayIndex, $lastDayIndex));
+end
+
+// Minimum number of consecutive working days
+//rule "minimumConsecutiveWorkingDays"
+//    when
+//        $contractLine : ContractLine(
+//            contractLineType == ContractLineType.CONSECUTIVE_WORKING_DAYS, minimumEnabled == true,
+//            $contract : contract, $minimumIndexDiff : minimumIndexDiff
+//        );
+//        $employee : Employee(contract == $contract);
+//
+//        // The first day has no working day before it
+//        EmployeeAssignment(
+//            employee == $employee,
+//            $firstDayIndex : shiftDateDayIndex
+//        );
+//        not EmployeeAssignment(employee == $employee, shiftDateDayIndex == ($firstDayIndex - 1));
+//
+//        // The last day has no working day after it
+//        EmployeeAssignment(
+//            employee == $employee,
+//            shiftDateDayIndex > $firstDayIndex,
+//            shiftDateDayIndex < ($firstDayIndex + $minimumIndexDiff), // Too few days
+//            $lastDayIndex : shiftDateDayIndex
+//        );
+//        not EmployeeAssignment(employee == $employee, shiftDateDayIndex == ($lastDayIndex + 1));
+//
+//        // There are no free days between the first and last day
+//        forall($shiftDate : ShiftDate(dayIndex > $firstDayIndex && < $lastDayIndex)
+//            EmployeeAssignment(employee == $employee, shiftDate == $shiftDate)
+//        );
+//    then
+//        insertLogical(new IntConstraintOccurrence("minimumConsecutiveWorkingDays", ConstraintType.NEGATIVE_SOFT,
+//                ($firstDayIndex + $minimumIndexDiff - $lastDayIndex) * $contractLine.getMinimumWeight(),
+//                $employee, $firstDayIndex, $lastDayIndex));
+//end
+
+// Maximum number of consecutive free days
+// TODO
+
+// Minimum number of consecutive free days
+//rule "minimumConsecutiveFreeDays"
+//    when
+//        $contractLine : ContractLine(
+//            contractLineType == ContractLineType.CONSECUTIVE_FREE_DAYS, minimumEnabled == true,
+//            $contract : contract, $minimumIndexDiff : minimumIndexDiff
+//        )
+//        $employee : Employee(contract == $contract)
+//
+//        // The first day ...
+//        $firstShiftDate : ShiftDate($firstDayIndex : dayIndex)
+//        not EmployeeAssignment(employee == $employee, shiftDate == $firstShiftDate)
+//        // ... has no free day before it
+//        (
+//            exists EmployeeAssignment(employee == $employee, shiftDateDayIndex == ($firstDayIndex - 1))
+//            or not ShiftDate(dayIndex == ($firstDayIndex - 1))
+//        )
+//
+//        // The last day ...
+//        $lastShiftDate : ShiftDate(
+//            dayIndex > $firstDayIndex,
+//            dayIndex < ($firstDayIndex + $minimumIndexDiff), // Too few days
+//            $lastDayIndex : dayIndex)
+//        not EmployeeAssignment(employee == $employee, shiftDate == $lastShiftDate)
+//        // ... has no free day after it
+//        (
+//            exists EmployeeAssignment(employee == $employee, shiftDateDayIndex == ($lastDayIndex + 1))
+//            or not ShiftDate(dayIndex == ($lastDayIndex + 1))
+//        )
+//
+//        // There are no working days between the first and last day
+//        not EmployeeAssignment(employee == $employee, shiftDateDayIndex  > $firstDayIndex && < $lastDayIndex)
+//    then
+//        insertLogical(new IntConstraintOccurrence("minimumConsecutiveFreeDays", ConstraintType.NEGATIVE_SOFT,
+//                ($firstDayIndex + $minimumIndexDiff - $lastDayIndex) * $contractLine.getMinimumWeight(),
+//                $employee, $firstDayIndex, $lastDayIndex));
+//end
+
+// Maximum number of consecutive working weekends
+// TODO
+
+// Complete weekends
+// TODO
+
+// Single assignment per day
+// TODO
+
+// Two free days after a night shift
+// TODO
+
+// Requested day on/off
+rule "dayOffRequest"
+    when
+        $dayOffRequest : DayOffRequest($employee : employee, $shiftDate : shiftDate, $weight : weight);
+        $employeeAssignment : EmployeeAssignment(employee == $employee, shiftDate == $shiftDate);
+    then
+        insertLogical(new IntConstraintOccurrence("dayOffRequest", ConstraintType.NEGATIVE_SOFT,
+                $weight,
+                $dayOffRequest, $employeeAssignment));
+end
+rule "dayOnRequest"
+    when
+        $dayOnRequest : DayOnRequest($employee : employee, $shiftDate : shiftDate, $weight : weight);
+        not EmployeeAssignment(employee == $employee, shiftDate == $shiftDate);
+    then
+        insertLogical(new IntConstraintOccurrence("dayOnRequest", ConstraintType.NEGATIVE_SOFT,
+                $weight,
+                $dayOnRequest));
+end
+
+// Requested shift on/off
+// TODO
+
+// Alternative skill
+// TODO
+
+// Unwanted patterns
+// TODO
+
+// ############################################################################
+// Calculate score
+// ############################################################################
+
+// Accumulate hard constraints
+rule "hardConstraintsBroken"
+        salience -1 // Do the other rules first (optional, for performance)
+    when
+        $hardTotal : Number() from accumulate(
+            IntConstraintOccurrence(constraintType == ConstraintType.NEGATIVE_HARD, $weight : weight),
+            sum($weight) // Vote for http://jira.jboss.com/jira/browse/JBRULES-1075
+        );
+    then
+        scoreCalculator.setHardConstraintsBroken($hardTotal.intValue());
+end
+
+// Accumulate soft constraints
+rule "softConstraintsBroken"
+        salience -1 // Do the other rules first (optional, for performance)
+    when
+        $softTotal : Number() from accumulate(
+            IntConstraintOccurrence(constraintType == ConstraintType.NEGATIVE_SOFT, $weight : weight),
+            sum($weight) // Vote for http://jira.jboss.com/jira/browse/JBRULES-1075
+        );
+    then
+        scoreCalculator.setSoftConstraintsBroken($softTotal.intValue());
+end

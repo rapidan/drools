@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -12,12 +13,14 @@ import junit.framework.TestCase;
 import org.drools.RuleBase;
 import org.drools.RuleBaseFactory;
 import org.drools.StatelessSession;
+import org.drools.builder.KnowledgeBuilderError;
 import org.drools.compiler.DrlParser;
 import org.drools.compiler.PackageBuilder;
 import org.drools.lang.descr.PackageDescr;
 import org.drools.rule.Package;
-import org.drools.verifier.dao.VerifierData;
+import org.drools.verifier.data.VerifierData;
 import org.drools.verifier.report.components.Cause;
+import org.drools.verifier.visitor.PackageDescrVisitor;
 
 /**
  * 
@@ -43,6 +46,13 @@ abstract public class TestBase extends TestCase {
         builder.addPackageFromDrl( source );
 
         Package pkg = builder.getPackage();
+
+        if ( builder.hasErrors() ) {
+            for ( KnowledgeBuilderError error : builder.getErrors() ) {
+                System.out.println( error.getMessage() );
+            }
+            fail( "Builder has errors" );
+        }
 
         assertTrue( "Package was null.",
                     pkg != null );
@@ -103,15 +113,16 @@ abstract public class TestBase extends TestCase {
         return false;
     }
 
+    @SuppressWarnings("unchecked")
     public Collection< ? extends Object> getTestData(InputStream stream,
                                                      VerifierData data) throws Exception {
         Reader drlReader = new InputStreamReader( stream );
         PackageDescr descr = new DrlParser().parse( drlReader );
 
-        PackageDescrFlattener ruleFlattener = new PackageDescrFlattener();
+        PackageDescrVisitor packageDescrVisitor = new PackageDescrVisitor( data,
+                                                                           Collections.EMPTY_LIST );
 
-        ruleFlattener.addPackageDescrToData( descr,
-                                             data );
+        packageDescrVisitor.visitPackageDescr( descr );
 
         // Rules with relations
         return data.getAll();

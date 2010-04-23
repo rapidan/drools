@@ -5,9 +5,11 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 
+import org.drools.core.util.DroolsStreamUtils;
 import org.drools.definitions.impl.KnowledgePackageImp;
 import org.drools.rule.Package;
-import org.drools.util.DroolsStreamUtils;
+import org.drools.util.codec.Base64;
+
 
 public class HttpClientImpl
     implements
@@ -40,13 +42,22 @@ public class HttpClientImpl
 
     }
 
-    public Package fetchPackage(URL url) throws IOException,
+    public Package fetchPackage(URL url, boolean enableBasicAuthentication, String username, String password) throws IOException,
                                         ClassNotFoundException {
         URLConnection con = url.openConnection();
         HttpURLConnection httpCon = (HttpURLConnection) con;
         try {
             httpCon.setRequestMethod( "GET" );
 
+            if (enableBasicAuthentication) {
+				String userpassword = username + ":" + password;
+				byte[] authEncBytes = Base64.encodeBase64(userpassword
+						.getBytes());
+				httpCon.setRequestProperty("Authorization", "Basic "
+						+ new String(authEncBytes));
+			} 
+
+            
             Object o = DroolsStreamUtils.streamIn( httpCon.getInputStream() );
 
             if ( o instanceof KnowledgePackageImp ) {
@@ -65,7 +76,7 @@ public class HttpClientImpl
 
         LastUpdatedPing ping = cl.checkLastUpdated( url );
 
-        Package p = cl.fetchPackage( url );
+        Package p = cl.fetchPackage( url, false, null, null );
 
         System.err.println( ping );
         System.err.println( ping.isError() );

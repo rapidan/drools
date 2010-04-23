@@ -9,13 +9,13 @@ import org.drools.verifier.report.components.MissingNumberPattern;
 import org.drools.verifier.report.components.Cause;
 import org.drools.verifier.FindMissingNumber;
 
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
 
 import java.util.ArrayList;
 import java.util.List;
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 #
 # If all pattern ranges are not checked for a field.
@@ -25,9 +25,10 @@ global VerifierResult result;
 # Example: in "Rule 1" Foo( bar == 10 ) and in "Rule 2" Foo( bar == 20 ) and in "Rule 3" Foo( bar == 40 )
 # 					then Foo( bar == 30 ) is missing.
 rule "Range check for number patterns"
+	@verifying_scopes(knowledge-package, decision-table)
 	when
 		$f :Field(
-			( fieldType == Field.FieldType.INT || == Field.FieldType.DOUBLE )
+			( fieldType == Field.INT || == Field.DOUBLE )
 		)
 		(
 			# Where pattern is false.
@@ -44,9 +45,9 @@ rule "Range check for number patterns"
 			$list :ArrayList( size > FindMissingNumber.MIN_NUMBER_OF_RESTRICTIONS )
 				from collect(
 					LiteralRestriction( 
-						fieldId == $f.id, 
+						fieldId == $f.path, 
 						patternIsNot == true, 
-						operator == Operator.EQUAL
+						operator =valueator.EQUAL
 					)
 				)
 		)
@@ -66,16 +67,17 @@ end
 # Example: in "Rule 1" Foo( bar == 10 ) and in "Rule 2" Foo( bar == 20 ) and in "Rule 3" Foo( bar == 40 )
 # 					then Foo( bar == 30 ) is missing.
 rule "Range check for number patterns, !="
+	@verifying_scopes(knowledge-package, decision-table)
 	when
 		$f :Field( 
-			( fieldType == Field.FieldType.INT || == Field.FieldType.DOUBLE ) 
+			( fieldType == Field.INT || == Field.DOUBLE ) 
 		)
 		(
 			# Where pattern is false.
 			$list :ArrayList( size > FindMissingNumber.MIN_NUMBER_OF_RESTRICTIONS )
 				from collect(
 					LiteralRestriction( 
-						fieldId == $f.id, 
+						fieldId == $f.path, 
 						patternIsNot == false, 
 						operator == Operator.NOT_EQUAL
 					)
@@ -85,8 +87,8 @@ rule "Range check for number patterns, !="
 			$list :ArrayList( size > FindMissingNumber.MIN_NUMBER_OF_RESTRICTIONS )
 				from collect(
 					LiteralRestriction( 
-						fieldId == $f.id, 
-						patternIsNot == true, 
+						fieldId == $f.path, 
+						pavaluesNot == true, 
 						operator == Operator.NOT_EQUAL
 					)
 				)

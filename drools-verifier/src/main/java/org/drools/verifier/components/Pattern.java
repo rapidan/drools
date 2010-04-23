@@ -1,107 +1,109 @@
 package org.drools.verifier.components;
 
 import org.drools.verifier.report.components.Cause;
-import org.drools.verifier.report.components.CauseType;
 
 /**
  *
  * @author Toni Rikkola
  */
-public class Pattern extends VerifierComponent implements Cause {
+public class Pattern extends RuleComponent
+    implements
+    Cause {
 
-	private static final long serialVersionUID = 5852308145251025423L;
+    private static final long     serialVersionUID = 5852308145251025423L;
 
-	private static int index = 0;
+    private String                objectTypePath;
+    private String                name;
+    private VerifierComponentType sourceType;
+    private String                sourcePath;
 
-	private int ruleId;
-	private int objectTypeId;
-	private String name;
-	private VerifierComponentType sourceType = VerifierComponentType.NOTHING;
-	private int sourceId = -1;
+    private boolean               isPatternNot     = false;
+    private boolean               isPatternExists  = false;
+    private boolean               isPatternForall  = false;
 
-	private boolean isPatternNot = false;
-	private boolean isPatternExists = false;
-	private boolean isPatternForall = false;
+    public Pattern(VerifierRule rule) {
+        super( rule );
+    }
 
-	public Pattern() {
-		super(index++);
-	}
+    @Override
+    public String getPath() {
+        String parentPath = getParentPath();
 
-	@Override
-	public VerifierComponentType getComponentType() {
-		return VerifierComponentType.PATTERN;
-	}
+        if ( parentPath == null ) {
+            return String.format( "%s.pattern[%s]",
+                                  getRulePath(),
+                                  getOrderNumber() );
 
-	public CauseType getCauseType() {
-		return CauseType.PATTERN;
-	}
+        } else {
+            return String.format( "%s.pattern[%s]",
+                                  getParentPath(),
+                                  getOrderNumber() );
+        }
+    }
 
-	public boolean isPatternNot() {
-		return isPatternNot;
-	}
+    public boolean isPatternNot() {
+        return isPatternNot;
+    }
 
-	public void setPatternNot(boolean isNot) {
-		this.isPatternNot = isNot;
-	}
+    public void setPatternNot(boolean isNot) {
+        this.isPatternNot = isNot;
+    }
 
-	public int getRuleId() {
-		return ruleId;
-	}
+    public boolean isPatternExists() {
+        return isPatternExists;
+    }
 
-	public void setRuleId(int ruleId) {
-		this.ruleId = ruleId;
-	}
+    public void setPatternExists(boolean isExists) {
+        this.isPatternExists = isExists;
+    }
 
-	public boolean isPatternExists() {
-		return isPatternExists;
-	}
+    public String getObjectTypePath() {
+        return objectTypePath;
+    }
 
-	public void setPatternExists(boolean isExists) {
-		this.isPatternExists = isExists;
-	}
+    public void setObjectTypePath(String path) {
+        this.objectTypePath = path;
+    }
 
-	public int getObjectTypeId() {
-		return objectTypeId;
-	}
+    public boolean isPatternForall() {
+        return isPatternForall;
+    }
 
-	public void setClassId(int classId) {
-		this.objectTypeId = classId;
-	}
+    public void setPatternForall(boolean isForall) {
+        this.isPatternForall = isForall;
+    }
 
-	public boolean isPatternForall() {
-		return isPatternForall;
-	}
+    public String getSourcePath() {
+        return sourcePath;
+    }
 
-	public void setPatternForall(boolean isForall) {
-		this.isPatternForall = isForall;
-	}
+    public void setSourcePath(String sourcePath) {
+        this.sourcePath = sourcePath;
+    }
 
-	public int getSourceId() {
-		return sourceId;
-	}
+    public VerifierComponentType getSourceType() {
+        return sourceType;
+    }
 
-	public void setSourceId(int sourceId) {
-		this.sourceId = sourceId;
-	}
+    public void setSourceType(VerifierComponentType sourceType) {
+        this.sourceType = sourceType;
+    }
 
-	public VerifierComponentType getSourceType() {
-		return sourceType;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setSourceType(VerifierComponentType sourceType) {
-		this.sourceType = sourceType;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public String getName() {
-		return name;
-	}
+    @Override
+    public String toString() {
+        return "Pattern, name: " + name;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public VerifierComponentType getVerifierComponentType() {
+        return VerifierComponentType.PATTERN;
+    }
 
-	@Override
-	public String toString() {
-		return "Pattern, name: " + name;
-	}
 }

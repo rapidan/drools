@@ -3,18 +3,14 @@ package org.drools.runtime.pipeline.impl;
 import java.io.InputStream;
 import java.io.Reader;
 
-import javax.xml.transform.Source;
-
 import org.drools.io.Resource;
 import org.drools.runtime.pipeline.PipelineContext;
-import org.drools.runtime.pipeline.SmooksTransformerProvider;
 import org.drools.runtime.pipeline.Transformer;
-import org.drools.runtime.pipeline.XStreamTransformerProvider;
-import org.drools.runtime.pipeline.impl.BaseEmitter;
+
 import com.thoughtworks.xstream.XStream;
 
 public class XStreamFromXmlTransformer extends BaseEmitter
-    implements
+    implements  
     Transformer {
     private XStream                    xstream;   
 
@@ -46,5 +42,9 @@ public class XStreamFromXmlTransformer extends BaseEmitter
         }
         emit( result,
               context );
+    }
+    
+    public void sniff(Reader reader) {
+        
     }
 }

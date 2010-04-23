@@ -8,16 +8,20 @@ import org.drools.base.evaluators.SetEvaluatorsDefinition;
 
 import org.drools.verifier.components.VariableRestriction;
 import org.drools.verifier.components.LiteralRestriction;
+import org.drools.verifier.components.NumberRestriction;
 import org.drools.verifier.report.components.MissingRange;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.MessageType;
-import org.drools.verifier.dao.VerifierResult;
+import org.drools.verifier.data.VerifierReport;
+
+import java.util.Map;
+import java.util.HashMap;
 
 
 
 #declare any global variables here
-global VerifierResult result;
+global VerifierReport result;
 
 #
 # Informs that there are inequalities, but not equality being catered for.
@@ -27,6 +31,7 @@ global VerifierResult result;
 # Example: val != 10 when val == 10 is missing.
 #
 rule "Missing restriction in LiteralRestrictions"
+	@verifying_scopes(knowledge-package, decision-table)
 	when
 		#
 		# == and !=
@@ -37,10 +42,10 @@ rule "Missing restriction in LiteralRestrictions"
 				)
 			and
 				not LiteralRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == Operator.NOT_EQUAL,
 					patternIsNot == $r.patternIsNot,
-					valueAsString matches $r.valueAsString
+					valueAsString == $r.valueAsString
 				)
 		) or (
 				$r :LiteralRestriction(
@@ -48,10 +53,10 @@ rule "Missing restriction in LiteralRestrictions"
 				)
 			and
 				not LiteralRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == Operator.EQUAL,
 					patternIsNot == $r.patternIsNot,
-					valueAsString matches $r.valueAsString
+					valueAsString == $r.valueAsString
 				)
 		#
 		# matches and not matches
@@ -59,30 +64,31 @@ rule "Missing restriction in LiteralRestrictions"
 		) or (
 				$r :LiteralRestriction(
 					operator == MatchesEvaluatorsDefinition.MATCHES,
-					valueAsString matches $r.valueAsString
+					valueAsString == $r.valueAsString
 				)
 			and
 				not LiteralRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == MatchesEvaluatorsDefinition.NOT_MATCHES,
 					patternIsNot == $r.patternIsNot,
-					valueAsString matches $r.valueAsString
+					valueAsString == $r.valueAsString
 				)
 		) or (
 				$r :LiteralRestriction(
 					operator == MatchesEvaluatorsDefinition.NOT_MATCHES,
-					valueAsString matches $r.valueAsString
+					valueAsString == $r.valueAsString
 				)
 			and
 				not LiteralRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == MatchesEvaluatorsDefinition.MATCHES,
 					patternIsNot == $r.patternIsNot,
-					valueAsString matches $r.valueAsString
+					valueAsString == $r.valueAsString
 				)
 		)
 	then
 		result.add( new VerifierMessage(
+								new HashMap<String, String>(),
 								Severity.WARNING,
 								MessageType.MISSING_EQUALITY,
 								$r,
@@ -101,6 +107,7 @@ end
 # Example: val != $var when val == $var is missing.
 #
 rule "Missing restriction in VariableRestrictions"
+	@verifying_scopes(knowledge-package, decision-table)
 	when
 		#
 		# == and !=
@@ -111,11 +118,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == Operator.NOT_EQUAL,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		) or (
 				$r :VariableRestriction(
@@ -123,11 +130,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == Operator.EQUAL,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		#
 		# matches and not matches
@@ -138,11 +145,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == MatchesEvaluatorsDefinition.NOT_MATCHES,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		) or (
 				$r :VariableRestriction(
@@ -150,11 +157,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == MatchesEvaluatorsDefinition.MATCHES,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		#
 		# memberof and not memberof
@@ -165,11 +172,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == SetEvaluatorsDefinition.NOT_MEMBEROF,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		) or (
 				$r :VariableRestriction(
@@ -177,11 +184,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == SetEvaluatorsDefinition.MEMBEROF,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		#
 		# contains and not contains
@@ -192,11 +199,11 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == SetEvaluatorsDefinition.NOT_CONTAINS,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		) or (
 				$r :VariableRestriction(
@@ -204,15 +211,16 @@ rule "Missing restriction in VariableRestrictions"
 				)
 			and
 				not VariableRestriction(
-					fieldId == $r.fieldId,
+					fieldPath == $r.fieldPath,
 					operator == SetEvaluatorsDefinition.CONTAINS,
 					patternIsNot == $r.patternIsNot,
-					variable.objectId == $r.variable.objectId,
-					variable.objectType == $r.variable.objectType
+					variable.objectTypePath == $r.variable.objectTypePath,
+					variable.objectTypeType == $r.variable.objectTypeType
 				)
 		)
 	then
 		result.add( new VerifierMessage(
+								new HashMap<String, String>(),
 								Severity.WARNING,
 								MessageType.MISSING_EQUALITY,
 								$r,

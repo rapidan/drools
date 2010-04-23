@@ -20,6 +20,7 @@ package org.drools.guvnor.client.modeldriven.ui;
 
 import org.drools.guvnor.client.common.*;
 import org.drools.guvnor.client.modeldriven.DropDownData;
+import org.drools.guvnor.client.modeldriven.FieldAccessorsAndMutators;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
 import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
 import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
@@ -28,14 +29,7 @@ import org.drools.guvnor.client.modeldriven.brl.ActionInsertLogicalFact;
 import org.drools.guvnor.client.messages.Constants;
 
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.ChangeListener;
-import com.google.gwt.user.client.ui.ClickListener;
-import com.google.gwt.user.client.ui.HorizontalPanel;
-import com.google.gwt.user.client.ui.Image;
-import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.TextBox;
-import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.user.client.ui.*;
 import com.google.gwt.core.client.GWT;
 import com.gwtext.client.util.Format;
 
@@ -45,64 +39,86 @@ import com.gwtext.client.util.Format;
  * @author Michael Neale
  *
  */
-public class ActionInsertFactWidget extends DirtyableComposite {
+public class ActionInsertFactWidget extends RuleModellerWidget {
 
     private final DirtyableFlexTable layout;
     private final ActionInsertFact model;
-    private final SuggestionCompletionEngine completions;
     private final String[] fieldCompletions;
-    private final RuleModeller modeller;
     private final String factType;
     private Constants constants = GWT.create(Constants.class);
+    private boolean readOnly;
 
-    public ActionInsertFactWidget(RuleModeller mod, ActionInsertFact set, SuggestionCompletionEngine com) {
+    public ActionInsertFactWidget(RuleModeller mod, ActionInsertFact set) {
+        this(mod, set, null);
+    }
+
+    public ActionInsertFactWidget(RuleModeller mod, ActionInsertFact set,Boolean readOnly) {
+        super(mod);
         this.model = set;
-        this.completions = com;
         this.layout = new DirtyableFlexTable();
-        this.modeller = mod;
         this.factType = set.factType;
-        this.fieldCompletions = this.completions.getFieldCompletions( set.factType );
+
+        SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
+        this.fieldCompletions = completions.getFieldCompletions( FieldAccessorsAndMutators.MUTATOR,
+                                                                      set.factType );
 
         layout.setStyleName( "model-builderInner-Background" );  //NON-NLS
+
+        if (readOnly == null) {
+            this.readOnly = !completions.containsFactType(set.factType);
+        } else {
+            this.readOnly = readOnly;
+        }
+
+        if (this.readOnly) {
+            layout.addStyleName("editor-disabled-widget");
+        }
 
         doLayout();
 
         initWidget(this.layout);
-    }
+    
+	}
 
-    private void doLayout() {
+	private void doLayout() {
         layout.clear();
         layout.setWidget( 0, 0, getAssertLabel() );
+        layout.setWidget( 1, 0, new HTML("&nbsp;&nbsp;&nbsp;&nbsp;"));
+        layout.getFlexCellFormatter().setColSpan(0, 0, 2);
 
         DirtyableFlexTable inner = new DirtyableFlexTable();
+        int col = 0;
 
         for ( int i = 0; i < model.fieldValues.length; i++ ) {
             ActionFieldValue val = model.fieldValues[i];
 
-            inner.setWidget( i, 0, fieldSelector(val) );
-            inner.setWidget( i, 1, valueEditor(val) );
+            inner.setWidget( i, 0 + col, fieldSelector(val) );
+            inner.setWidget( i, 1 + col, valueEditor(val) );
             final int idx = i;
-            Image remove = new ImageButton("images/delete_item_small.gif");
+            Image remove = new ImageButton("images/delete_faded.gif");
             remove.addClickListener( new ClickListener() {
                 public void onClick(Widget w) {
                 	if (Window.confirm(constants.RemoveThisItem())) {
                             model.removeField( idx );
-                            modeller.refreshWidget();
+                            getModeller().refreshWidget();
                 	};
                 }
             });
-            inner.setWidget( i, 2, remove );
+            if (!this.readOnly) {
+                inner.setWidget( i, 2 + col, remove );
+            }
 
         }
 
-        layout.setWidget( 0, 1, inner );
+        layout.setWidget( 1, 1, inner );
 
 
     }
 
     private Widget valueEditor(final ActionFieldValue val) {
-    	DropDownData enums = this.completions.getEnums(this.factType, this.model.fieldValues, val.field);
-    	return new ActionValueEditor(val, enums,modeller,val.type);
+        SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
+    	DropDownData enums = completions.getEnums(this.factType, this.model.fieldValues, val.field);
+    	return new ActionValueEditor(val, enums,this.getModeller(),val.type,this.readOnly);
     }
 
     private Widget fieldSelector(final ActionFieldValue val) {
@@ -110,36 +126,30 @@ public class ActionInsertFactWidget extends DirtyableComposite {
     }
 
     private Widget getAssertLabel() {
-        HorizontalPanel horiz = new HorizontalPanel();
 
 
-        Image edit = new ImageButton("images/edit_tiny.gif");
-        edit.setTitle(constants.AddAnotherFieldToThisSoYouCanSetItsValue());
         ClickListener cl =  new ClickListener() {
             public void onClick(Widget w) {
                 showAddFieldPopup(w);
             }
         };
-        edit.addClickListener( cl );
 
 
         String assertType = "assert";  //NON-NLS
         if (this.model instanceof ActionInsertLogicalFact) {
             assertType = "assertLogical";  //NON-NLS
         }
-        if ( model.isBound() == false ) {
-            horiz.add( new ClickableLabel( HumanReadable.getActionDisplayName( assertType ) + " <b>" + this.model.factType + "</b>",
-                                           cl ) );
-        } else {
-            horiz.add( new ClickableLabel( HumanReadable.getActionDisplayName( assertType ) + " <b>" + this.model.factType + "</b>" + " <b>[" + model.getBoundName() + "]</b>",
-                                           cl ) );
+
+        String lbl = (model.isBound() == false) ? HumanReadable.getActionDisplayName( assertType ) + " <b>" + this.model.factType + "</b>" : HumanReadable.getActionDisplayName( assertType ) + " <b>" + this.model.factType + "</b>" + " <b>[" + model.getBoundName() + "]</b>";
+        if (this.model.fieldValues != null && model.fieldValues.length > 0 ) {
+            lbl = lbl + ":";
         }
-        horiz.add( edit );
-        return horiz;
+        return new ClickableLabel( lbl, cl, !this.readOnly );
 
     }
 
     protected void showAddFieldPopup(Widget w) {
+        final SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
         final FormStylePopup popup = new FormStylePopup( "images/newex_wiz.gif",
                                                          constants.AddAField() );
         final ListBox box = new ListBox();
@@ -161,7 +171,7 @@ public class ActionInsertFactWidget extends DirtyableComposite {
                 model.addFieldValue( new ActionFieldValue( fieldName,
                                                            "",
                                                            fieldType ) );
-                modeller.refreshWidget();
+                getModeller().refreshWidget();
                 popup.hide();
             }
         } );
@@ -181,13 +191,13 @@ public class ActionInsertFactWidget extends DirtyableComposite {
         ok.addClickListener( new ClickListener() {
             public void onClick(Widget w) {
                 String var = varName.getText();
-                if ( modeller.isVariableNameUsed( var ) && ((model.getBoundName() != null && model.getBoundName().equals( var ) == false) || model.getBoundName() == null) ) {
+                if ( getModeller().isVariableNameUsed( var ) && ((model.getBoundName() != null && model.getBoundName().equals( var ) == false) || model.getBoundName() == null) ) {
                     Window.alert( Format.format( constants.TheVariableName0IsAlreadyTaken(),
                                                  var ) );
                     return;
                 }
                 model.setBoundName( var );
-                modeller.refreshWidget();
+                getModeller().refreshWidget();
                 popup.hide();
             }
         } );
@@ -197,4 +207,8 @@ public class ActionInsertFactWidget extends DirtyableComposite {
 
     }
 
+    @Override
+    public boolean isReadOnly() {
+        return this.readOnly;
+    }
 }

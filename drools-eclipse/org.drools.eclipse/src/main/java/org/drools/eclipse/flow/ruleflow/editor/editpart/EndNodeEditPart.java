@@ -16,13 +16,18 @@ package org.drools.eclipse.flow.ruleflow.editor.editpart;
  */
 
 import org.drools.eclipse.DroolsEclipsePlugin;
+import org.drools.eclipse.flow.common.editor.core.ModelEvent;
 import org.drools.eclipse.flow.common.editor.editpart.ElementEditPart;
 import org.drools.eclipse.flow.common.editor.editpart.figure.AbstractElementFigure;
+import org.drools.eclipse.flow.ruleflow.core.EndNodeWrapper;
+import org.drools.eclipse.flow.ruleflow.core.JoinWrapper;
+import org.drools.eclipse.flow.ruleflow.editor.editpart.JoinEditPart.JoinFigureInterface;
 import org.drools.eclipse.flow.ruleflow.skin.SkinManager;
 import org.drools.eclipse.flow.ruleflow.skin.SkinProvider;
 import org.drools.eclipse.preferences.IDroolsConstants;
 import org.eclipse.draw2d.IFigure;
 import org.eclipse.draw2d.LineBorder;
+import org.eclipse.draw2d.geometry.Rectangle;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.graphics.Image;
 
@@ -38,10 +43,37 @@ public class EndNodeEditPart extends ElementEditPart {
 	
     protected IFigure createFigure() {
     	SkinProvider skinProvider = SkinManager.getInstance().getSkinProvider(SKIN);
-    	return skinProvider.createEndNodeFigure();
+    	IFigure result = skinProvider.createEndNodeFigure();
+    	Rectangle constraint = getElementWrapper().getConstraint();
+    	if (constraint.width == -1) {
+    		constraint.width = result.getSize().width;
+    	}
+    	if (constraint.height == -1) {
+    		constraint.height = result.getSize().height;
+    	}
+    	getElementWrapper().setConstraint(constraint);
+    	return result;
     }
 
-    public static class EndNodeFigure extends AbstractElementFigure {
+    public void modelChanged(ModelEvent event) {
+        if (event.getChange() == EndNodeWrapper.CHANGE_TERMINATE) {
+            refreshVisuals();
+        } else {
+        	super.modelChanged(event);
+        }
+    }
+    
+    protected void refreshVisuals() {
+    	super.refreshVisuals();
+    	boolean terminate = ((EndNodeWrapper) getModel()).getEndNode().isTerminate();
+		((EndNodeFigureInterface) getFigure()).setTerminate(terminate);
+    }
+    
+    public static interface EndNodeFigureInterface extends IFigure {
+    	void setTerminate(boolean terminate);
+    }
+
+    public static class EndNodeFigure extends AbstractElementFigure implements EndNodeFigureInterface {
         
         private static final Image icon = ImageDescriptor.createFromURL(
         	DroolsEclipsePlugin.getDefault().getBundle().getEntry("icons/process_stop.gif")).createImage();
@@ -56,6 +88,11 @@ public class EndNodeEditPart extends ElementEditPart {
             ((LineBorder) getBorder()).setWidth(b ? 3 : 1);
             repaint();
         }
+        
+		public void setTerminate(boolean terminate) {
+			// Do nothing
+		}
+
     }
 
 }

@@ -21,6 +21,7 @@ import org.drools.eclipse.flow.common.editor.editpart.ProcessEditPartFactory;
 import org.drools.eclipse.flow.ruleflow.core.ActionWrapper;
 import org.drools.eclipse.flow.ruleflow.core.CompositeContextNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.ConnectionWrapper;
+import org.drools.eclipse.flow.ruleflow.core.DynamicNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.EndNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.EventNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.FaultNodeWrapper;
@@ -31,6 +32,7 @@ import org.drools.eclipse.flow.ruleflow.core.RuleFlowProcessWrapper;
 import org.drools.eclipse.flow.ruleflow.core.RuleSetNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.SplitWrapper;
 import org.drools.eclipse.flow.ruleflow.core.StartNodeWrapper;
+import org.drools.eclipse.flow.ruleflow.core.StateNodeWrapper;
 import org.drools.eclipse.flow.ruleflow.core.SubProcessWrapper;
 import org.drools.eclipse.flow.ruleflow.core.TimerWrapper;
 import org.drools.eclipse.flow.ruleflow.core.WorkItemWrapper;
@@ -79,12 +81,16 @@ public class RuleFlowEditPartFactory implements ProcessEditPartFactory {
             result = new FaultNodeEditPart();
         } else if (model instanceof TimerWrapper) {
             result = new TimerEditPart();
+        } else if (model instanceof DynamicNodeWrapper) {
+            result = new DynamicNodeEditPart();
         } else if (model instanceof ForEachNodeWrapper) {
             result = new ForEachNodeEditPart();
         } else if (model instanceof CompositeContextNodeWrapper) {
             result = new ElementContainerEditPart();
         } else if (model instanceof EventNodeWrapper) {
             result = new EventNodeEditPart();
+        } else if (model instanceof StateNodeWrapper) {
+            result = new StateNodeEditPart();
         } else {
             throw new IllegalArgumentException(
                 "Unknown model object " + model);

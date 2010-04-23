@@ -58,7 +58,10 @@ public class JDKTimerService
     }
     
     public void shutdown() {
-        this.scheduler.shutdown();
+        // forcing a shutdownNow instead of a regular shutdown()
+        // to avoid delays on shutdown. This is an irreversible 
+        // operation anyway, called on session dispose.
+        this.scheduler.shutdownNow();
     }
 
     public JobHandle scheduleJob(Job job,
@@ -163,6 +166,10 @@ public class JDKTimerService
             this.future = future;
         }
 
+    }
+
+    public long getTimeToNextJob() {
+        return 0;
     }
 
 }

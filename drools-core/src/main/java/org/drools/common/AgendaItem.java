@@ -25,6 +25,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.drools.core.util.LinkedList;
+import org.drools.core.util.Queue;
+import org.drools.core.util.Queueable;
 import org.drools.rule.GroupElement;
 import org.drools.rule.Rule;
 import org.drools.FactHandle;
@@ -32,9 +35,6 @@ import org.drools.spi.Activation;
 import org.drools.spi.AgendaGroup;
 import org.drools.spi.PropagationContext;
 import org.drools.spi.Tuple;
-import org.drools.util.LinkedList;
-import org.drools.util.Queue;
-import org.drools.util.Queueable;
 
 /**
  * Item entry in the <code>Agenda</code>.
@@ -90,7 +90,7 @@ public class AgendaItem
 
     private ActivationGroupNode activationGroupNode;
 
-    private RuleFlowGroupNode   ruleFlowGroupNode;
+    private ActivationNode   activationNode;
 
     // ------------------------------------------------------------
     // Constructors
@@ -139,7 +139,7 @@ public class AgendaItem
         activated = in.readBoolean();
         agendaGroup = (InternalAgendaGroup) in.readObject();
         activationGroupNode = (ActivationGroupNode) in.readObject();
-        ruleFlowGroupNode = (RuleFlowGroupNode) in.readObject();
+        activationNode = (ActivationNode) in.readObject();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -156,11 +156,15 @@ public class AgendaItem
         out.writeBoolean( activated );
         out.writeObject( agendaGroup );
         out.writeObject( activationGroupNode );
-        out.writeObject( ruleFlowGroupNode );
+        out.writeObject( activationNode );
     }
 
     public PropagationContext getPropagationContext() {
         return this.context;
+    }
+    
+    public void setPropagationContext(PropagationContext context) {
+        this.context = context;
     }
 
     /**
@@ -183,6 +187,10 @@ public class AgendaItem
 
     public int getSalience() {
         return this.salience;
+    }
+    
+    public void setSalience(int salience) {
+        this.salience = salience;
     }
 
     public int getSequenence() {
@@ -258,19 +266,19 @@ public class AgendaItem
         return this.tuple.hashCode();
     }
 
-    public void enqueued(final Queue queue,
-                         final int index) {
-        this.queue = queue;
+    public void enqueued(final int index) {
         this.index = index;
     }
 
     public void dequeue() {
-        if ( this.queue != null ) {
-            // will only be null if the AgendaGroup is locked when the activation add was attempted
-            this.queue.dequeue( this.index );
-            this.queue = null;
+        if ( this.agendaGroup != null ) {
+        	this.agendaGroup.remove( this );
         }
         this.activated = false;
+    }
+    
+    public int getIndex() {
+    	return this.index;
     }
 
     public void remove() {
@@ -293,12 +301,12 @@ public class AgendaItem
         this.agendaGroup = agendaGroup;
     }
 
-    public RuleFlowGroupNode getRuleFlowGroupNode() {
-        return this.ruleFlowGroupNode;
+    public ActivationNode getActivationNode() {
+        return this.activationNode;
     }
 
-    public void setRuleFlowGroupNode(final RuleFlowGroupNode ruleFlowGroupNode) {
-        this.ruleFlowGroupNode = ruleFlowGroupNode;
+    public void setActivationNode(final ActivationNode activationNode) {
+        this.activationNode = activationNode;
     }
 
     public GroupElement getSubRule() {
@@ -312,5 +320,9 @@ public class AgendaItem
             list.add( factHandle );
         }
         return Collections.unmodifiableCollection( list );
+    }
+    
+    public String toExternalForm() {
+        return "[ "+this.getRule().getName()+" active="+this.activated+ " ]";
     }
 }
