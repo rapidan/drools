@@ -7,7 +7,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 
-import org.drools.CheckedDroolsException;
 import org.drools.server.KnowledgeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,37 +18,35 @@ import org.slf4j.LoggerFactory;
  */
 @Path("/rest")
 public class KnowledgeServiceRest {
-	
-	private static Logger logger = LoggerFactory.getLogger(KnowledgeServiceRest.class);
-	private KnowledgeService service;
-	
-	@POST()
-	@Path("/execute")
-	public Response execute(@FormParam("command") String command) {
-		if (command==null || command.length()==0) {
-			logger.error("Invalid or null command " + command);			
-			return Response.status(Status.BAD_REQUEST).build();
-		}
-		String response;
-		try {
-			response = getService().executeCommand(command);
-		} catch (CheckedDroolsException e) {
-			logger.error(e.getMessage());
-			return Response.status(Status.BAD_REQUEST).build();
-		} catch (Exception e) {
-			logger.error(e.getMessage());
-			return Response.status(Status.CONFLICT).build();
-		}
-		ResponseBuilder builder = Response.ok(response, "application/xml");
-        return builder.build();
-	}
 
-	public void setService(KnowledgeService service) {
-		this.service = service;
-	}
+    private static Logger    logger = LoggerFactory.getLogger( KnowledgeServiceRest.class );
+    private KnowledgeService service;
 
-	public KnowledgeService getService() {
-		return service;
-	}
-	
+    @POST()
+    @Path("/execute")
+    public Response execute(@FormParam("command") String command) {
+        if ( command == null || command.length() == 0 ) {
+            logger.error( "Invalid or null command: {}", command );
+            return Response.status( Status.BAD_REQUEST ).build();
+        }
+        try {
+            ResponseBuilder builder = 
+            	Response.ok( getService().executeCommand( command ), "application/xml" );
+            return builder.build();
+        } catch ( RuntimeException e ) {
+            logger.error( e.getMessage(), e );
+            return Response.status( Status.BAD_REQUEST ).build();
+        } catch ( Exception e ) {
+            logger.error( e.getMessage(), e );
+            return Response.status( Status.CONFLICT ).build();
+        }
+    }
+
+    public void setService(KnowledgeService service) {
+        this.service = service;
+    }
+
+    public KnowledgeService getService() {
+        return service;
+    }
 }

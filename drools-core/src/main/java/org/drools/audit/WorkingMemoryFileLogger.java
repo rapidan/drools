@@ -126,6 +126,7 @@ public class WorkingMemoryFileLogger extends WorkingMemoryLogger {
                 initialized = false;
             }
             clear();
+            fileWriter.write("</object-stream>");
         } catch ( final FileNotFoundException exc ) {
             throw new RuntimeException( "Could not create the log file.  Please make sure that directory that the log file should be placed in does exist." );
         } catch ( final Throwable t ) {
@@ -134,7 +135,7 @@ public class WorkingMemoryFileLogger extends WorkingMemoryLogger {
             if( fileWriter != null ) { try { fileWriter.close(); } catch(Exception e) {} }
         }
     }
-
+    
     private void initializeLog() {
         try {
             FileWriter writer = new FileWriter(this.fileName + (this.nbOfFile == 0 ? ".log" : this.nbOfFile + ".log"), false);

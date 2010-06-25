@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:drools="http://drools.org/schema/drools-spring"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+                        http://drools.org/schema/drools-spring http://drools.org/schema/drools-spring.xsd">
+
+	<bean id="ds" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="org.h2.Driver" />
+		<property name="url" value="jdbc:h2:tcp://localhost/DroolsFlow" />
+		<property name="username" value="sa" />
+		<property name="password" value="" />
+	</bean>
+
+	<!-- <drools:connection id="connection1" type="local" />
+	<drools:execution-node id="node1" connection="connection1" /> -->
+
+	<drools:kbase id="kbase1">
+		<drools:resource type="DRF" source="classpath:org/drools/container/spring/beans/persistence/VariablePersistenceStrategyProcess.rf" />
+	</drools:kbase>
+	
+	<bean id="myEmf" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+		<property name="dataSource" ref="ds" />
+		<property name="persistenceUnitName" value="org.drools.persistence.jpa.local" />
+	</bean>
+
+	<bean id="txManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+		<property name="entityManagerFactory" ref="myEmf" />
+	</bean>
+	
+	<drools:jpaSessionServiceFactory id="jpaSingleSessionCommandService" kbase="kbase1" 
+			entityManagerFactory="myEmf" transactionManager="txManager">
+		<drools:variablePersisters>
+			<drools:persister forClass="javax.persistence.Entity" implementation="org.drools.persistence.processinstance.persisters.JPAVariablePersister"/>
+			<drools:persister forClass="java.lang.String" implementation="org.drools.container.spring.beans.persistence.StringVariablePersister"/>
+			<drools:persister forClass="java.io.Serializable" implementation="org.drools.persistence.processinstance.persisters.SerializableVariablePersister"/>
+		</drools:variablePersisters>
+	</drools:jpaSessionServiceFactory> 
+</beans>

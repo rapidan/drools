@@ -136,6 +136,7 @@ public class ObjectTypeNode extends ObjectSource
 
         skipOnModify = in.readBoolean();
         objectMemoryEnabled = in.readBoolean();
+        expirationOffset = in.readLong();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -143,6 +144,7 @@ public class ObjectTypeNode extends ObjectSource
         out.writeObject( objectType );
         out.writeBoolean( skipOnModify );
         out.writeBoolean( objectMemoryEnabled );
+        out.writeLong( expirationOffset );
     }
 
     /**
@@ -191,7 +193,7 @@ public class ObjectTypeNode extends ObjectSource
                                              workingMemory );
         }
 
-        if ( this.expirationOffset >= 0 ) {
+        if ( this.expirationOffset >= 0 && this.expirationOffset != Long.MAX_VALUE ) {
             // schedule expiration
             WorkingMemoryReteExpireAction expire = new WorkingMemoryReteExpireAction( factHandle,
                                                                                       this );

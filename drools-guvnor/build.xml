@@ -17,6 +17,70 @@
 
 	<property name="jbossAS.tempdir" location="tempdir" />
 
+
+
+<property name="src.dir" value="src/main/java" />
+<property name="build.dir" value="target/drools-guvnor/" />
+
+<path id="compile.classpath">
+        <fileset dir="${build.dir}/WEB-INF/lib">
+                <include name="**/*.jar" />
+                <include name="**/*.xml" />
+        </fileset>
+    </path>
+
+<path id="gwt.classpath">
+        <fileset dir="${gwt.home}">
+                <include name="*.jar" />
+                <include name="*.xml" />
+        </fileset>
+    </path>
+
+
+<target name="gwt-compile"  description="GWT compile to JavaScript">
+                <java failonerror="true" fork="true" classname="com.google.gwt.dev.Compiler">
+  			<classpath>                      
+      			        <path refid="gwt.classpath" />
+      			        <pathelement location="${src.dir}" />
+				<pathelement location="../drools-ide-common/src/main/java" />
+				<pathelement location="../drools-ide-common/src/main/resources" />
+				<pathelement location="../lib/cobogw-1.0.jar" />
+				<pathelement location="../lib/gwt-diagrams-0.1.jar" />
+				<pathelement location="../drools-factconstraint/src/main/java" />
+				<pathelement location="../lib/gwtext.jar" />
+				<pathelement location="../drools-factconstraint/src/main/resources" />
+				<!--pathelement location="" /-->
+                                <path refid="compile.classpath" />
+                        </classpath>
+                        <jvmarg value="-Xmx256M" />
+                        <arg value="org.drools.guvnor.Guvnor" />
+                </java>
+
+	 	 <delete>
+	      <fileset dir="src/main/webapp/org.drools.guvnor.Guvnor" includes="*.gwt.rpc *.cache.html *.cache.js *.cache.xml *.cache.png"/>
+	    </delete>
+		<copy todir="src/main/webapp">
+			<fileset dir="war">
+				<include name="**/*" />
+			</fileset>
+		</copy>
+	 	<delete>
+	      <fileset dir="war"/>
+	    </delete>
+        </target>
+
+
+
+
+
+
+
+
+
+
+
+
+
 	<!-- Creates a stand alone zip. JBoss AS + Guvnor -->
 	<target name="guvnor-standalone" >
 
@@ -49,36 +113,6 @@
 	<!-- If JBoss AS was downloaded remove it -->
 	<target name="remove-jboss-as" unless="isJBossASDowloaded">
 		<delete file="${jbossAS.version}.zip" />
-	</target>
-
-    <target name="gwt-compile">
-		<!--<gwt:compile outDir="src/main/webapp"-->
-		<gwt:compile outDir="target/gwt-compiled-output"
-			gwtHome="${gwt.home}"
-			classBase="org.drools.guvnor.Guvnor"
-			sourceclasspath="src/main/java; ../drools-compiler/src/main/java; ../drools-factconstraint/src/main/java; ../drools-factconstraint/src/main/resources; ../lib/gwtext.jar; ../lib/gwt-diagrams-0.1.jar; ../lib/cobogw-1.0.jar"/>
-		<!-- get rid of old -->
-	 	 <delete>
-	      <fileset dir="src/main/webapp/org.drools.guvnor.Guvnor" includes="*.gwt.rpc *.cache.html *.cache.js *.cache.xml *.cache.png"/>
-	    </delete>
-
-		<copy todir="src/main/webapp">
-			<fileset dir="target/gwt-compiled-output">
-				<include name="**/*" />
-			</fileset>
-		</copy>
-	 	<delete>
-	      <fileset dir="src/main/webapp/.gwt-tmp"/>
-	    </delete>
-	</target>
-
-	<target name="gwt-shell">
-		<gwt:shell sourceclasspath="src/main/java/; ../drools-compiler/src/main/java"
-			bindir="target/classes"
-			outDir="src/main/webapp"
-			gwtHome="${gwt.home}"
-			startPage="org.drools.guvnor.Guvnor/Guvnor.html"
-		/>
 	</target>
 
     <target name="plug-editors">

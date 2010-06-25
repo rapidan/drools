@@ -18,21 +18,30 @@ import org.drools.planner.core.solution.Solution;
 import org.drools.planner.examples.common.persistence.AbstractXmlSolutionImporter;
 import org.drools.planner.examples.nurserostering.domain.DayOfWeek;
 import org.drools.planner.examples.nurserostering.domain.Employee;
+import org.drools.planner.examples.nurserostering.domain.FreeBefore2DaysWithAWorkDayPattern;
 import org.drools.planner.examples.nurserostering.domain.NurseRoster;
 import org.drools.planner.examples.nurserostering.domain.Pattern;
 import org.drools.planner.examples.nurserostering.domain.Shift;
 import org.drools.planner.examples.nurserostering.domain.ShiftDate;
 import org.drools.planner.examples.nurserostering.domain.ShiftType;
+import org.drools.planner.examples.nurserostering.domain.ShiftType2DaysPattern;
+import org.drools.planner.examples.nurserostering.domain.ShiftType3DaysPattern;
 import org.drools.planner.examples.nurserostering.domain.ShiftTypeSkillRequirement;
 import org.drools.planner.examples.nurserostering.domain.Skill;
 import org.drools.planner.examples.nurserostering.domain.SkillProficiency;
+import org.drools.planner.examples.nurserostering.domain.WeekendDefinition;
+import org.drools.planner.examples.nurserostering.domain.WorkBeforeFreeSequencePattern;
+import org.drools.planner.examples.nurserostering.domain.contract.BooleanContractLine;
 import org.drools.planner.examples.nurserostering.domain.contract.Contract;
 import org.drools.planner.examples.nurserostering.domain.contract.ContractLine;
 import org.drools.planner.examples.nurserostering.domain.contract.ContractLineType;
+import org.drools.planner.examples.nurserostering.domain.contract.MinMaxContractLine;
+import org.drools.planner.examples.nurserostering.domain.contract.PatternContractLine;
 import org.drools.planner.examples.nurserostering.domain.request.DayOffRequest;
 import org.drools.planner.examples.nurserostering.domain.request.DayOnRequest;
 import org.drools.planner.examples.nurserostering.domain.request.ShiftOffRequest;
 import org.drools.planner.examples.nurserostering.domain.request.ShiftOnRequest;
+import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 
@@ -183,6 +192,10 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
                     skill.setId(id);
                     skill.setCode(element.getText());
                     skillList.add(skill);
+                    if (skillMap.containsKey(skill.getCode())) {
+                        throw new IllegalArgumentException("There are 2 skills with the same code ("
+                                + skill.getCode() + ").");
+                    }
                     skillMap.put(skill.getCode(), skill);
                     id++;
                 }
@@ -205,8 +218,11 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
                 shiftType.setId(id);
                 shiftType.setCode(element.getAttribute("ID").getValue());
                 shiftType.setIndex(index);
-                shiftType.setStartTimeString(element.getChild("StartTime").getText());
-                shiftType.setEndTimeString(element.getChild("EndTime").getText());
+                String startTimeString = element.getChild("StartTime").getText();
+                shiftType.setStartTimeString(startTimeString);
+                String endTimeString = element.getChild("EndTime").getText();
+                shiftType.setEndTimeString(endTimeString);
+                shiftType.setNight(startTimeString.compareTo(endTimeString) > 0);
                 shiftType.setDescription(element.getChild("Description").getText());
 
                 Element skillsElement = element.getChild("Skills");
@@ -229,6 +245,10 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
                 }
 
                 shiftTypeList.add(shiftType);
+                if (shiftTypeMap.containsKey(shiftType.getCode())) {
+                    throw new IllegalArgumentException("There are 2 shiftTypes with the same code ("
+                            + shiftType.getCode() + ").");
+                }
                 shiftTypeMap.put(shiftType.getCode(), shiftType);
                 id++;
                 index++;
@@ -284,51 +304,209 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
                 patternList = new ArrayList<Pattern>(patternElementList.size());
                 patternMap = new HashMap<String, Pattern>(patternElementList.size());
                 long id = 0L;
+                long patternEntryId = 0L;
                 for (Element element : patternElementList) {
                     assertElementName(element, "Pattern");
-                    Pattern pattern = new Pattern();
-                    pattern.setId(id);
-                    pattern.setCode(element.getAttribute("ID").getValue());
-                    pattern.setWeight(element.getAttribute("weight").getIntValue());
+                    String code = element.getAttribute("ID").getValue();
+                    int weight = element.getAttribute("weight").getIntValue();
 
                     List<Element> patternEntryElementList = (List<Element>) element.getChild("PatternEntries")
                             .getChildren();
+                    if (patternEntryElementList.size() < 2) {
+                        throw new IllegalArgumentException("The size of PatternEntries ("
+                                + patternEntryElementList.size() + ") of pattern (" + code + ") should be at least 2.");
+                    }
+                    Pattern pattern;
+                    if (patternEntryElementList.get(0).getChild("ShiftType").getText().equals("None")) {
+                        pattern = new FreeBefore2DaysWithAWorkDayPattern();
+                        if (patternEntryElementList.size() != 3) {
+                            throw new IllegalStateException("boe");
+                        }
+                    } else if (patternEntryElementList.get(1).getChild("ShiftType").getText().equals("None")) {
+                        pattern = new WorkBeforeFreeSequencePattern();
+                        // TODO support this too (not needed for competition)
+                        throw new UnsupportedOperationException("The pattern (" + code + ") is not supported."
+                                + " None of the test data exhibits such a pattern.");
+                    } else {
+                        switch (patternEntryElementList.size()) {
+                            case 2 :
+                                pattern = new ShiftType2DaysPattern();
+                                break;
+                            case 3 :
+                                pattern = new ShiftType3DaysPattern();
+                                break;
+                            default:
+                                throw new IllegalArgumentException("A size of PatternEntries ("
+                                        + patternEntryElementList.size() + ") of pattern (" + code
+                                        + ") above 3 is not supported.");
+                        }
+                    }
+                    pattern.setId(id);
+                    pattern.setCode(code);
+                    pattern.setWeight(weight);
+                    int patternEntryIndex = 0;
+                    DayOfWeek firstDayOfweek = null;
                     for (Element patternEntryElement : patternEntryElementList) {
                         assertElementName(patternEntryElement, "PatternEntry");
                         Element shiftTypeElement = patternEntryElement.getChild("ShiftType");
-                        ShiftType shiftType = shiftTypeMap.get(shiftTypeElement.getText());
-                        if (shiftType == null) {
-                            if (shiftTypeElement.getText().equals("Any")) {
-                                // TODO
-
-
-                            } else if (shiftTypeElement.getText().equals("None")) {
-                                // TODO
-
-
-                            } else {
+                        boolean shiftTypeIsNone;
+                        ShiftType shiftType;
+                        if (shiftTypeElement.getText().equals("Any")) {
+                            shiftTypeIsNone = false;
+                            shiftType = null;
+                        } else if (shiftTypeElement.getText().equals("None")) {
+                            shiftTypeIsNone = true;
+                            shiftType = null;
+                        } else {
+                            shiftTypeIsNone = false;
+                            shiftType = shiftTypeMap.get(shiftTypeElement.getText());
+                            if (shiftType == null) {
                                 throw new IllegalArgumentException("The shiftType (" + shiftTypeElement.getText()
                                         + ") of pattern (" + pattern.getCode() + ") does not exist.");
                             }
                         }
-                        // TODO shiftType & day etc
-
-    //        <PatternEntry index="0">
-    //          <ShiftType>None</ShiftType>
-    //          <Day>Friday</Day>
-    //        </PatternEntry>
-    //        <PatternEntry index="1">
-    //          <ShiftType>Any</ShiftType>
-    //          <Day>Saturday</Day>
-    //        </PatternEntry>
-    //        <PatternEntry index="2">
-    //          <ShiftType>Any</ShiftType>
-    //          <Day>Sunday</Day>
-    //        </PatternEntry>
-
+                        Element dayElement = patternEntryElement.getChild("Day");
+                        DayOfWeek dayOfWeek;
+                        if (dayElement.getText().equals("Any")) {
+                            dayOfWeek = null;
+                        } else {
+                            dayOfWeek = DayOfWeek.valueOfCode(dayElement.getText());
+                            if (dayOfWeek == null) {
+                                throw new IllegalArgumentException("The dayOfWeek (" + dayElement.getText()
+                                        + ") of pattern (" + pattern.getCode() + ") does not exist.");
+                            }
+                        }
+                        if (patternEntryIndex == 0) {
+                            firstDayOfweek = dayOfWeek;
+                        } else {
+                            if (firstDayOfweek != null) {
+                                if (firstDayOfweek.getDistanceToNext(dayOfWeek) != patternEntryIndex) {
+                                    throw new IllegalArgumentException("On patternEntryIndex (" + patternEntryIndex
+                                            + ") of pattern (" + pattern.getCode()
+                                            + ") the dayOfWeek (" + dayOfWeek
+                                            + ") is not valid with previous entries.");
+                                }
+                            } else {
+                                if (dayOfWeek != null) {
+                                    throw new IllegalArgumentException("On patternEntryIndex (" + patternEntryIndex
+                                            + ") of pattern (" + pattern.getCode()
+                                            + ") the dayOfWeek should be (Any), in line with previous entries.");
+                                }
+                            }
+                        }
+                        if (pattern instanceof FreeBefore2DaysWithAWorkDayPattern) {
+                            FreeBefore2DaysWithAWorkDayPattern castedPattern = (FreeBefore2DaysWithAWorkDayPattern) pattern;
+                            if (patternEntryIndex == 0) {
+                                if (dayOfWeek == null) {
+                                    // TODO Support an any dayOfWeek too (not needed for competition)
+                                    throw new UnsupportedOperationException("On patternEntryIndex (" + patternEntryIndex
+                                            + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                            + ") the dayOfWeek should not be (Any)."
+                                            + "\n None of the test data exhibits such a pattern.");
+                                }
+                                castedPattern.setFreeDayOfWeek(dayOfWeek);
+                            }
+                            if (patternEntryIndex == 1) {
+                                if (shiftType != null) {
+                                    // TODO Support a specific shiftType too (not needed for competition)
+                                    throw new UnsupportedOperationException("On patternEntryIndex (" + patternEntryIndex
+                                            + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                            + ") the shiftType should be (Any)."
+                                            + "\n None of the test data exhibits such a pattern.");
+                                }
+                                // castedPattern.setWorkShiftType(shiftType);
+                                // castedPattern.setWorkDayLength(patternEntryElementList.size() - 1);
+                            }
+                            // if (patternEntryIndex > 1 && shiftType != castedPattern.getWorkShiftType()) {
+                            //     throw new IllegalArgumentException("On patternEntryIndex (" + patternEntryIndex
+                            //             + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                            //             + ") the shiftType (" + shiftType + ") should be ("
+                            //             + castedPattern.getWorkShiftType() + ").");
+                            // }
+                            if (patternEntryIndex != 0 && shiftTypeIsNone) {
+                                throw new IllegalArgumentException("On patternEntryIndex (" + patternEntryIndex
+                                        + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                        + ") the shiftType can not be (None).");
+                            }
+                        } else if (pattern instanceof WorkBeforeFreeSequencePattern) {
+                            WorkBeforeFreeSequencePattern castedPattern = (WorkBeforeFreeSequencePattern) pattern;
+                            if (patternEntryIndex == 0) {
+                                castedPattern.setWorkDayOfWeek(dayOfWeek);
+                                castedPattern.setWorkShiftType(shiftType);
+                                castedPattern.setFreeDayLength(patternEntryElementList.size() - 1);
+                            }
+                            if (patternEntryIndex != 0 && !shiftTypeIsNone) {
+                                throw new IllegalArgumentException("On patternEntryIndex (" + patternEntryIndex
+                                        + ") of WorkBeforeFreeSequence pattern (" + pattern.getCode()
+                                        + ") the shiftType should be (None).");
+                            }
+                        } else if (pattern instanceof ShiftType2DaysPattern) {
+                            ShiftType2DaysPattern castedPattern = (ShiftType2DaysPattern) pattern;
+                            if (patternEntryIndex == 0) {
+                                if (dayOfWeek != null) {
+                                    // TODO Support a specific dayOfWeek too (not needed for competition)
+                                    throw new UnsupportedOperationException("On patternEntryIndex (" + patternEntryIndex
+                                            + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                            + ") the dayOfWeek should be (Any)."
+                                            + "\n None of the test data exhibits such a pattern.");
+                                }
+                                // castedPattern.setStartDayOfWeek(dayOfWeek);
+                            }
+                            if (shiftType == null) {
+                                // TODO Support any shiftType too (not needed for competition)
+                                throw new UnsupportedOperationException("On patternEntryIndex (" + patternEntryIndex
+                                        + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                        + ") the shiftType should not be (Any)."
+                                        + "\n None of the test data exhibits such a pattern.");
+                            }
+                            switch (patternEntryIndex) {
+                                case 0 :
+                                    castedPattern.setDayIndex0ShiftType(shiftType);
+                                    break;
+                                case 1 :
+                                    castedPattern.setDayIndex1ShiftType(shiftType);
+                                    break;
+                            }
+                        } else if (pattern instanceof ShiftType3DaysPattern) {
+                            ShiftType3DaysPattern castedPattern = (ShiftType3DaysPattern) pattern;
+                            if (patternEntryIndex == 0) {
+                                if (dayOfWeek != null) {
+                                    // TODO Support a specific dayOfWeek too (not needed for competition)
+                                    throw new UnsupportedOperationException("On patternEntryIndex (" + patternEntryIndex
+                                            + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                            + ") the dayOfWeek should be (Any)."
+                                            + "\n None of the test data exhibits such a pattern.");
+                                }
+                                // castedPattern.setStartDayOfWeek(dayOfWeek);
+                            }
+                            if (shiftType == null) {
+                                // TODO Support any shiftType too
+                                throw new UnsupportedOperationException("On patternEntryIndex (" + patternEntryIndex
+                                        + ") of FreeBeforeWorkSequence pattern (" + pattern.getCode()
+                                        + ") the shiftType should not be (Any)."
+                                        + "\n None of the test data exhibits such a pattern.");
+                            }
+                            switch (patternEntryIndex) {
+                                case 0 :
+                                    castedPattern.setDayIndex0ShiftType(shiftType);
+                                    break;
+                                case 1 :
+                                    castedPattern.setDayIndex1ShiftType(shiftType);
+                                    break;
+                                case 2 :
+                                    castedPattern.setDayIndex2ShiftType(shiftType);
+                                    break;
+                            }
+                        } else {
+                            throw new IllegalStateException("Unsupported patternClass (" + pattern.getClass() + ").");
+                        }
+                        patternEntryIndex++;
                     }
-
                     patternList.add(pattern);
+                    if (patternMap.containsKey(pattern.getCode())) {
+                        throw new IllegalArgumentException("There are 2 patterns with the same code ("
+                                + pattern.getCode() + ").");
+                    }
                     patternMap.put(pattern.getCode(), pattern);
                     id++;
                 }
@@ -345,76 +523,56 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
             List<ContractLine> contractLineList = new ArrayList<ContractLine>(
                     contractElementList.size() * contractLineTypeListSize);
             long contractLineId = 0L;
+            List<PatternContractLine> patternContractLineList = new ArrayList<PatternContractLine>(
+                    contractElementList.size() * 3);
+            long patternContractLineId = 0L;
             for (Element element : contractElementList) {
                 assertElementName(element, "Contract");
                 Contract contract = new Contract();
                 contract.setId(id);
                 contract.setCode(element.getAttribute("ID").getValue());
                 contract.setDescription(element.getChild("Description").getText());
-// TODO the rest of the contract
-//      <SingleAssignmentPerDay weight="1">true</SingleAssignmentPerDay>
-//      <MaxNumAssignments on="1" weight="1">16</MaxNumAssignments>
-//      <MinNumAssignments on="1" weight="1">6</MinNumAssignments>
-                
+
                 List<ContractLine> contractLineListOfContract = new ArrayList<ContractLine>(contractLineTypeListSize);
-                Element maxElement = element.getChild("MaxConsecutiveWorkingDays");
-                Element minElement = element.getChild("MinConsecutiveWorkingDays");
-
-                boolean minimumEnabled = minElement.getAttribute("on").getBooleanValue();
-                boolean maximumEnabled = maxElement.getAttribute("on").getBooleanValue();
-                ContractLine contractLine = new ContractLine();
-                contractLine.setId(contractLineId);
-                contractLine.setContract(contract);
-                contractLine.setContractLineType(ContractLineType.CONSECUTIVE_WORKING_DAYS);
-                contractLine.setMinimumEnabled(minimumEnabled);
-                if (minimumEnabled) {
-                    int minimumValue = Integer.parseInt(minElement.getText());
-                    if (minimumValue < 1) {
-                        throw new IllegalArgumentException("The minimumValue (" + minimumValue
-                                + ") of contract (" + contract.getCode() + ") should be at least 1.");
-                    }
-                    contractLine.setMinimumValue(minimumValue);
-                    int minimumWeight = minElement.getAttribute("weight").getIntValue();
-                    if (minimumWeight < 1) {
-                        throw new IllegalArgumentException("The minimumWeight (" + minimumWeight
-                                + ") of contract (" + contract.getCode() + ") should be at least 1.");
-                    }
-                    contractLine.setMinimumWeight(minimumWeight);
-                }
-                contractLine.setMaximumEnabled(maximumEnabled);
-                if (maximumEnabled) {
-                    int maximumValue = Integer.parseInt(maxElement.getText());
-                    if (maximumValue < 1) {
-                        throw new IllegalArgumentException("The maximumValue (" + maximumValue
-                                + ") of contract (" + contract.getCode() + ") should be at least 1.");
-                    }
-                    contractLine.setMaximumValue(maximumValue);
-                    int maximumWeight = maxElement.getAttribute("weight").getIntValue();
-                    if (maximumWeight < 1) {
-                        throw new IllegalArgumentException("The maximumWeight (" + maximumWeight
-                                + ") of contract (" + contract.getCode() + ") should be at least 1.");
-                    }
-                    contractLine.setMaximumWeight(maximumWeight);
-                }
-                contractLineList.add(contractLine);
-                contractLineListOfContract.add(contractLine);
-                contractLineId++;
-
-// TODO the rest of the contract
-//      <MaxConsecutiveFreeDays on="1" weight="1">5</MaxConsecutiveFreeDays>
-//      <MinConsecutiveFreeDays on="1" weight="1">1</MinConsecutiveFreeDays>
-//      <MaxConsecutiveWorkingWeekends on="0" weight="0">7</MaxConsecutiveWorkingWeekends>
-//      <MinConsecutiveWorkingWeekends on="0" weight="0">1</MinConsecutiveWorkingWeekends>
-//      <MaxWorkingWeekendsInFourWeeks on="0" weight="0">0</MaxWorkingWeekendsInFourWeeks>
-
-//      <WeekendDefinition>SaturdaySunday</WeekendDefinition>
-//      <CompleteWeekends weight="1">true</CompleteWeekends>
-//      <IdenticalShiftTypesDuringWeekend weight="1">true</IdenticalShiftTypesDuringWeekend>
-//      <NoNightShiftBeforeFreeWeekend weight="0">false</NoNightShiftBeforeFreeWeekend>
-//      <AlternativeSkillCategory weight="0">false</AlternativeSkillCategory>
-
+                contractLineId = readBooleanContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("SingleAssignmentPerDay"),
+                        ContractLineType.SINGLE_ASSIGNMENT_PER_DAY);
+                contractLineId = readMinMaxContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("MinNumAssignments"),
+                        element.getChild("MaxNumAssignments"),
+                        ContractLineType.TOTAL_ASSIGNMENTS);
+                contractLineId = readMinMaxContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("MinConsecutiveWorkingDays"),
+                        element.getChild("MaxConsecutiveWorkingDays"),
+                        ContractLineType.CONSECUTIVE_WORKING_DAYS);
+                contractLineId = readMinMaxContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("MinConsecutiveFreeDays"),
+                        element.getChild("MaxConsecutiveFreeDays"),
+                        ContractLineType.CONSECUTIVE_FREE_DAYS);
+                contractLineId = readMinMaxContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("MinConsecutiveWorkingWeekends"),
+                        element.getChild("MaxConsecutiveWorkingWeekends"),
+                        ContractLineType.CONSECUTIVE_WORKING_WEEKENDS);
+                contractLineId = readMinMaxContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, null,
+                        element.getChild("MaxWorkingWeekendsInFourWeeks"),
+                        ContractLineType.TOTAL_WORKING_WEEKENDS_IN_FOUR_WEEKS);
+                WeekendDefinition weekendDefinition = WeekendDefinition.valueOfCode(
+                        element.getChild("WeekendDefinition").getText());
+                contract.setWeekendDefinition(weekendDefinition);
+                contractLineId = readBooleanContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("CompleteWeekends"),
+                        ContractLineType.COMPLETE_WEEKENDS);
+                contractLineId = readBooleanContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("IdenticalShiftTypesDuringWeekend"),
+                        ContractLineType.IDENTICAL_SHIFT_TYPES_DURING_WEEKEND);
+                contractLineId = readBooleanContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("NoNightShiftBeforeFreeWeekend"),
+                        ContractLineType.NO_NIGHT_SHIFT_BEFORE_FREE_WEEKEND);
+                contractLineId = readBooleanContractLine(contract, contractLineList, contractLineListOfContract,
+                        contractLineId, element.getChild("AlternativeSkillCategory"),
+                        ContractLineType.ALTERNATIVE_SKILL_CATEGORY);
                 contract.setContractLineList(contractLineListOfContract);
-
 
                 List<Element> unwantedPatternElementList = (List<Element>) element.getChild("UnwantedPatterns")
                         .getChildren();
@@ -425,22 +583,131 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
                         throw new IllegalArgumentException("The pattern (" + patternElement.getText()
                                 + ") of contract (" + contract.getCode() + ") does not exist.");
                     }
-                    // TODO unwanted pattern
-//      <UnwantedPatterns>
-//        <Pattern>0</Pattern>
-//        <Pattern>1</Pattern>
-//        <Pattern>2</Pattern>
-//      </UnwantedPatterns>
-
-
+                    PatternContractLine patternContractLine = new PatternContractLine();
+                    patternContractLine.setId(patternContractLineId);
+                    patternContractLine.setContract(contract);
+                    patternContractLine.setPattern(pattern);
+                    patternContractLineList.add(patternContractLine);
+                    patternContractLineId++;
                 }
 
                 contractList.add(contract);
+                if (contractMap.containsKey(contract.getCode())) {
+                    throw new IllegalArgumentException("There are 2 contracts with the same code ("
+                            + contract.getCode() + ").");
+                }
                 contractMap.put(contract.getCode(), contract);
                 id++;
             }
             nurseRoster.setContractList(contractList);
             nurseRoster.setContractLineList(contractLineList);
+            nurseRoster.setPatternContractLineList(patternContractLineList);
+        }
+
+        private long readBooleanContractLine(Contract contract, List<ContractLine> contractLineList,
+                List<ContractLine> contractLineListOfContract, long contractLineId, Element element,
+                ContractLineType contractLineType) throws DataConversionException {
+            boolean enabled = Boolean.valueOf(element.getText());
+            int weight;
+            if (enabled) {
+                weight = element.getAttribute("weight").getIntValue();
+                if (weight < 0) {
+                    throw new IllegalArgumentException("The weight (" + weight
+                            + ") of contract (" + contract.getCode() + ") and contractLineType (" + contractLineType
+                            + ") should be 0 or at least 1.");
+                } else if (weight == 0) {
+                    // If the weight is zero, the constraint should not be considered.
+                    enabled = false;
+                    logger.warn("In contract ({}), the contractLineType ({}) is enabled with weight 0.",
+                            contract.getCode(), contractLineType);
+                }
+            } else {
+                weight = 0;
+            }
+            if (enabled) {
+                BooleanContractLine contractLine = new BooleanContractLine();
+                contractLine.setId(contractLineId);
+                contractLine.setContract(contract);
+                contractLine.setContractLineType(contractLineType);
+                contractLine.setEnabled(enabled);
+                contractLine.setWeight(weight);
+                contractLineList.add(contractLine);
+                contractLineListOfContract.add(contractLine);
+                contractLineId++;
+            }
+            return contractLineId;
+        }
+
+        private long readMinMaxContractLine(Contract contract, List<ContractLine> contractLineList,
+                List<ContractLine> contractLineListOfContract, long contractLineId,
+                Element minElement, Element maxElement,
+                ContractLineType contractLineType) throws DataConversionException {
+            boolean minimumEnabled = minElement == null ? false : minElement.getAttribute("on").getBooleanValue();
+            int minimumWeight;
+            if (minimumEnabled) {
+                minimumWeight = minElement.getAttribute("weight").getIntValue();
+                if (minimumWeight < 0) {
+                    throw new IllegalArgumentException("The minimumWeight (" + minimumWeight
+                            + ") of contract (" + contract.getCode() + ") and contractLineType (" + contractLineType
+                            + ") should be 0 or at least 1.");
+                } else if (minimumWeight == 0) {
+                    // If the weight is zero, the constraint should not be considered.
+                    minimumEnabled = false;
+                    logger.warn("In contract ({}), the contractLineType ({}) minimum is enabled with weight 0.",
+                            contract.getCode(), contractLineType);
+                }
+            } else {
+                minimumWeight = 0;
+            }
+            boolean maximumEnabled = maxElement == null ? false : maxElement.getAttribute("on").getBooleanValue();
+            int maximumWeight;
+            if (maximumEnabled) {
+                maximumWeight = maxElement.getAttribute("weight").getIntValue();
+                if (maximumWeight < 0) {
+                    throw new IllegalArgumentException("The maximumWeight (" + maximumWeight
+                            + ") of contract (" + contract.getCode() + ") and contractLineType (" + contractLineType
+                            + ") should be 0 or at least 1.");
+                } else if (maximumWeight == 0) {
+                    // If the weight is zero, the constraint should not be considered.
+                    maximumEnabled = false;
+                    logger.warn("In contract ({}), the contractLineType ({}) maximum is enabled with weight 0.",
+                            contract.getCode(), contractLineType);
+                }
+            } else {
+                maximumWeight = 0;
+            }
+            if (minimumEnabled || maximumEnabled) {
+                MinMaxContractLine contractLine = new MinMaxContractLine();
+                contractLine.setId(contractLineId);
+                contractLine.setContract(contract);
+                contractLine.setContractLineType(contractLineType);
+                contractLine.setMinimumEnabled(minimumEnabled);
+                if (minimumEnabled) {
+                    int minimumValue = Integer.parseInt(minElement.getText());
+                    if (minimumValue < 1) {
+                        throw new IllegalArgumentException("The minimumValue (" + minimumValue
+                                + ") of contract (" + contract.getCode() + ") and contractLineType ("
+                                + contractLineType + ") should be at least 1.");
+                    }
+                    contractLine.setMinimumValue(minimumValue);
+                    contractLine.setMinimumWeight(minimumWeight);
+                }
+                contractLine.setMaximumEnabled(maximumEnabled);
+                if (maximumEnabled) {
+                    int maximumValue = Integer.parseInt(maxElement.getText());
+                    if (maximumValue < 0) {
+                        throw new IllegalArgumentException("The maximumValue (" + maximumValue
+                                + ") of contract (" + contract.getCode() + ") and contractLineType ("
+                                + contractLineType + ") should be at least 0.");
+                    }
+                    contractLine.setMaximumValue(maximumValue);
+                    contractLine.setMaximumWeight(maximumWeight);
+                }
+                contractLineList.add(contractLine);
+                contractLineListOfContract.add(contractLine);
+                contractLineId++;
+            }
+            return contractLineId;
         }
 
         private void readEmployeeList(NurseRoster nurseRoster, Element employeesElement) throws JDOMException {
@@ -485,6 +752,10 @@ public class NurseRosteringSolutionImporter extends AbstractXmlSolutionImporter 
                 }
 
                 employeeList.add(employee);
+                if (employeeMap.containsKey(employee.getCode())) {
+                    throw new IllegalArgumentException("There are 2 employees with the same code ("
+                            + employee.getCode() + ").");
+                }
                 employeeMap.put(employee.getCode(), employee);
                 id++;
             }

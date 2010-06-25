@@ -37,26 +37,6 @@ import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.explorer.ExplorerLayoutManager;
 import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ActionCallMethod;
-import org.drools.guvnor.client.modeldriven.brl.ActionGlobalCollectionAdd;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertLogicalFact;
-import org.drools.guvnor.client.modeldriven.brl.ActionRetractFact;
-import org.drools.guvnor.client.modeldriven.brl.ActionSetField;
-import org.drools.guvnor.client.modeldriven.brl.ActionUpdateField;
-import org.drools.guvnor.client.modeldriven.brl.CompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FreeFormLine;
-import org.drools.guvnor.client.modeldriven.brl.FromAccumulateCompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FromCollectCompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FromCompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.IAction;
-import org.drools.guvnor.client.modeldriven.brl.IPattern;
-import org.drools.guvnor.client.modeldriven.brl.RuleAttribute;
-import org.drools.guvnor.client.modeldriven.brl.RuleMetadata;
-import org.drools.guvnor.client.modeldriven.brl.RuleModel;
 import org.drools.guvnor.client.packages.SuggestionCompletionCache;
 import org.drools.guvnor.client.packages.WorkingSetManager;
 import org.drools.guvnor.client.rpc.AnalysisReport;
@@ -65,8 +45,30 @@ import org.drools.guvnor.client.rpc.RepositoryServiceFactory;
 import org.drools.guvnor.client.rpc.RuleAsset;
 import org.drools.guvnor.client.ruleeditor.RuleViewer;
 import org.drools.guvnor.client.security.Capabilities;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ActionCallMethod;
+import org.drools.ide.common.client.modeldriven.brl.ActionGlobalCollectionAdd;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertFact;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertLogicalFact;
+import org.drools.ide.common.client.modeldriven.brl.ActionRetractFact;
+import org.drools.ide.common.client.modeldriven.brl.ActionSetField;
+import org.drools.ide.common.client.modeldriven.brl.ActionUpdateField;
+import org.drools.ide.common.client.modeldriven.brl.CompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.DSLSentence;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FreeFormLine;
+import org.drools.ide.common.client.modeldriven.brl.FromAccumulateCompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FromCollectCompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FromCompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.IAction;
+import org.drools.ide.common.client.modeldriven.brl.IPattern;
+import org.drools.ide.common.client.modeldriven.brl.RuleAttribute;
+import org.drools.ide.common.client.modeldriven.brl.RuleMetadata;
+import org.drools.ide.common.client.modeldriven.brl.RuleModel;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
@@ -104,7 +106,20 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
     private String packageName;
     private RuleAsset asset;
     private ModellerWidgetFactory widgetFactory;
-    
+
+    private List<RuleModellerWidget> lhsWidgets = new ArrayList<RuleModellerWidget>();
+    private List<RuleModellerWidget> rhsWidgets = new ArrayList<RuleModellerWidget>();
+
+    private boolean hasModifiedWidgets;
+
+    private final Command onWidgetModifiedCommand = new Command() {
+
+        public void execute() {
+            GWT.log("Widget Modified!");
+            hasModifiedWidgets = true;
+        }
+    };
+
     public RuleModeller(RuleAsset asset, RuleViewer viewer, ModellerWidgetFactory widgetFactory) {
         this(asset, widgetFactory);
     }
@@ -130,18 +145,20 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
 
         //UNCOMMENT THIS WHEN READY !
         //if (ExplorerLayoutManager.shouldShow(Capabilities.SHOW_CREATE_NEW_PACKAGE)) return true;
-
+        if (this.asset.isreadonly){
+            return true;
+        }
 
         if (this.model.metadataList.length == 0) {
             return false;
-        } else {
-            for (RuleMetadata at : this.model.metadataList) {
-                if (at.attributeName.equals(attr)) {
-                    return true;
-                }
-            }
-            return false;
         }
+
+        for (RuleMetadata at : this.model.metadataList) {
+        	if (at.attributeName.equals(attr)) {
+        		return true;
+        	}
+        }
+        return false;
     }
 
     /** return true if we should not allow unfrozen editing of the RHS */
@@ -163,10 +180,10 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
 
         Image addPattern = new ImageButton("images/new_item.gif");
         addPattern.setTitle(constants.AddAConditionToThisRule());
-        addPattern.addClickListener(new ClickListener() {
-
-            public void onClick(Widget w) {
-                showConditionSelector(w, null);
+        addPattern.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
+                showConditionSelector((Widget) event.getSource(), null);
             }
         });
 
@@ -190,10 +207,10 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
 
         Image addAction = new ImageButton("images/new_item.gif"); //NON-NLS
         addAction.setTitle(constants.AddAnActionToThisRule());
-        addAction.addClickListener(new ClickListener() {
-
-            public void onClick(Widget w) {
-                showActionSelector(w, null);
+        addAction.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
+                showActionSelector((Widget) event.getSource(), null);
             }
         });
         if (!lockRHS()) {
@@ -210,9 +227,9 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
 
             final RuleModeller self = this;
             if (!this.showingOptions) {
-                ClickableLabel showMoreOptions = new ClickableLabel("(show options...)", new ClickListener() {
-
-                    public void onClick(Widget sender) {
+                ClickableLabel showMoreOptions = new ClickableLabel("(show options...)", new ClickHandler() {
+        			
+        			public void onClick(ClickEvent event) {
                         showingOptions = true;
                         layout.setWidget(tmp1, 0, new SmallLabel(constants.optionsRuleModeller()));
                         layout.setWidget(tmp1, 2, getAddAttribute());
@@ -253,10 +270,10 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
         Image add = new ImageButton("images/new_item.gif"); //NON-NLS
         add.setTitle(constants.AddAnOptionToTheRuleToModifyItsBehaviorWhenEvaluatedOrExecuted());
 
-        add.addClickListener(new ClickListener() {
-
-            public void onClick(Widget w) {
-                showAttributeSelector(w);
+        add.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
+                showAttributeSelector((Widget) event.getSource());
             }
         });
         return add;
@@ -272,9 +289,9 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
 
         list.setSelectedIndex(0);
 
-        list.addChangeListener(new ChangeListener() {
-
-            public void onChange(Widget w) {
+        list.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
                 String attr = list.getItemText(list.getSelectedIndex());
                 if (attr.equals(RuleAttributeWidget.LOCK_LHS) || attr.equals(RuleAttributeWidget.LOCK_RHS)) {
                     model.addMetadata(new RuleMetadata(attr, "true"));
@@ -289,9 +306,9 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
 
         addbutton.setTitle(constants.AddMetadataToTheRule());
 
-        addbutton.addClickListener(new ClickListener() {
-
-            public void onClick(Widget w) {
+        addbutton.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
 
                 model.addMetadata(new RuleMetadata(box.getText(), ""));
                 refreshWidget();
@@ -310,18 +327,18 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
         pop.addAttribute(constants.Attribute1(), list);
 
         Button freezeConditions = new Button(constants.Conditions());
-        freezeConditions.addClickListener(new ClickListener() {
-
-            public void onClick(Widget sender) {
+        freezeConditions.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
                 model.addMetadata(new RuleMetadata(RuleAttributeWidget.LOCK_LHS, "true"));
                 refreshWidget();
                 pop.hide();
             }
         });
         Button freezeActions = new Button(constants.Actions());
-        freezeActions.addClickListener(new ClickListener() {
-
-            public void onClick(Widget sender) {
+        freezeActions.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
                 model.addMetadata(new RuleMetadata(RuleAttributeWidget.LOCK_RHS, "true"));
                 refreshWidget();
                 pop.hide();
@@ -360,6 +377,7 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
             Boolean readOnly = this.lockRHS()?true:null;
 
             RuleModellerWidget w = getWidgetFactory().getWidget(this, action, readOnly);
+            w.addOnModifiedCommand(this.onWidgetModifiedCommand);
 
             w.setWidth( "100%" );
             widget.add(spacerWidget());
@@ -371,9 +389,9 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
             Image remove = new ImageButton("images/delete_faded.gif"); //NON-NLS
             remove.setTitle(constants.RemoveThisAction());
             final int idx = i;
-            remove.addClickListener(new ClickListener() {
-
-                public void onClick(Widget w) {
+            remove.addClickHandler(new ClickHandler() {
+    			
+    			public void onClick(ClickEvent event) {
                     if (Window.confirm(constants.RemoveThisItem())) {
                         model.removeRhsItem(idx);
                         refreshWidget();
@@ -428,7 +446,7 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
             }
 
             
-
+            this.rhsWidgets.add(w);
             currentLayoutRow++;
 
 
@@ -609,8 +627,8 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
         Button b = new Button(constants.OK());
         hp.add(b);
         b.addClickListener(new ClickListener() {
-
-            public void onClick(final Widget sender) {
+			
+			public void onClick(Widget sender) {
                 cl.onChange(sender);
             }
         });
@@ -633,7 +651,6 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
     }
 
     protected void showActionSelector(Widget w, Integer position) {
-        //XXX {Bauna} add RHS Actions
         final FormStylePopup popup = new FormStylePopup();
         popup.setWidth(-1);
         popup.setTitle(constants.AddANewAction());
@@ -960,6 +977,7 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
             IPattern pattern = model.lhs[i];
             
             RuleModellerWidget w = getWidgetFactory().getWidget(this, pattern, readOnly);
+            w.addOnModifiedCommand(this.onWidgetModifiedCommand);
 
             vert.add(wrapLHSWidget(model, i, w));
             vert.add(spacerWidget());
@@ -997,7 +1015,7 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
             }
 
             
-
+            this.lhsWidgets.add(w);
             currentLayoutRow++;
         }
 
@@ -1020,9 +1038,9 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
         final Image remove = new ImageButton("images/delete_faded.gif"); //NON-NLS
         remove.setTitle(constants.RemoveThisENTIREConditionAndAllTheFieldConstraintsThatBelongToIt());
         final int idx = i;
-        remove.addClickListener(new ClickListener() {
-
-            public void onClick(Widget w) {
+        remove.addClickHandler(new ClickHandler() {
+			
+			public void onClick(ClickEvent event) {
                 if (Window.confirm(constants.RemoveThisEntireConditionQ())) {
                     if (model.removeLhsItem(idx)) {
                         refreshWidget();
@@ -1032,7 +1050,6 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
                 }
             }
         });
-
 
         horiz.setWidth("100%");
         w.setWidth("100%");
@@ -1161,30 +1178,17 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
     private List<AnalysisReportLine> errors;
     private List<AnalysisReportLine> warnings;
 
-    private void showWarningsAndErrors(){
-        this.clearLinesIcons();
-        if (this.warnings != null){
-            for (AnalysisReportLine warning : this.warnings) {
-                if (warning.patternOrderNumber != null){
-                    this.addLineIcon(warning.patternOrderNumber+1, "images/warning.gif", warning.description);
-                }
-            }
-        }
-        if (this.errors != null){
-            for (AnalysisReportLine error : this.errors) {
-                if (error.patternOrderNumber != null){
-                    this.addLineIcon(error.patternOrderNumber+1, "images/error.gif", error.description);
-                }
-            }
-        }
+    public void verifyRule(final Command cmd){
+        this.verifyRule(cmd, false);
     }
 
-    public void verifyRule(final Command cmd){
+    public void verifyRule(final Command cmd, boolean forceVerification){
         errors = new ArrayList<AnalysisReportLine>();
         warnings = new ArrayList<AnalysisReportLine>();
         
-        //if AutoVerifierEnabled is off, just execute cmd and return.
-        if (!WorkingSetManager.getInstance().isAutoVerifierEnabled()){
+        //if AutoVerifierEnabled is off or there are not modified widgets,
+        //just execute cmd and return.
+        if (!forceVerification && (!WorkingSetManager.getInstance().isAutoVerifierEnabled() || !this.hasModifiedWidgets)){
             if (cmd != null){
                 cmd.execute();
             }
@@ -1202,18 +1206,51 @@ public class RuleModeller extends DirtyableComposite implements RuleModelEditor 
                         errors = Arrays.asList(report.errors);
                         warnings = Arrays.asList(report.warnings);
 
-                        showWarningsAndErrors();
+                        processWarningsAndErrors();
 
+
+                        hasModifiedWidgets = false;
                         if (cmd != null) {
                             cmd.execute();
                         }
                     }
 
                     public void onFailure(Throwable arg0) {
-                        // TODO Auto-generated method stub
+                         LoadingPopup.close();
                     }
                 });
 
+    }
+
+    private void processWarningsAndErrors(){
+        
+        if (this.warnings.isEmpty() && this.errors.isEmpty()){
+            for (RuleModellerWidget ruleModellerWidget : this.lhsWidgets) {
+                ruleModellerWidget.setModified(false);
+            }
+            for (RuleModellerWidget ruleModellerWidget : this.rhsWidgets) {
+                ruleModellerWidget.setModified(false);
+            }
+        }
+        showWarningsAndErrors();
+    }
+
+    private void showWarningsAndErrors(){
+        this.clearLinesIcons();
+        if (this.warnings != null){
+            for (AnalysisReportLine warning : this.warnings) {
+                if (warning.patternOrderNumber != null){
+                    this.addLineIcon(warning.patternOrderNumber+1, "images/warning.gif", warning.description);
+                }
+            }
+        }
+        if (this.errors != null){
+            for (AnalysisReportLine error : this.errors) {
+                if (error.patternOrderNumber != null){
+                    this.addLineIcon(error.patternOrderNumber+1, "images/error.gif", error.description);
+                }
+            }
+        }
     }
 
     public boolean hasVerifierErrors(){

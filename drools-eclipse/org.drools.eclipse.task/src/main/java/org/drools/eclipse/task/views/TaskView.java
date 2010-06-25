@@ -8,16 +8,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.SystemEventListenerFactory;
 import org.apache.mina.transport.socket.nio.NioSocketConnector;
+import org.drools.SystemEventListenerFactory;
 import org.drools.eclipse.task.Activator;
 import org.drools.eclipse.task.preferences.DroolsTaskConstants;
 import org.drools.process.workitem.wsht.BlockingAddTaskResponseHandler;
 import org.drools.task.Status;
 import org.drools.task.User;
 import org.drools.task.query.TaskSummary;
-import org.drools.task.service.MinaTaskClient;
-import org.drools.task.service.TaskClientHandler;
+import org.drools.task.service.TaskClient;
+import org.drools.task.service.mina.MinaTaskClientConnector;
+import org.drools.task.service.mina.MinaTaskClientHandler;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IMenuListener;
 import org.eclipse.jface.action.IMenuManager;
@@ -105,7 +106,7 @@ public class TaskView extends ViewPart {
 	private Button completeButton;
 	private Button failButton;
 
-	private MinaTaskClient client;
+	private TaskClient client;
 
 	private class ViewContentProvider implements IStructuredContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
@@ -430,7 +431,7 @@ public class TaskView extends ViewPart {
 			return;
 		}
 
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -445,7 +446,11 @@ public class TaskView extends ViewPart {
 	        updateButtons();
 		} catch (TimeoutException e) {
 			showMessage("Could not connect to task server, refresh first.");
-			client.disconnect();
+			try {
+				client.disconnect();
+			} catch (Exception exc) {
+				exc.printStackTrace();
+			}
 			this.client = null;
 	        tableViewer.setInput(new ArrayList<TaskSummary>());
 	        tableViewer.refresh();
@@ -457,7 +462,7 @@ public class TaskView extends ViewPart {
 		NewTaskDialog dialog = new NewTaskDialog(getSite().getShell());
 		int result = dialog.open();
 		if (result == Dialog.OK) {
-			MinaTaskClient client = getTaskClient();
+			TaskClient client = getTaskClient();
 			if (client == null) {
 				return;
 			}
@@ -469,7 +474,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void claim() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -491,7 +496,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void start() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -513,7 +518,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void stop() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -535,7 +540,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void release() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -557,7 +562,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void suspend() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -579,7 +584,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void resume() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -601,7 +606,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void skip() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -623,7 +628,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void complete() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -645,7 +650,7 @@ public class TaskView extends ViewPart {
 	}
 
 	public void fail() {
-		MinaTaskClient client = getTaskClient();
+		TaskClient client = getTaskClient();
 		if (client == null) {
 			return;
 		}
@@ -666,13 +671,11 @@ public class TaskView extends ViewPart {
         refresh();
 	}
 
-	private MinaTaskClient getTaskClient() {
+	private TaskClient getTaskClient() {
 		if (client == null) {
-			client = new MinaTaskClient(
-				"org.drools.eclipse.task.views.TaskView", new TaskClientHandler(SystemEventListenerFactory.getSystemEventListener()));
-			NioSocketConnector connector = new NioSocketConnector();
-			SocketAddress address = new InetSocketAddress(ipAddress, port);
-			boolean connected = client.connect(connector, address);
+			client = new TaskClient(new MinaTaskClientConnector("client 1",
+                new MinaTaskClientHandler(SystemEventListenerFactory.getSystemEventListener())));
+			boolean connected = client.connect(ipAddress, port);
 			if (!connected) {
 				showMessage("Could not connect to task server: " + ipAddress + " [port " + port + "]");
 				client = null;
@@ -683,7 +686,11 @@ public class TaskView extends ViewPart {
 
 	public void dispose() {
 		if (client != null) {
-			client.disconnect();
+			try {
+				client.disconnect();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 		super.dispose();
 	}

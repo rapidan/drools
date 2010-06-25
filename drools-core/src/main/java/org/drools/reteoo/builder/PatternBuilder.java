@@ -35,7 +35,6 @@ import org.drools.reteoo.PropagationQueuingNode;
 import org.drools.rule.Behavior;
 import org.drools.rule.Declaration;
 import org.drools.rule.EntryPoint;
-import org.drools.rule.FixedDuration;
 import org.drools.rule.GroupElement;
 import org.drools.rule.InvalidPatternException;
 import org.drools.rule.Pattern;
@@ -45,7 +44,6 @@ import org.drools.rule.TypeDeclaration;
 import org.drools.rule.VariableConstraint;
 import org.drools.spi.AlphaNodeFieldConstraint;
 import org.drools.spi.Constraint;
-import org.drools.spi.Duration;
 import org.drools.spi.ObjectType;
 import org.drools.time.impl.CompositeMaxDurationTimer;
 import org.drools.time.impl.DurationTimer;
@@ -59,7 +57,7 @@ import org.drools.time.impl.Timer;
 public class PatternBuilder
     implements
     ReteooComponentBuilder {
-    
+
     /**
      * @inheritDoc
      */
@@ -69,9 +67,11 @@ public class PatternBuilder
 
         final Pattern pattern = (Pattern) rce;
 
+        context.pushRuleComponent( pattern );
         this.attachPattern( context,
                             utils,
                             pattern );
+        context.popRuleComponent();
 
     }
 
@@ -94,7 +94,7 @@ public class PatternBuilder
 
         // Create BetaConstraints object
         context.setBetaconstraints( betaConstraints );
-        
+
         // set behaviors list
         behaviors.addAll( pattern.getBehaviors() );
         context.setBehaviors( behaviors );
@@ -142,7 +142,7 @@ public class PatternBuilder
                                    List<Constraint> alphaConstraints,
                                    List<Constraint> betaConstraints) {
 
-        final List<?> constraints = pattern.getConstraints();
+        final List< ? > constraints = pattern.getConstraints();
 
         // check if cross products for identity patterns should be disabled
         checkRemoveIdentities( context,
@@ -151,8 +151,8 @@ public class PatternBuilder
 
         // checks if this pattern is nested inside a NOT CE
         final boolean isNegative = isNegative( context );
-        
-        for ( final Iterator<?> it = constraints.iterator(); it.hasNext(); ) {
+
+        for ( final Iterator< ? > it = constraints.iterator(); it.hasNext(); ) {
             final Object object = it.next();
             // Check if its a declaration
             if ( object instanceof Declaration ) {
@@ -165,31 +165,30 @@ public class PatternBuilder
                 alphaConstraints.add( constraint );
             } else if ( constraint.getType().equals( Constraint.ConstraintType.BETA ) ) {
                 betaConstraints.add( constraint );
-                if( isNegative && 
-                    context.getRuleBase().getConfiguration().getEventProcessingMode() == EventProcessingOption.STREAM && 
-                    pattern.getObjectType().isEvent() && 
-                    constraint.isTemporal() ) {
-                    checkDelaying( context, constraint );
+                if ( isNegative && context.getRuleBase().getConfiguration().getEventProcessingMode() == EventProcessingOption.STREAM && pattern.getObjectType().isEvent() && constraint.isTemporal() ) {
+                    checkDelaying( context,
+                                   constraint );
                 }
             } else {
-                throw new RuntimeDroolsException( "Unknown constraint type: "+constraint.getType()+". This is a bug. Please contact development team.");
+                throw new RuntimeDroolsException( "Unknown constraint type: " + constraint.getType() + ". This is a bug. Please contact development team." );
             }
         }
     }
 
-    private void checkDelaying( final BuildContext context, final Constraint constraint ) {
-        if( constraint instanceof VariableConstraint ) {
+    private void checkDelaying(final BuildContext context,
+                               final Constraint constraint) {
+        if ( constraint instanceof VariableConstraint ) {
             // variable constraints always require a single declaration
             Declaration target = constraint.getRequiredDeclarations()[0];
-            if( target.isPatternDeclaration() && target.getPattern().getObjectType().isEvent() ) {
+            if ( target.isPatternDeclaration() && target.getPattern().getObjectType().isEvent() ) {
                 long uplimit = ((VariableConstraint) constraint).getInterval().getUpperBound();
-                
-                Timer timer = context.getRule().getTimer();                
-                DurationTimer durationTimer = new DurationTimer(uplimit);                
-                
+
+                Timer timer = context.getRule().getTimer();
+                DurationTimer durationTimer = new DurationTimer( uplimit );
+
                 if ( timer instanceof CompositeMaxDurationTimer ) {
                     // already a composite so just add
-                    ((CompositeMaxDurationTimer)timer).addDurationTimer( durationTimer );
+                    ((CompositeMaxDurationTimer) timer).addDurationTimer( durationTimer );
                 } else {
                     if ( timer == null ) {
                         // no timer exists, so ok on it's own
@@ -199,10 +198,10 @@ public class PatternBuilder
                         CompositeMaxDurationTimer temp = new CompositeMaxDurationTimer();
                         if ( timer instanceof DurationTimer ) {
                             // previous timer was a duration, so add another DurationTimer
-                            temp.addDurationTimer( ( DurationTimer ) timer );                            
+                            temp.addDurationTimer( (DurationTimer) timer );
                         } else {
                             // previous timer was not a duration, so set it as the delegate Timer.
-                            temp.setTimer( context.getRule().getTimer() );    
+                            temp.setTimer( context.getRule().getTimer() );
                         }
                         // now add the new durationTimer
                         temp.addDurationTimer( durationTimer );
@@ -216,9 +215,9 @@ public class PatternBuilder
     }
 
     private boolean isNegative(final BuildContext context) {
-        for( ListIterator<RuleConditionElement> it = context.stackIterator(); it.hasPrevious(); ) {
+        for ( ListIterator<RuleConditionElement> it = context.stackIterator(); it.hasPrevious(); ) {
             RuleConditionElement rce = it.previous();
-            if( rce instanceof GroupElement && ((GroupElement)rce).isNot() ) {
+            if ( rce instanceof GroupElement && ((GroupElement) rce).isNot() ) {
                 return true;
             }
         }
@@ -246,7 +245,11 @@ public class PatternBuilder
                                                      epn,
                                                      objectType,
                                                      context );
-            
+
+            long expirationOffset = getExpiratioOffsetForType( context,
+                                                               objectType );
+            otn.setExpirationOffset( expirationOffset );
+
             if ( wms.length > 0 ) {
                 otn.attach( wms );
             } else {
@@ -255,6 +258,22 @@ public class PatternBuilder
 
             return otn;
         }
+    }
+
+    private static long getExpiratioOffsetForType(BuildContext context,
+                                                  ObjectType objectType) {
+        long expirationOffset = -1;
+        for ( TypeDeclaration type : context.getRuleBase().getTypeDeclarations() ) {
+            if ( type.getObjectType().isAssignableFrom( objectType ) ) {
+                expirationOffset = Math.max( type.getExpirationOffset(),
+                                             expirationOffset );
+            }
+        }
+        // if none of the type declarations have an @expires annotation
+        // we return -1 (no-expiration) value, otherwise we return the
+        // set expiration value+1 to enable the fact to match events with
+        // the same timestamp
+        return expirationOffset == -1 ? -1 : expirationOffset+1;
     }
 
     public void attachAlphaNodes(final BuildContext context,
@@ -288,23 +307,25 @@ public class PatternBuilder
                                                  (EntryPointNode) context.getObjectSource(),
                                                  objectType,
                                                  context );
-        if( objectType.isEvent() && EventProcessingOption.STREAM.equals( context.getRuleBase().getConfiguration().getEventProcessingMode() ) ) {
-            long expirationOffset = 0;
-            for( TypeDeclaration type : context.getRuleBase().getTypeDeclarations() ) {
-                if( type.getObjectType().isAssignableFrom( objectType ) ) {
-                    expirationOffset = Math.max( type.getExpirationOffset(), expirationOffset );
-                }
-                
-            }
-            for( Behavior behavior : pattern.getBehaviors() ) {
-                if( behavior.getExpirationOffset() != -1 ) {
-                    expirationOffset = Math.max( behavior.getExpirationOffset(), expirationOffset );
+        if ( objectType.isEvent() && EventProcessingOption.STREAM.equals( context.getRuleBase().getConfiguration().getEventProcessingMode() ) ) {
+            long expirationOffset = getExpiratioOffsetForType( context,
+                                                               objectType );
+            for ( Behavior behavior : pattern.getBehaviors() ) {
+                if ( behavior.getExpirationOffset() != -1 ) {
+                    expirationOffset = Math.max( behavior.getExpirationOffset(),
+                                                 expirationOffset );
                 }
             }
-            if( expirationOffset == 0) {
-                otn.setExpirationOffset( context.getTemporalDistance().getExpirationOffset( pattern ) );
-            } else {
+            long distance = context.getTemporalDistance().getExpirationOffset( pattern );
+            if( distance == -1 ) {
+                // it means the rules have no temporal constraints, or
+                // the constraints require events to be hold forever. In this 
+                // case, we allow type declarations to override the implicit 
+                // expiration offset by defining an expiration policy with the
+                // @expires tag
                 otn.setExpirationOffset( expirationOffset );
+            } else {
+                otn.setExpirationOffset( Math.max( distance, expirationOffset ) );
             }
         }
 
@@ -314,11 +335,13 @@ public class PatternBuilder
         for ( final Iterator<Constraint> it = alphaConstraints.iterator(); it.hasNext(); ) {
             final AlphaNodeFieldConstraint constraint = (AlphaNodeFieldConstraint) it.next();
 
+            context.pushRuleComponent( constraint );
             context.setObjectSource( (ObjectSource) utils.attachNode( context,
                                                                       new AlphaNode( context.getNextId(),
                                                                                      (AlphaNodeFieldConstraint) constraint,
                                                                                      context.getObjectSource(),
                                                                                      context ) ) );
+            context.popRuleComponent();
         }
 
         // now restore back to original values
@@ -338,10 +361,10 @@ public class PatternBuilder
         if ( context.getRuleBase().getConfiguration().isRemoveIdentities() && pattern.getObjectType().getClass() == ClassObjectType.class ) {
             // Check if this object type exists before
             // If it does we need stop instance equals cross product
-            final Class<?> thisClass = ((ClassObjectType) pattern.getObjectType()).getClassType();
+            final Class< ? > thisClass = ((ClassObjectType) pattern.getObjectType()).getClassType();
             for ( final Iterator<Pattern> it = context.getObjectType().iterator(); it.hasNext(); ) {
                 final Pattern previousPattern = it.next();
-                final Class<?> previousClass = ((ClassObjectType) previousPattern.getObjectType()).getClassType();
+                final Class< ? > previousClass = ((ClassObjectType) previousPattern.getObjectType()).getClassType();
                 if ( thisClass.isAssignableFrom( previousClass ) ) {
                     betaConstraints.add( new InstanceNotEqualsConstraint( previousPattern ) );
                 }
@@ -357,6 +380,6 @@ public class PatternBuilder
      */
     public boolean requiresLeftActivation(final BuildUtils utils,
                                           final RuleConditionElement rce) {
-        return  ((Pattern) rce).getSource() != null;
+        return ((Pattern) rce).getSource() != null;
     }
 }

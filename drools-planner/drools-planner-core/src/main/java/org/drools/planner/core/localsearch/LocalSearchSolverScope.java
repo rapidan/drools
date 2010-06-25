@@ -1,12 +1,20 @@
 package org.drools.planner.core.localsearch;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 
+import org.drools.ClassObjectFilter;
 import org.drools.RuleBase;
 import org.drools.StatefulSession;
 import org.drools.WorkingMemory;
 import org.drools.planner.core.score.calculator.ScoreCalculator;
 import org.drools.planner.core.score.Score;
+import org.drools.planner.core.score.constraint.ConstraintOccurrence;
+import org.drools.planner.core.score.constraint.DoubleConstraintOccurrence;
+import org.drools.planner.core.score.constraint.IntConstraintOccurrence;
+import org.drools.planner.core.score.constraint.UnweightedConstraintOccurrence;
 import org.drools.planner.core.score.definition.ScoreDefinition;
 import org.drools.planner.core.solution.Solution;
 
@@ -28,6 +36,7 @@ public class LocalSearchSolverScope {
     private Random workingRandom;
 
     private Score startingScore;
+    private long calculateCount;
 
     private int bestSolutionStepIndex;
     private Solution bestSolution;
@@ -96,6 +105,10 @@ public class LocalSearchSolverScope {
         this.startingScore = startingScore;
     }
 
+    public long getCalculateCount() {
+        return calculateCount;
+    }
+
     public int getBestSolutionStepIndex() {
         return bestSolutionStepIndex;
     }
@@ -132,15 +145,17 @@ public class LocalSearchSolverScope {
     // Calculated methods
     // ************************************************************************
 
+    public void reset() {
+        startingSystemTimeMillis = System.currentTimeMillis();
+        calculateCount = 0L;
+    }
+
     public Score calculateScoreFromWorkingMemory() {
         workingMemory.fireAllRules();
         Score score = workingScoreCalculator.calculateScore();
         workingSolution.setScore(score);
+        calculateCount++;
         return score;
-    }
-
-    public void resetTimeMillisSpend() {
-        startingSystemTimeMillis = System.currentTimeMillis();
     }
 
     public long calculateTimeMillisSpend() {
@@ -160,6 +175,68 @@ public class LocalSearchSolverScope {
         for (Object fact : workingSolution.getFacts()) {
             workingMemory.insert(fact);
         }
+    }
+
+    public void assertWorkingScore(Score presumedScore) {
+        StatefulSession tmpWorkingMemory = ruleBase.newStatefulSession();
+        ScoreCalculator tmpScoreCalculator = workingScoreCalculator.clone();
+        tmpWorkingMemory.setGlobal(GLOBAL_SCORE_CALCULATOR_KEY, tmpScoreCalculator);
+        for (Object fact : workingSolution.getFacts()) {
+            tmpWorkingMemory.insert(fact);
+        }
+        tmpWorkingMemory.fireAllRules();
+        Score realScore = tmpScoreCalculator.calculateScore();
+        tmpWorkingMemory.dispose();
+        if (!presumedScore.equals(realScore)) {
+            throw new IllegalStateException(
+                    "The presumedScore (" + presumedScore + ") is corrupted because it is not the realScore  ("
+                            + realScore + ").\n"
+                    + "Presumed workingMemory:\n" + buildConstraintOccurrenceSummary(workingMemory)
+                    + "Real workingMemory:\n" + buildConstraintOccurrenceSummary(tmpWorkingMemory));
+        }
+    }
+
+    public String buildConstraintOccurrenceSummary() {
+        return buildConstraintOccurrenceSummary(workingMemory);
+    }
+
+    /**
+     * TODO Refactor this with the ConstraintOccurrenceTotal class: https://jira.jboss.org/jira/browse/JBRULES-2510
+     * @return never null
+     */
+    public String buildConstraintOccurrenceSummary(WorkingMemory summaryWorkingMemory) {
+        if (summaryWorkingMemory == null) {
+            return "  The workingMemory is null.";
+        }
+        Map<String, Number> scoreTotalMap = new TreeMap<String, Number>();
+        Iterator<ConstraintOccurrence> it = (Iterator<ConstraintOccurrence>) summaryWorkingMemory.iterateObjects(
+                new ClassObjectFilter(ConstraintOccurrence.class));
+        while (it.hasNext()) {
+            ConstraintOccurrence occurrence = it.next();
+            Number scoreTotalNumber = scoreTotalMap.get(occurrence.getRuleId());
+            if (occurrence instanceof IntConstraintOccurrence) {
+                int scoreTotal = scoreTotalNumber == null ? 0 : (Integer) scoreTotalNumber;
+                scoreTotal += ((IntConstraintOccurrence) occurrence).getWeight();
+                scoreTotalMap.put(occurrence.getRuleId(), scoreTotal);
+            } else if (occurrence instanceof DoubleConstraintOccurrence) {
+                double scoreTotal = scoreTotalNumber == null ? 0 : (Double) scoreTotalNumber;
+                scoreTotal += ((DoubleConstraintOccurrence) occurrence).getWeight();
+                scoreTotalMap.put(occurrence.getRuleId(), scoreTotal);
+            } else if (occurrence instanceof UnweightedConstraintOccurrence) {
+                int scoreTotal = scoreTotalNumber == null ? 0 : (Integer) scoreTotalNumber;
+                scoreTotal += 1;
+                scoreTotalMap.put(occurrence.getRuleId(), scoreTotal);
+            } else {
+                throw new IllegalStateException("Cannot determine occurrenceScore of ConstraintOccurrence class: "
+                        + occurrence.getClass());
+            }
+        }
+        StringBuilder summary = new StringBuilder();
+        for (Map.Entry<String, Number> scoreTotalEntry : scoreTotalMap.entrySet()) {
+            summary.append("  Score rule (").append(scoreTotalEntry.getKey()).append(") has score total (")
+                    .append(scoreTotalEntry.getValue()).append(").\n");
+        }
+        return summary.toString();
     }
 
 }

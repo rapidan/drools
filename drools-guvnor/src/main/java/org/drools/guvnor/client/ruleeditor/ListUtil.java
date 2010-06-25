@@ -20,14 +20,14 @@ package org.drools.guvnor.client.ruleeditor;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.drools.guvnor.client.modeldriven.brl.DSLSentence;
+import org.drools.ide.common.client.modeldriven.brl.DSLSentence;
 
 public class ListUtil {
 
-    public static List filter(DSLSentence[] source,
+    public static List<DSLSentence> filter(DSLSentence[] source,
                              String filterVal) {
 
-        ArrayList filteredList = new ArrayList();
+        List<DSLSentence> filteredList = new ArrayList<DSLSentence>();
         for ( int i = 0; i < source.length; i++ ) {
             DSLSentence item = source[i];
             if (filterVal.equals( "" ) || item.sentence.startsWith( filterVal )) {

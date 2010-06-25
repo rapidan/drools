@@ -22,7 +22,7 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.*;
 import com.gwtext.client.util.Format;
 import org.drools.guvnor.client.common.SmallLabel;
-import org.drools.guvnor.client.modeldriven.brl.ActionGlobalCollectionAdd;
+import org.drools.ide.common.client.modeldriven.brl.ActionGlobalCollectionAdd;
 
 /**
  * Add Variable to global collection Widget
@@ -52,7 +52,7 @@ public class GlobalCollectionAddWidget extends RuleModellerWidget {
         super(modeller);
 
         if (readOnly == null) {
-            this.readOnly = !modeller.getSuggestionCompletions().containsFactType(modeller.getModel().getBoundFact(action.factName).factType);
+            this.readOnly = !modeller.getSuggestionCompletions().containsFactType(modeller.getModel().getBindingType(action.factName));
         } else {
             this.readOnly = readOnly;
         }
@@ -70,6 +70,8 @@ public class GlobalCollectionAddWidget extends RuleModellerWidget {
         layout.setWidget(0, 0, sp);
         initWidget(layout);
 
+        //This widget couldn't be modified
+        this.setModified(false);
     }
 
     @Override

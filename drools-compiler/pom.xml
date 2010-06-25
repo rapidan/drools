@@ -55,13 +55,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
          <artifactId>janino</artifactId>
       </dependency>
       <dependency>
-         <groupId>com.thoughtworks.xstream</groupId>
-         <artifactId>xstream</artifactId>
-         <optional>true</optional>
-      </dependency>
-      <dependency>
          <groupId>org.mvel</groupId>
          <artifactId>mvel2</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>com.thoughtworks.xstream</groupId>
+         <artifactId>xstream</artifactId>
+         <scope>test</scope>
       </dependency>
       <dependency>
          <groupId>org.mortbay.jetty</groupId>
@@ -74,6 +74,17 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
          <artifactId>quartz</artifactId>
          <scope>test</scope>
       </dependency>
+      
+    <dependency>
+      <groupId>com.sun.xml.bind</groupId>
+      <artifactId>jaxb-impl</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.sun.xml.bind</groupId>
+      <artifactId>jaxb-xjc</artifactId>
+      <scope>provided</scope>
+    </dependency>      
    </dependencies>
    <profiles>
       <profile>

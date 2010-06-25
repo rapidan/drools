@@ -20,14 +20,11 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 
 import org.drools.QueryResults;
 import org.drools.SessionConfiguration;
-import org.drools.base.DefaultQueryResultsCollector;
 import org.drools.base.DroolsQuery;
+import org.drools.base.StandardQueryViewChangedEventListener;
 import org.drools.common.AbstractWorkingMemory;
 import org.drools.common.DefaultAgenda;
 import org.drools.common.EventFactHandle;
@@ -37,16 +34,22 @@ import org.drools.common.InternalRuleBase;
 import org.drools.common.InternalWorkingMemory;
 import org.drools.common.PropagationContextImpl;
 import org.drools.common.WorkingMemoryAction;
+import org.drools.event.AgendaEventSupport;
+import org.drools.event.RuleFlowEventSupport;
+import org.drools.event.WorkingMemoryEventSupport;
 import org.drools.impl.EnvironmentFactory;
 import org.drools.marshalling.impl.MarshallerReaderContext;
 import org.drools.marshalling.impl.MarshallerWriteContext;
 import org.drools.rule.Declaration;
 import org.drools.rule.EntryPoint;
 import org.drools.rule.Package;
-import org.drools.rule.Query;
 import org.drools.rule.Rule;
 import org.drools.runtime.Environment;
 import org.drools.runtime.ObjectFilter;
+import org.drools.runtime.rule.LiveQuery;
+import org.drools.runtime.rule.ViewChangedEventListener;
+import org.drools.runtime.rule.impl.LiveQueryImpl;
+import org.drools.runtime.rule.impl.OpenQueryViewChangedEventListenerAdapter;
 import org.drools.spi.FactHandleFactory;
 import org.drools.spi.PropagationContext;
 
@@ -94,6 +97,26 @@ public class ReteooWorkingMemory extends AbstractWorkingMemory {
         this.agenda = new DefaultAgenda( ruleBase );
         this.agenda.setWorkingMemory( this );
     }
+    public ReteooWorkingMemory(final int id,
+                               final InternalRuleBase ruleBase,
+                               final SessionConfiguration config,
+                               final Environment environment,
+                               final WorkingMemoryEventSupport workingMemoryEventSupport,
+                               final AgendaEventSupport agendaEventSupport,
+                               final RuleFlowEventSupport ruleFlowEventSupport) {
+        super( id, 
+               ruleBase,
+               ruleBase.newFactHandleFactory(),
+               config,
+               environment,
+               workingMemoryEventSupport,
+               agendaEventSupport,
+               ruleFlowEventSupport);
+
+        this.agenda = new DefaultAgenda( ruleBase );
+        this.agenda.setWorkingMemory( this );
+}
+
 
     public ReteooWorkingMemory(final int id,
                                final InternalRuleBase ruleBase,
@@ -141,7 +164,8 @@ public class ReteooWorkingMemory extends AbstractWorkingMemory {
             this.lock.lock();
             DroolsQuery queryObject = new DroolsQuery( query,
                                                        arguments,
-                                                       new DefaultQueryResultsCollector() );
+                                                       new StandardQueryViewChangedEventListener(),
+                                                       false );
             InternalFactHandle handle = this.handleFactory.newFactHandle( queryObject,
                                                                           this.getObjectTypeConfigurationRegistry().getObjectTypeConf( EntryPoint.DEFAULT,
                                                                                                                                        queryObject ),
@@ -162,7 +186,7 @@ public class ReteooWorkingMemory extends AbstractWorkingMemory {
                 declarations = queryObject.getQuery().getDeclarations();
             }
 
-            return new QueryResults( ((DefaultQueryResultsCollector) queryObject.getQueryResultCollector()).getResults(),
+            return new QueryResults( ((StandardQueryViewChangedEventListener) queryObject.getQueryResultCollector()).getResults(),
                                      declarations,
                                      this );
         } finally {
@@ -171,7 +195,72 @@ public class ReteooWorkingMemory extends AbstractWorkingMemory {
             endOperation();
         }
     }
+    
+    public LiveQuery openLiveQuery(final String query,
+                              final Object[] arguments,
+                              final ViewChangedEventListener listener) {
 
+        try {
+            startOperation();
+            this.ruleBase.readLock();
+            this.lock.lock();
+            DroolsQuery queryObject = new DroolsQuery( query,
+                                                       arguments,
+                                                       new OpenQueryViewChangedEventListenerAdapter(listener),
+                                                       true );
+            InternalFactHandle handle = this.handleFactory.newFactHandle( queryObject,
+                                                                          this.getObjectTypeConfigurationRegistry().getObjectTypeConf( EntryPoint.DEFAULT,
+                                                                                                                                       queryObject ),
+                                                                          this );
+
+            insert( handle,
+                    queryObject,
+                    null,
+                    null,
+                    this.typeConfReg.getObjectTypeConf( this.entryPoint,
+                                                        queryObject ) );
+            
+            return new LiveQueryImpl( this, handle );
+
+//            this.handleFactory.destroyFactHandle( handle );
+//
+//            Declaration[] declarations = new Declaration[0];
+//            if ( queryObject.getQuery() != null ) {
+//                // this is null when there are no query results, thus the query object is never set
+//                declarations = queryObject.getQuery().getDeclarations();
+//            }
+//
+//            return new QueryResults( ((DefaultQueryResultsCollector) queryObject.getQueryResultCollector()).getResults(),
+//                                     declarations,
+//                                     this );
+        } finally {
+            this.lock.unlock();
+            this.ruleBase.readUnlock();
+            endOperation();
+        }
+    }    
+
+    public void closeLiveQuery(final InternalFactHandle factHandle) {
+
+             try {
+                 startOperation();
+                 this.ruleBase.readLock();
+                 this.lock.lock();
+
+                 getEntryPointNode().retractObject( factHandle,
+                                                            null,
+                                                            this.getObjectTypeConfigurationRegistry().getObjectTypeConf( this.getEntryPoint(),
+                                                                                                                            factHandle.getObject() ),
+                                                            this );
+                 getFactHandleFactory().destroyFactHandle( factHandle );
+                 
+             } finally {
+                 this.lock.unlock();
+                 this.ruleBase.readUnlock();
+                 endOperation();
+             }
+         }        
+    
     public static class WorkingMemoryReteAssertAction
         implements
         WorkingMemoryAction {

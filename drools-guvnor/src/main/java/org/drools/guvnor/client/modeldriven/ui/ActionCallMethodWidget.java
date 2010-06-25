@@ -11,16 +11,17 @@ import org.drools.guvnor.client.common.FormStylePopup;
 import org.drools.guvnor.client.common.ImageButton;
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.DropDownData;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
-import org.drools.guvnor.client.modeldriven.MethodInfo;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ActionCallMethod;
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldFunction;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.DropDownData;
+import org.drools.ide.common.client.modeldriven.MethodInfo;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ActionCallMethod;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldFunction;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertFact;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.ChangeListener;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.HorizontalPanel;
@@ -236,26 +237,27 @@ public class ActionCallMethodWidget extends RuleModellerWidget {
 
         SuggestionCompletionEngine completions = this.getModeller().getSuggestionCompletions();
 
-        String type = "";
-        if ( completions.isGlobalVariable( this.model.variable ) ) {
-            type = (String) completions.getGlobalVariable( this.model.variable );
-        } else {
-            if ( this.getModeller().getModel().getBoundFact( this.model.variable ) != null ) {
-                type = this.getModeller().getModel().getBoundFact( this.model.variable ).factType;
-            } else {
-                if ( this.getModeller().getModel().getRhsBoundFact( this.model.variable ) != null ) {
-                    type = this.getModeller().getModel().getRhsBoundFact( this.model.variable ).factType;
-                }
-            }
-        }
+		String type = "";
+		if (completions.isGlobalVariable(this.model.variable)) {
+			type = completions.getGlobalVariable(this.model.variable);
+		} else {
+			type = this.getModeller().getModel().getBindingType(this.model.variable);
+			if (type == null) {
+				type = this.getModeller().getModel().getRhsBoundFact(this.model.variable).factType;
+			}
+		}
 
-        DropDownData enums = completions.getEnums( type,
-                                                        this.model.fieldValues,
-                                                        val.field );
-        return new MethodParameterValueEditor( val,
-                                               enums,
-                                               this.getModeller(),
-                                               val.type );
+		DropDownData enums = completions.getEnums(type, this.model.fieldValues, val.field);
+		
+        return new MethodParameterValueEditor(val,
+                enums,
+                this.getModeller(),
+                val.type, new Command() {
+
+            public void execute() {
+                setModified(true);
+            }
+        });
     }
 
     /**

@@ -13,6 +13,7 @@ import org.drools.planner.core.solution.Solution;
 import org.drools.planner.examples.common.domain.AbstractPersistable;
 import org.drools.planner.examples.nurserostering.domain.contract.Contract;
 import org.drools.planner.examples.nurserostering.domain.contract.ContractLine;
+import org.drools.planner.examples.nurserostering.domain.contract.PatternContractLine;
 import org.drools.planner.examples.nurserostering.domain.request.DayOffRequest;
 import org.drools.planner.examples.nurserostering.domain.request.DayOnRequest;
 import org.drools.planner.examples.nurserostering.domain.request.ShiftOffRequest;
@@ -32,6 +33,7 @@ public class NurseRoster extends AbstractPersistable implements Solution {
     private List<Pattern> patternList;
     private List<Contract> contractList;
     private List<ContractLine> contractLineList;
+    private List<PatternContractLine> patternContractLineList;
     private List<Employee> employeeList;
     private List<SkillProficiency> skillProficiencyList;
     private List<ShiftDate> shiftDateList;
@@ -41,7 +43,7 @@ public class NurseRoster extends AbstractPersistable implements Solution {
     private List<ShiftOffRequest> shiftOffRequestList;
     private List<ShiftOnRequest> shiftOnRequestList;
 
-    private List<EmployeeAssignment> employeeAssignmentList;
+    private List<Assignment> assignmentList;
 
     private HardAndSoftScore score;
 
@@ -99,6 +101,14 @@ public class NurseRoster extends AbstractPersistable implements Solution {
 
     public void setContractLineList(List<ContractLine> contractLineList) {
         this.contractLineList = contractLineList;
+    }
+
+    public List<PatternContractLine> getPatternContractLineList() {
+        return patternContractLineList;
+    }
+
+    public void setPatternContractLineList(List<PatternContractLine> patternContractLineList) {
+        this.patternContractLineList = patternContractLineList;
     }
 
     public List<Employee> getEmployeeList() {
@@ -165,12 +175,12 @@ public class NurseRoster extends AbstractPersistable implements Solution {
         this.shiftOnRequestList = shiftOnRequestList;
     }
 
-    public List<EmployeeAssignment> getEmployeeAssignmentList() {
-        return employeeAssignmentList;
+    public List<Assignment> getAssignmentList() {
+        return assignmentList;
     }
 
-    public void setEmployeeAssignmentList(List<EmployeeAssignment> employeeAssignmentList) {
-        this.employeeAssignmentList = employeeAssignmentList;
+    public void setAssignmentList(List<Assignment> assignmentList) {
+        this.assignmentList = assignmentList;
     }
 
     public HardAndSoftScore getScore() {
@@ -183,17 +193,20 @@ public class NurseRoster extends AbstractPersistable implements Solution {
 
 
     public boolean isInitialized() {
-        return (employeeAssignmentList != null);
+        return (assignmentList != null);
     }
 
     public Collection<? extends Object> getFacts() {
         List<Object> facts = new ArrayList<Object>();
+        // TODO add RosterInfo as a property on NurseRoster
+        facts.add(new RosterInfo(shiftDateList.get(0), shiftDateList.get(shiftDateList.size() - 1)));
         facts.addAll(skillList);
         facts.addAll(shiftTypeList);
         facts.addAll(shiftTypeSkillRequirementList);
         facts.addAll(patternList);
         facts.addAll(contractList);
         facts.addAll(contractLineList);
+        facts.addAll(patternContractLineList);
         facts.addAll(employeeList);
         facts.addAll(skillProficiencyList);
         facts.addAll(shiftDateList);
@@ -206,13 +219,13 @@ public class NurseRoster extends AbstractPersistable implements Solution {
 
 
         if (isInitialized()) {
-            facts.addAll(employeeAssignmentList);
+            facts.addAll(assignmentList);
         }
         return facts;
     }
 
     /**
-     * Clone will only deep copy the {@link #employeeAssignmentList}.
+     * Clone will only deep copy the {@link #assignmentList}.
      */
     public NurseRoster cloneSolution() {
         NurseRoster clone = new NurseRoster();
@@ -224,6 +237,7 @@ public class NurseRoster extends AbstractPersistable implements Solution {
         clone.patternList = patternList;
         clone.contractList = contractList;
         clone.contractLineList = contractLineList;
+        clone.patternContractLineList = patternContractLineList;
         clone.employeeList = employeeList;
         clone.skillProficiencyList = skillProficiencyList;
         clone.shiftDateList = shiftDateList;
@@ -232,13 +246,13 @@ public class NurseRoster extends AbstractPersistable implements Solution {
         clone.dayOnRequestList = dayOnRequestList;
         clone.shiftOffRequestList = shiftOffRequestList;
         clone.shiftOnRequestList = shiftOnRequestList;
-        List<EmployeeAssignment> clonedEmployeeAssignmentList = new ArrayList<EmployeeAssignment>(
-                employeeAssignmentList.size());
-        for (EmployeeAssignment employeeAssignment : employeeAssignmentList) {
-            EmployeeAssignment clonedEmployeeAssignment = employeeAssignment.clone();
-            clonedEmployeeAssignmentList.add(clonedEmployeeAssignment);
+        List<Assignment> clonedAssignmentList = new ArrayList<Assignment>(
+                assignmentList.size());
+        for (Assignment assignment : assignmentList) {
+            Assignment clonedAssignment = assignment.clone();
+            clonedAssignmentList.add(clonedAssignment);
         }
-        clone.employeeAssignmentList = clonedEmployeeAssignmentList;
+        clone.assignmentList = clonedAssignmentList;
         clone.score = score;
         return clone;
     }
@@ -251,14 +265,14 @@ public class NurseRoster extends AbstractPersistable implements Solution {
             return false;
         } else {
             NurseRoster other = (NurseRoster) o;
-            if (employeeAssignmentList.size() != other.employeeAssignmentList.size()) {
+            if (assignmentList.size() != other.assignmentList.size()) {
                 return false;
             }
-            for (Iterator<EmployeeAssignment> it = employeeAssignmentList.iterator(), otherIt = other.employeeAssignmentList.iterator(); it.hasNext();) {
-                EmployeeAssignment employeeAssignment = it.next();
-                EmployeeAssignment otherEmployeeAssignment = otherIt.next();
+            for (Iterator<Assignment> it = assignmentList.iterator(), otherIt = other.assignmentList.iterator(); it.hasNext();) {
+                Assignment assignment = it.next();
+                Assignment otherAssignment = otherIt.next();
                 // Notice: we don't use equals()
-                if (!employeeAssignment.solutionEquals(otherEmployeeAssignment)) {
+                if (!assignment.solutionEquals(otherAssignment)) {
                     return false;
                 }
             }
@@ -268,9 +282,9 @@ public class NurseRoster extends AbstractPersistable implements Solution {
 
     public int hashCode() {
         HashCodeBuilder hashCodeBuilder = new HashCodeBuilder();
-        for (EmployeeAssignment employeeAssignment : employeeAssignmentList) {
+        for (Assignment assignment : assignmentList) {
             // Notice: we don't use hashCode()
-            hashCodeBuilder.append(employeeAssignment.solutionHashCode());
+            hashCodeBuilder.append(assignment.solutionHashCode());
         }
         return hashCodeBuilder.toHashCode();
     }

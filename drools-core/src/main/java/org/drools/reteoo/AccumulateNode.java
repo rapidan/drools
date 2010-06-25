@@ -25,6 +25,7 @@ import java.util.Arrays;
 
 import org.drools.RuleBaseConfiguration;
 import org.drools.RuntimeDroolsException;
+import org.drools.base.DroolsQuery;
 import org.drools.common.BetaConstraints;
 import org.drools.common.InternalFactHandle;
 import org.drools.common.InternalWorkingMemory;
@@ -128,12 +129,24 @@ public class AccumulateNode extends BetaNode {
 
         AccumulateContext accresult = new AccumulateContext();
 
+        boolean useLeftMemory = true;
         if ( this.tupleMemoryEnabled ) {
             memory.betaMemory.getLeftTupleMemory().add( leftTuple );
             memory.betaMemory.getCreatedHandles().put( leftTuple,
                                                        accresult,
                                                        false );
-        }
+        } else {
+            // this is a hack, to not add closed DroolsQuery objects
+            Object object = ((InternalFactHandle)context.getFactHandle()).getObject();
+            if ( memory.betaMemory.getLeftTupleMemory() != null && !(object instanceof DroolsQuery &&  !((DroolsQuery)object).isOpen() ) ) {                
+                memory.betaMemory.getLeftTupleMemory().add( leftTuple );
+                memory.betaMemory.getCreatedHandles().put( leftTuple,
+                                                           accresult,
+                                                           false );
+            } else {
+                useLeftMemory = false;
+            }
+        }        
 
         accresult.context = this.accumulate.createContext();
 
@@ -146,7 +159,7 @@ public class AccumulateNode extends BetaNode {
                                           workingMemory,
                                           leftTuple );
 
-        for ( RightTuple rightTuple = memory.betaMemory.getRightTupleMemory().getFirst( leftTuple ); rightTuple != null; rightTuple = (RightTuple) rightTuple.getNext() ) {
+        for ( RightTuple rightTuple = memory.betaMemory.getRightTupleMemory().getFirst( leftTuple, (InternalFactHandle) context.getFactHandle() ); rightTuple != null; rightTuple = (RightTuple) rightTuple.getNext() ) {
             InternalFactHandle handle = rightTuple.getFactHandle();
             if ( this.constraints.isAllowedCachedLeft( memory.betaMemory.getContext(),
                                                        handle ) ) {
@@ -158,7 +171,8 @@ public class AccumulateNode extends BetaNode {
                           null,
                           workingMemory,
                           memory,
-                          accresult );
+                          accresult,
+                          useLeftMemory );
             }
         }
 
@@ -169,7 +183,8 @@ public class AccumulateNode extends BetaNode {
                                    context,
                                    workingMemory,
                                    memory,
-                                   accresult );
+                                   accresult,
+                                   useLeftMemory );
 
     }
 
@@ -230,9 +245,10 @@ public class AccumulateNode extends BetaNode {
 
         memory.betaMemory.getRightTupleMemory().add( rightTuple );
 
-        if ( !this.tupleMemoryEnabled ) {
-            // do nothing here, as we know there are no left tuples at this stage in sequential mode.
-            return;
+        if ( memory.betaMemory.getLeftTupleMemory() == null || memory.betaMemory.getLeftTupleMemory().size() == 0  ) {
+            // do nothing here, as we know there are no left tuples at this stage in sequential mode or for a query.
+            // unless it's an "Open Query" and thus that will have left memory, so continue as normal
+            return;            
         }
 
         this.constraints.updateFromFactHandle( memory.betaMemory.getContext(),
@@ -249,13 +265,15 @@ public class AccumulateNode extends BetaNode {
                           null,
                           workingMemory,
                           memory,
-                          accctx );
+                          accctx,
+                          true );
                 evaluateResultConstraints( ActivitySource.RIGHT,
                                            leftTuple,
                                            context,
                                            workingMemory,
                                            memory,
-                                           accctx );
+                                           accctx,
+                                           true );
             }
         }
 
@@ -314,7 +332,7 @@ public class AccumulateNode extends BetaNode {
 
         RightTupleMemory rightMemory = memory.betaMemory.getRightTupleMemory();
 
-        RightTuple rightTuple = rightMemory.getFirst( leftTuple );
+        RightTuple rightTuple = rightMemory.getFirst( leftTuple, (InternalFactHandle) context.getFactHandle() );
 
         // first check our index (for indexed nodes only) hasn't changed and we are returning the same bucket
         if ( childLeftTuple != null && rightMemory.isIndexed() && rightTuple != rightMemory.getFirst( childLeftTuple.getRightParent() ) ) {
@@ -343,7 +361,8 @@ public class AccumulateNode extends BetaNode {
                                   null,
                                   workingMemory,
                                   memory,
-                                  accctx );
+                                  accctx,
+                                  true );
                     }
                 }
             } else {
@@ -362,7 +381,8 @@ public class AccumulateNode extends BetaNode {
                                       null,
                                       workingMemory,
                                       memory,
-                                      accctx );
+                                      accctx,
+                                      true );
                         } else {
                             // we must re-add this to ensure deterministic iteration
                             LeftTuple temp = childLeftTuple.getLeftParentNext();
@@ -402,7 +422,8 @@ public class AccumulateNode extends BetaNode {
                                    context,
                                    workingMemory,
                                    memory,
-                                   accctx );
+                                   accctx,
+                                   true );
     }
 
     public void modifyRightTuple(RightTuple rightTuple,
@@ -415,7 +436,7 @@ public class AccumulateNode extends BetaNode {
         memory.betaMemory.getRightTupleMemory().remove( rightTuple );
         memory.betaMemory.getRightTupleMemory().add( rightTuple );
         
-        if ( !this.tupleMemoryEnabled ) {
+        if ( memory.betaMemory.getLeftTupleMemory() == null || memory.betaMemory.getLeftTupleMemory().size() == 0 ) {
             // do nothing here, as we know there are no left tuples at this stage in sequential mode.
             return;
         }        
@@ -466,13 +487,15 @@ public class AccumulateNode extends BetaNode {
                                   null,
                                   workingMemory,
                                   memory,
-                                  accctx );
+                                  accctx,
+                                  true );
                         evaluateResultConstraints( ActivitySource.RIGHT,
                                                    leftTuple,
                                                    context,
                                                    workingMemory,
                                                    memory,
-                                                   accctx );
+                                                   accctx,
+                                                   true );
                     }
                 }
             } else {
@@ -501,7 +524,8 @@ public class AccumulateNode extends BetaNode {
                                   childLeftTuple,
                                   workingMemory,
                                   memory,
-                                  accctx );
+                                  accctx,
+                                  true );
                         if( temp != null ) {
                             childLeftTuple = temp;
                         }
@@ -510,7 +534,8 @@ public class AccumulateNode extends BetaNode {
                                                    context,
                                                    workingMemory,
                                                    memory,
-                                                   accctx );
+                                                   accctx,
+                                                   true );
                     } else if ( childLeftTuple != null && childLeftTuple.getLeftParent() == leftTuple ) {
 
                         LeftTuple temp = childLeftTuple.getRightParentNext();
@@ -527,7 +552,8 @@ public class AccumulateNode extends BetaNode {
                                                    context,
                                                    workingMemory,
                                                    memory,
-                                                   accctx );
+                                                   accctx,
+                                                   true );
 
                         childLeftTuple = temp;
                     }
@@ -554,17 +580,14 @@ public class AccumulateNode extends BetaNode {
                                            final PropagationContext context,
                                            final InternalWorkingMemory workingMemory,
                                            final AccumulateMemory memory,
-                                           final AccumulateContext accctx) {
+                                           final AccumulateContext accctx,
+                                           final boolean useLeftMemory ) {
 
         // get the actual result
         final Object result = this.accumulate.getResult( memory.workingMemoryContext,
                                                          accctx.context,
                                                          leftTuple,
                                                          workingMemory );
-
-        if ( result == null ) {
-            throw new RuntimeDroolsException( "Accumulate must not return a null value." );
-        }
 
         if ( accctx.result == null ) {
             final InternalFactHandle handle = workingMemory.getFactHandleFactory().newFactHandle( result,
@@ -579,13 +602,12 @@ public class AccumulateNode extends BetaNode {
         }
 
         // First alpha node filters
-        boolean isAllowed = true;
-        for ( int i = 0, length = this.resultConstraints.length; i < length; i++ ) {
+        boolean isAllowed = result != null;
+        for ( int i = 0, length = this.resultConstraints.length; isAllowed && i < length; i++ ) {
             if ( !this.resultConstraints[i].isAllowed( accctx.result.getFactHandle(),
                                                        workingMemory,
                                                        memory.alphaContexts[i] ) ) {
                 isAllowed = false;
-                break;
             }
         }
         if ( isAllowed ) {
@@ -611,13 +633,13 @@ public class AccumulateNode extends BetaNode {
                                                              leftTuple,
                                                              context,
                                                              workingMemory,
-                                                             this.tupleMemoryEnabled );
+                                                             useLeftMemory );
                 } else {
                     this.sink.propagateModifyChildLeftTuple( leftTuple.firstChild,
                                                              accctx.result,
                                                              context,
                                                              workingMemory,
-                                                             this.tupleMemoryEnabled );
+                                                             useLeftMemory );
                 }
             } else {
                 // retract
@@ -641,7 +663,7 @@ public class AccumulateNode extends BetaNode {
                                                 null,
                                                 context,
                                                 workingMemory,
-                                                this.tupleMemoryEnabled );
+                                                useLeftMemory );
             accctx.propagated = true;
             // restore the matchings list
             restoreList( leftTuple,
@@ -668,7 +690,7 @@ public class AccumulateNode extends BetaNode {
                                                      null,
                                                      null,
                                                      sink,
-                                                     this.tupleMemoryEnabled ),
+                                                     true ),
                                       context,
                                       workingMemory );
                 restoreList( leftTuple,
@@ -741,7 +763,8 @@ public class AccumulateNode extends BetaNode {
                           final LeftTuple currentRightChild,
                           final InternalWorkingMemory workingMemory,
                           final AccumulateMemory memory,
-                          final AccumulateContext accresult) {
+                          final AccumulateContext accresult,
+                          final boolean useLeftMemory ) {
         LeftTuple tuple = leftTuple;
         InternalFactHandle handle = rightTuple.getFactHandle();
         if ( this.unwrapRightObject ) {
@@ -756,14 +779,14 @@ public class AccumulateNode extends BetaNode {
                                     workingMemory );
 
         // in sequential mode, we don't need to keep record of matched tuples
-        if ( this.tupleMemoryEnabled ) {
+        if ( useLeftMemory ) {
             // linking left and right by creating a new left tuple
             new LeftTuple( leftTuple,
                            rightTuple,
                            currentLeftChild,
                            currentRightChild,
                            this,
-                           this.tupleMemoryEnabled );
+                           true );
         }
     }
 
@@ -880,7 +903,8 @@ public class AccumulateNode extends BetaNode {
                                        context,
                                        workingMemory,
                                        memory,
-                                       accctx );
+                                       accctx,
+                                       true );
             match = tmp;
         }
     }

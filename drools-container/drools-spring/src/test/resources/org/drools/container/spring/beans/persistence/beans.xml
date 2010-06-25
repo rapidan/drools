@@ -14,14 +14,16 @@
 		<property name="password" value="" />
 	</bean>
 
-	<!--
-		<bean id="sm1" class="org.drools.vsm.local.ServiceManagerLocalClient" /> 
-	<drools:kbase id="kbase1" serviceManager="sm1">
-		<drools:resource type="DRF" source="classpath:rules/VariablePersistenceStrategyProcess.rf" />
+	<drools:connection id="connection1" type="local" />
+	<drools:execution-node id="node1" connection="connection1" />
+
+	<drools:kbase id="kbProcessWorkItems" node="node1">
+		<drools:resource type="PKG" source="file:///${temp.dir}/processWorkItems.pkg" />
+		<drools:resource type="PKG" source="file:///${temp.dir}/processSubProcess.pkg" />
+		<drools:resource type="PKG" source="file:///${temp.dir}/processTimer.pkg" />
+		<drools:resource type="PKG" source="file:///${temp.dir}/processTimer2.pkg" />
 	</drools:kbase>
-	<drools:ksession id="ksession1" type="stateless" name="stateless1" kbase="kbase1" serviceManager="sm1" />
-	<drools:ksession id="ksession2" type="stateful" kbase="kbase1" serviceManager="sm1" />
-	 -->
+	
 	<bean id="myEmf" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
 		<property name="dataSource" ref="ds" />
 		<property name="persistenceUnitName" value="org.drools.persistence.jpa.local" />
@@ -30,13 +32,12 @@
 	<bean id="txManager" class="org.springframework.orm.jpa.JpaTransactionManager">
 		<property name="entityManagerFactory" ref="myEmf" />
 	</bean>
-
-	<!-- 
-	<bean id="jpaProcessKnowledgeProvider" class="org.drools.container.spring.beans.persistence.JPAKnowledgeServiceBean">
-		<property name="kbase" ref="kbase1" />
-		<property name="serviceManager" ref="sm1" />
-		<property name="entityManagerFactory" ref="myEmf" />
-		<property name="transactionManager" ref="txManager" />
+	
+	<bean id="jpaSingleSessionCommandService" class="org.drools.container.spring.beans.JPASingleSessionCommandServiceFactory">
+		<property name="knowledgeBase" ref="kbProcessWorkItems"/>
+		<property name="entityManagerFactory" ref="myEmf"/>
+		<property name="transactionManager" ref="txManager"/>
+		<!-- 
 		<property name="variablePersisters">
 			<map>
 				<entry key="javax.persistence.Entity" value="org.drools.persistence.processinstance.persisters.JPAVariablePersister"/>
@@ -44,6 +45,7 @@
 				<entry key="java.io.Serializable" value="org.drools.persistence.processinstance.persisters.SerializableVariablePersister"/>
 			</map>
 		</property>
+		 -->
 	</bean>
-	 -->
+
 </beans>

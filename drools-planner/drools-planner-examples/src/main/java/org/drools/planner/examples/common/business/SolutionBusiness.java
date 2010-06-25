@@ -18,9 +18,6 @@ import org.drools.planner.core.localsearch.DefaultLocalSearchSolver;
 import org.drools.planner.core.localsearch.LocalSearchSolverScope;
 import org.drools.planner.core.move.Move;
 import org.drools.planner.core.score.constraint.ConstraintOccurrence;
-import org.drools.planner.core.score.constraint.DoubleConstraintOccurrence;
-import org.drools.planner.core.score.constraint.IntConstraintOccurrence;
-import org.drools.planner.core.score.constraint.UnweightedConstraintOccurrence;
 import org.drools.planner.core.score.Score;
 import org.drools.planner.core.solution.Solution;
 import org.drools.planner.examples.common.persistence.AbstractSolutionExporter;
@@ -92,15 +89,15 @@ public class SolutionBusiness {
                     + ") does not exist. The working directory should be set to drools-planner-examples.");
         }
         solvedDataDir = new File(getDataDir(), "solved");
-        if (!solvedDataDir.exists()) {
+        if (!solvedDataDir.exists() && !solvedDataDir.mkdir()) {
             throw new IllegalStateException("The directory solvedDataDir (" + solvedDataDir.getAbsolutePath()
-                    + ") does not exist. The working directory should be set to drools-planner-examples.");
+                    + ") does not exist and could not be created.");
         }
         if (hasExporter()) {
             exportDataDir = new File(getDataDir(), "output");
-            if (!exportDataDir.exists()) {
+            if (!exportDataDir.exists() && !exportDataDir.mkdir()) {
                 throw new IllegalStateException("The directory exportDataDir (" + exportDataDir.getAbsolutePath()
-                        + ") does not exist. The working directory should be set to drools-planner-examples.");
+                        + ") does not exist and could not be created.");
             }
         }
     }
@@ -160,24 +157,13 @@ public class SolutionBusiness {
         Iterator<ConstraintOccurrence> it = (Iterator<ConstraintOccurrence>) workingMemory.iterateObjects(
                 new ClassObjectFilter(ConstraintOccurrence.class));
         while (it.hasNext()) {
-            ConstraintOccurrence occurrence = it.next();
-            ScoreDetail scoreDetail = scoreDetailMap.get(occurrence.getRuleId());
+            ConstraintOccurrence constraintOccurrence = it.next();
+            ScoreDetail scoreDetail = scoreDetailMap.get(constraintOccurrence.getRuleId());
             if (scoreDetail == null) {
-                scoreDetail = new ScoreDetail(occurrence.getRuleId(), occurrence.getConstraintType());
-                scoreDetailMap.put(occurrence.getRuleId(), scoreDetail);
+                scoreDetail = new ScoreDetail(constraintOccurrence.getRuleId(), constraintOccurrence.getConstraintType());
+                scoreDetailMap.put(constraintOccurrence.getRuleId(), scoreDetail);
             }
-            double occurrenceScore;
-            if (occurrence instanceof IntConstraintOccurrence) {
-                occurrenceScore = ((IntConstraintOccurrence) occurrence).getWeight();
-            } else if (occurrence instanceof DoubleConstraintOccurrence) {
-                occurrenceScore = ((DoubleConstraintOccurrence) occurrence).getWeight();
-            } else if (occurrence instanceof UnweightedConstraintOccurrence) {
-                occurrenceScore = 1.0;
-            } else {
-                throw new IllegalStateException("Cannot determine occurrenceScore of ConstraintOccurrence class: "
-                        + occurrence.getClass());
-            }
-            scoreDetail.addOccurrenceScore(occurrenceScore);
+            scoreDetail.addConstraintOccurrence(constraintOccurrence);
         }
         List<ScoreDetail> scoreDetailList = new ArrayList<ScoreDetail>(scoreDetailMap.values());
         Collections.sort(scoreDetailList);
@@ -189,7 +175,7 @@ public class SolutionBusiness {
         solver.setStartingSolution(solution);
     }
 
-    public void loadSolution(File file) {
+    public void openSolution(File file) {
         Solution solution = solutionDao.readSolution(file);
         solver.setStartingSolution(solution);
     }

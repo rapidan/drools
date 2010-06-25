@@ -1,15 +1,15 @@
 package org.drools.guvnor.client.modeldriven.ui;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.drools.guvnor.client.common.DirtyableComposite;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.dt.TemplateModel;
 import org.drools.guvnor.client.rpc.RuleAsset;
+import org.drools.ide.common.client.modeldriven.dt.TemplateModel;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.Widget;
 import com.gwtext.client.core.EventObject;
@@ -31,8 +31,9 @@ import com.gwtext.client.widgets.grid.ColumnModel;
 import com.gwtext.client.widgets.grid.EditorGridPanel;
 import com.gwtext.client.widgets.grid.GridEditor;
 import com.gwtext.client.widgets.grid.GridPanel;
-import com.gwtext.client.widgets.grid.GroupingView;
+import com.gwtext.client.widgets.grid.GridView;
 import com.gwtext.client.widgets.grid.event.EditorGridListenerAdapter;
+import com.gwtext.client.widgets.grid.event.GridListenerAdapter;
 import com.gwtext.client.widgets.menu.BaseItem;
 import com.gwtext.client.widgets.menu.Item;
 import com.gwtext.client.widgets.menu.Menu;
@@ -41,29 +42,32 @@ import com.gwtext.client.widgets.menu.event.BaseItemListenerAdapter;
 public class RuleTemplateEditor extends DirtyableComposite implements RuleModelEditor {
 
 	private TemplateModel model;
-	private GroupingStore store;
+	private GroupingStore store = null;
+	private EditorGridPanel grid = null;
 	private RuleModeller ruleModeller;
 	private Constants constants = ((Constants) GWT.create(Constants.class));
+	
 
 	public RuleTemplateEditor(RuleAsset asset) {
 		model = (TemplateModel) asset.content;
 		TabPanel tPanel = new TabPanel();
-		tPanel.setAutoWidth(true);
+		tPanel.setWidth(800);
+//		tPanel.setAutoWidth(true);
 //		tPanel.setAutoHeight(true);
 		
 		Panel pnl = new Panel();
-		pnl.setAutoWidth(true);
+//		pnl.setAutoWidth(true);
 		pnl.setClosable(false);
-		pnl.setTitle("Template Editor");
+		pnl.setTitle(constants.TemplateEditor());
 //		pnl.setAutoHeight(true);
 		ruleModeller = new RuleModeller(asset, new TemplateModellerWidgetFactory());
 		pnl.add(ruleModeller);
 		tPanel.add(pnl);
 
 		pnl = new Panel();
-		pnl.setAutoWidth(true);
+//		pnl.setAutoWidth(true);
 		pnl.setClosable(false);
-		pnl.setTitle("Template Data");
+		pnl.setTitle(constants.TemplateData());
 //		pnl.setAutoHeight(true);
 		pnl.add(buildTemplateTable());
 		pnl.setId("tplTable");
@@ -91,18 +95,16 @@ public class RuleTemplateEditor extends DirtyableComposite implements RuleModelE
 
 	private Widget buildTemplateTable() {
 
-		final Map<String, Integer> vars = model.getInterpolationVariables();
-		if (vars.isEmpty()) {
+		String[] vars = model.getInterpolationVariablesList();
+		if (vars.length == 0) {
 			return new Label("");
 		}
 
-		FieldDef[] fds = new FieldDef[vars.size()];
+		FieldDef[] fds = new FieldDef[vars.length];
 		ColumnConfig[] cols = new ColumnConfig[fds.length];
 
-		for (Map.Entry<String, Integer> entry: vars.entrySet()) {
-			int idx = entry.getValue();
-			String var = entry.getKey();
-			
+		int idx = 0;
+		for (String var: vars) {
 			cols[idx] = new ColumnConfig();
 			cols[idx].setHeader(var);
 			cols[idx].setDataIndex(var);
@@ -111,6 +113,7 @@ public class RuleTemplateEditor extends DirtyableComposite implements RuleModelE
 			cols[idx].setResizable(true);
 			cols[idx].setEditor(new GridEditor(new TextField()));
 			fds[idx] = new StringFieldDef(var);
+			idx++;
 		}
 		final RecordDef recordDef = new RecordDef(fds);
 		ArrayReader reader = new ArrayReader(recordDef);
@@ -124,15 +127,16 @@ public class RuleTemplateEditor extends DirtyableComposite implements RuleModelE
 		}
 		store = new GroupingStore(proxy, reader);
 		store.load();
-		EditorGridPanel grid = new EditorGridPanel(store, cm);
+		grid = new EditorGridPanel(store, cm);
 		grid.setStripeRows(true);
 
-		GroupingView gv = new GroupingView();
+//		GroupingView gv = new GroupingView();
+		GridView gv = new GridView(); 
 
 		// to stretch it out
 		gv.setForceFit(true);
-		gv.setGroupTextTpl("{text} ({[values.rs.length]} {[values.rs.length > 1 ? \"" // NON-NLS
-				+ constants.Items() + "\" : \"" + constants.Item() + "\"]})");
+//		gv.setGroupTextTpl("{text} ({[values.rs.length]} {[values.rs.length > 1 ? \"" // NON-NLS
+//				+ constants.Items() + "\" : \"" + constants.Item() + "\"]})");
 
 		grid.setView(gv);
 
@@ -149,15 +153,36 @@ public class RuleTemplateEditor extends DirtyableComposite implements RuleModelE
 				for (int i = 0; i < rowData.length; i++) {
 					rowData[i] = "";
 				}
-				store.add(recordDef.createRecord(rowData));
-				model.addRow(rowData);
+				Record newRecord = recordDef.createRecord(rowData);
+				store.add(newRecord);
+				model.addRow(newRecord.getId(), rowData);
 			}
 		}));
-
+		
+		menu.addItem(new Item(constants.RemoveSelectedRowS(), new BaseItemListenerAdapter() {
+			public void onClick(BaseItem item, EventObject e) {
+				removeSelectedRows(grid);
+			}
+		}));
+		
+		grid.addGridListener(new GridListenerAdapter() {
+			
+			public void onKeyPress(EventObject e) {
+				int k = e.getKey();
+				if (k == KeyCodes.KEY_DELETE || k == KeyCodes.KEY_BACKSPACE) {
+					removeSelectedRows(grid);
+				} 
+				else if (k == KeyCodes.KEY_ENTER) {
+					int[] selectedCell = grid.getCellSelectionModel().getSelectedCell();
+					grid.startEditing(selectedCell[0], selectedCell[1]);
+				}
+			}
+		});
+//		grid.setSelectionModel(new RowSelectionModel(false));
 		ToolbarMenuButton tbb = new ToolbarMenuButton(constants.Modify(), menu);
 		tb.addButton(tbb);
 		grid.add(tb);
-
+		
 		grid.addEditorGridListener(new EditorGridListenerAdapter() {
 			@Override
 			public void onAfterEdit(GridPanel grid, Record record, String field, Object newValue, Object oldValue,
@@ -167,6 +192,15 @@ public class RuleTemplateEditor extends DirtyableComposite implements RuleModelE
 		});
 
 		return grid;
+	}
+	
+	private void removeSelectedRows(EditorGridPanel grid) {
+		if (com.google.gwt.user.client.Window.confirm(constants.AreYouSureYouWantToDeleteTheSelectedRowS())) {
+			int row = grid.getCellSelectionModel().getSelectedCell()[0];
+			Record rec = store.getAt(row);
+			model.removeRowById(rec.getId());
+			store.remove(rec);
+		}
 	}
 	
 	@Override

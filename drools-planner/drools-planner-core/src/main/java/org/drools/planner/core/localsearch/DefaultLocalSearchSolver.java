@@ -27,6 +27,8 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
     protected Termination termination;
     protected Decider decider;
 
+    protected boolean assertStepScoreIsUncorrupted = false;
+
     protected LocalSearchSolverScope localSearchSolverScope = new LocalSearchSolverScope(); // TODO remove me
 
     public void setRandomSeed(long randomSeed) {
@@ -39,6 +41,10 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
 
     public void setScoreDefinition(ScoreDefinition scoreDefinition) {
         localSearchSolverScope.setScoreDefinition(scoreDefinition);
+    }
+
+    public ScoreDefinition getScoreDefinition() {
+        return localSearchSolverScope.getScoreDefinition();
     }
 
     public void setScoreCalculator(ScoreCalculator scoreCalculator) {
@@ -59,6 +65,11 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
         this.bestSolutionRecaller.setSolverEventSupport(solverEventSupport);
     }
 
+    public void setTermination(Termination termination) {
+        this.termination = termination;
+        this.termination.setLocalSearchSolver(this);
+    }
+
     public Decider getDecider() {
         return decider;
     }
@@ -68,9 +79,8 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
         this.decider.setLocalSearchSolver(this);
     }
 
-    public void setTermination(Termination termination) {
-        this.termination = termination;
-        this.termination.setLocalSearchSolver(this);
+    public void setAssertStepScoreIsUncorrupted(boolean assertStepScoreIsUncorrupted) {
+        this.assertStepScoreIsUncorrupted = assertStepScoreIsUncorrupted;
     }
 
     public void setStartingSolution(Solution startingSolution) {
@@ -105,7 +115,7 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
             decider.decideNextStep(stepScope);
             Move nextStep = stepScope.getStep();
             if (nextStep == null) {
-                // TODO JBRULES-2213 do not terminate, but warn and try again (especially with relativeSelection)
+                // TODO JBRULES-2213 do not terminate, but warn and try again
                 logger.warn("No move accepted for step index ({}) out of {} accepted moves. Terminating by exception.",
                         stepScope.getStepIndex(), decider.getForager().getAcceptedMovesSize());
                 break;
@@ -117,6 +127,9 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
             nextStep.doMove(stepScope.getWorkingMemory());
             // there is no need to recalculate the score, but we still need to set it
             localSearchSolverScope.getWorkingSolution().setScore(stepScope.getScore());
+            if (assertStepScoreIsUncorrupted) {
+                localSearchSolverScope.assertWorkingScore(stepScope.getScore());
+            }
             stepTaken(stepScope);
             stepScope = createNextStepScope(localSearchSolverScope, stepScope);
         }
@@ -137,7 +150,7 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
     }
 
     public void solvingStarted(LocalSearchSolverScope localSearchSolverScope) {
-        localSearchSolverScope.resetTimeMillisSpend();
+        localSearchSolverScope.reset();
         if (randomSeed != null) {
             logger.info("Solving with random seed ({}).", randomSeed);
             localSearchSolverScope.setWorkingRandom(new Random(randomSeed));
@@ -181,10 +194,15 @@ public class DefaultLocalSearchSolver extends AbstractSolver implements LocalSea
         bestSolutionRecaller.solvingEnded(localSearchSolverScope);
         termination.solvingEnded(localSearchSolverScope);
         decider.solvingEnded(localSearchSolverScope);
-        logger.info("Solved at step index ({}) with time spend ({}) for best score ({}).", new Object[] {
+        long timeMillisSpend = localSearchSolverScope.calculateTimeMillisSpend();
+        long averageCalculateCountPerSecond = localSearchSolverScope.getCalculateCount() * 1000L / timeMillisSpend;
+        logger.info("Solved at step index ({}) with time spend ({}) for best score ({})"
+                + " with average calculate count per second ({}).",
+                new Object[] {
                 localSearchSolverScope.getLastCompletedStepScope().getStepIndex(),
-                localSearchSolverScope.calculateTimeMillisSpend(),
-                localSearchSolverScope.getBestScore()
+                timeMillisSpend,
+                localSearchSolverScope.getBestScore(),
+                averageCalculateCountPerSecond
         });
     }
 

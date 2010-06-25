@@ -17,20 +17,16 @@ import javax.imageio.ImageIO;
 
 import org.drools.planner.core.Solver;
 import org.drools.planner.core.score.Score;
-import org.drools.planner.core.score.SimpleScore;
-import org.drools.planner.core.score.HardAndSoftScore;
 import org.apache.commons.io.IOUtils;
-import org.jfree.chart.ChartFactory;
+import org.drools.planner.core.score.definition.ScoreDefinition;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.chart.renderer.xy.XYStepRenderer;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-import org.jfree.ui.RectangleInsets;
 
 /**
  * @author Geoffrey De Smet
@@ -41,6 +37,7 @@ public class BestScoreStatistic implements SolverStatistic {
     // key is the configName
     private Map<String, BestScoreStatisticListener> bestScoreStatisticListenerMap
             = new HashMap<String, BestScoreStatisticListener>();
+    private ScoreDefinition scoreDefinition = null;
 
     public void addListener(Solver solver, String configName) {
         if (configNameList.contains(configName)) {
@@ -51,6 +48,14 @@ public class BestScoreStatistic implements SolverStatistic {
         BestScoreStatisticListener bestScoreStatisticListener = new BestScoreStatisticListener();
         solver.addEventListener(bestScoreStatisticListener);
         bestScoreStatisticListenerMap.put(configName, bestScoreStatisticListener);
+        if (scoreDefinition == null) {
+            scoreDefinition = solver.getScoreDefinition();
+        } else {
+            if (!scoreDefinition.getClass().equals(solver.getScoreDefinition().getClass())) {
+                throw new IllegalStateException("The scoreDefinition (" + solver.getScoreDefinition()
+                        + ") should be of the same class as the other scoreDefinition (" + scoreDefinition + ")");
+            }
+        }
     }
 
     public void removeListener(Solver solver, String configName) {
@@ -128,9 +133,9 @@ public class BestScoreStatistic implements SolverStatistic {
                     writer.append(",");
                     Score score = timeToBestScoresLine.getConfigNameToScoreMap().get(configName);
                     if (score != null) {
-                        Integer scoreAlias = extractScoreAlias(score);
-                        if (scoreAlias != null) {
-                            writer.append(scoreAlias.toString());
+                        Double scoreGraphValue = scoreDefinition.translateScoreToGraphValue(score);
+                        if (scoreGraphValue != null) {
+                            writer.append(scoreGraphValue.toString());
                         }
                     }
                 }
@@ -141,7 +146,7 @@ public class BestScoreStatistic implements SolverStatistic {
         } finally {
             IOUtils.closeQuietly(writer);
         }
-        return "  <p><a href=\"" + csvStatisticFile.getName() + "\">CVS file</a></p>";
+        return "  <p><a href=\"" + csvStatisticFile.getName() + "\">CVS file</a></p>\n";
     }
 
     private CharSequence writeGraphStatistic(File solverStatisticFilesDirectory, String baseName) {
@@ -154,15 +159,15 @@ public class BestScoreStatistic implements SolverStatistic {
             for (BestScoreStatisticPoint statisticPoint : statisticPointList) {
                 long timeMillisSpend = statisticPoint.getTimeMillisSpend();
                 Score score = statisticPoint.getScore();
-                Integer scoreAlias = extractScoreAlias(score);
-                if (scoreAlias != null) {
-                    configSeries.add(timeMillisSpend, scoreAlias);
+                Double scoreGraphValue = scoreDefinition.translateScoreToGraphValue(score);
+                if (scoreGraphValue != null) {
+                    configSeries.add(timeMillisSpend, scoreGraphValue);
                 }
             }
             seriesCollection.addSeries(configSeries);
         }
         NumberAxis xAxis = new NumberAxis("Time millis spend");
-        xAxis.setAutoRangeIncludesZero(false);
+        xAxis.setNumberFormatOverride(new MillisecondsSpendNumberFormat());
         NumberAxis yAxis = new NumberAxis("Score");
         yAxis.setAutoRangeIncludesZero(false);
         XYItemRenderer renderer = new XYStepRenderer();
@@ -170,7 +175,7 @@ public class BestScoreStatistic implements SolverStatistic {
         plot.setOrientation(PlotOrientation.VERTICAL);
         JFreeChart chart = new JFreeChart(baseName + " best score statistic",
                 JFreeChart.DEFAULT_TITLE_FONT, plot, true);
-        BufferedImage chartImage = chart.createBufferedImage(800, 600);
+        BufferedImage chartImage = chart.createBufferedImage(1024, 768);
         File graphStatisticFile = new File(solverStatisticFilesDirectory, baseName + "Statistic.png");
         OutputStream out = null;
         try {
@@ -181,27 +186,7 @@ public class BestScoreStatistic implements SolverStatistic {
         } finally {
             IOUtils.closeQuietly(out);
         }
-        return "  <img src=\"" + graphStatisticFile.getName() + "\"/>";
-    }
-
-    private Integer extractScoreAlias(Score score) {
-        // TODO Plugging in other Score implementations instead of SimpleScore and HardAndSoftScore should be possible
-        // TODO https://jira.jboss.org/jira/browse/JBRULES-2441
-        Integer scoreAlias;
-        if (score instanceof SimpleScore) {
-            SimpleScore simpleScore = (SimpleScore) score;
-            scoreAlias = simpleScore.getScore();
-        } else if (score instanceof HardAndSoftScore) {
-            HardAndSoftScore hardAndSoftScore = (HardAndSoftScore) score;
-            if (hardAndSoftScore.getHardScore() == 0) {
-                scoreAlias = hardAndSoftScore.getSoftScore();
-            } else {
-                scoreAlias = null;
-            }
-        } else {
-            throw new IllegalStateException("Score class (" + score.getClass() + ") not supported.");
-        }
-        return scoreAlias;
+        return "  <img src=\"" + graphStatisticFile.getName() + "\"/>\n";
     }
 
 }

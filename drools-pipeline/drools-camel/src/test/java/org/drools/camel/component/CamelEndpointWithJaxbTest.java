@@ -1,10 +1,8 @@
 package org.drools.camel.component;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -15,9 +13,12 @@ import org.apache.camel.builder.RouteBuilder;
 import org.drools.KnowledgeBase;
 import org.drools.KnowledgeBaseFactoryService;
 import org.drools.builder.DirectoryLookupFactoryService;
+import org.drools.builder.JaxbConfiguration;
 import org.drools.builder.KnowledgeBuilder;
+import org.drools.builder.KnowledgeBuilderFactory;
 import org.drools.builder.KnowledgeBuilderFactoryService;
 import org.drools.builder.ResourceType;
+import org.drools.builder.conf.impl.JaxbConfigurationImpl;
 import org.drools.builder.help.KnowledgeBuilderHelper;
 import org.drools.command.runtime.BatchExecutionCommand;
 import org.drools.command.runtime.process.StartProcessCommand;
@@ -107,7 +108,7 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 	public void testSessionModify() throws Exception {
 		String cmd = "";
 		cmd += "<batch-execution lookup='ksession1'>\n";
-		cmd += "   <modify factHandle='" + handle + "'>\n";
+		cmd += "   <modify fact-handle='" + handle + "'>\n";
 		cmd += "      <set accessor='name' value='\"salaboy\"' />\n";
 		cmd += "   </modify>\n";
 		cmd += "</batch-execution>\n";
@@ -123,7 +124,7 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 		assertEquals(expectedXml, outXml);
 		
 		cmd = "<batch-execution lookup='ksession1'>\n";
-		cmd += "   <get-object out-identifier='rider' factHandle='" + handle + "'/>\n";
+		cmd += "   <get-object out-identifier='rider' fact-handle='" + handle + "'/>\n";
 		cmd += "</batch-execution>\n";
 
 		byte[] xmlResp = (byte[]) template.requestBodyAndHeader("direct:test-with-session", cmd.toString(), "jaxb-context", jaxbContext);
@@ -144,7 +145,7 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 
 		String cmd =  "";
 		cmd += "<batch-execution lookup='ksession1'>\n"; 
-		cmd += "   <retract factHandle='" + handle + "' />\n"; 
+		cmd += "   <retract fact-handle='" + handle + "' />\n"; 
 		cmd += "</batch-execution>";
 
 		String outXml = new String((byte[])template.requestBodyAndHeader("direct:test-with-session", cmd, "jaxb-context", jaxbContext));
@@ -284,10 +285,12 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 
 	@Override
 	protected RouteBuilder createRouteBuilder() throws Exception {
-		return new RouteBuilder() {
+		return new DroolsRouteBuilder() {
 			public void configure() throws Exception {
-				from("direct:test-with-session").to("drools:sm/ksession1?dataFormat=drools-jaxb");
-				from("direct:test-no-session").to("drools:sm?dataFormat=drools-jaxb");
+				from("direct:test-with-session").
+				    unmarshal("drools-jaxb").to("drools:node/ksession1").marshal("drools-jaxb");
+				from("direct:test-no-session").
+				    unmarshal("drools-jaxb").to("drools:node").marshal("drools-jaxb");
 			}
 		};
 	}
@@ -298,7 +301,7 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 		me.setName("Hadrian");
 
 		String rule = "";
-		rule += "package org.drools \n";
+		rule += "package org.drools.pipeline.camel \n";
 		rule += "import org.drools.pipeline.camel.Person \n";
 		rule += "global java.util.List list \n";
 		rule += "query persons \n";
@@ -329,19 +332,10 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 
 		Options xjcOpts = new Options();
 		xjcOpts.setSchemaLanguage( Language.XMLSCHEMA );
-
-		String classNames[] = null;
-
-		try {
-			classNames = KnowledgeBuilderHelper.addXsdModel( ResourceFactory.newClassPathResource("person.xsd", getClass()),
-					kbuilder,
-					xjcOpts,
-			"xsd" );
-		} catch (IOException e) {
-			LOG.error("Errors while adding xsd model. ", kbuilder.getErrors());
-		}
-
-		assertFalse( kbuilder.hasErrors() );
+		
+		JaxbConfiguration jaxbConfiguration = KnowledgeBuilderFactory.newJaxbConfiguration( xjcOpts, "xsd" );
+		
+		kbuilder.add( ResourceFactory.newClassPathResource("person.xsd", getClass()), ResourceType.XSD, jaxbConfiguration);
 
 		if (rule != null && rule.length() > 0) {
 			kbuilder.add(ResourceFactory.newByteArrayResource(rule.getBytes()), ResourceType.DRL);
@@ -443,11 +437,14 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 		kbase.addKnowledgePackages(kbuilder.getKnowledgePackages());
 
 		// Add object model to classes array
-		List<String> allClasses = new ArrayList<String>(Arrays.asList(classNames));		
-		allClasses.add("org.drools.pipeline.camel.Person");
-
+		List<String> classesName = new ArrayList<String>();		
+		classesName.add("org.drools.model.AddressType");
+		classesName.add("org.drools.model.ObjectFactory");
+		classesName.add("org.drools.model.Person");
+		classesName.add("org.drools.pipeline.camel.Person");
+		
 		try {
-			jaxbContext = KnowledgeBuilderHelper.newJAXBContext( allClasses.toArray(new String[allClasses.size()]), kbase );
+			jaxbContext = KnowledgeBuilderHelper.newJAXBContext( classesName.toArray(new String[classesName.size()]), kbase );
 		} catch (Exception e) {
 			LOG.info("Errors while creating JAXB Context. ", e);
 			e.printStackTrace();
@@ -458,5 +455,5 @@ public class CamelEndpointWithJaxbTest extends DroolsCamelTestSupport {
 		node.get(DirectoryLookupFactoryService.class).register(identifier, session);
 		return session;
 	}
-
+	
 }

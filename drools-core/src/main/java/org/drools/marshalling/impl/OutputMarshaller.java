@@ -48,6 +48,7 @@ import org.drools.reteoo.AccumulateNode.AccumulateMemory;
 import org.drools.rule.EntryPoint;
 import org.drools.rule.Rule;
 import org.drools.runtime.process.WorkItem;
+import org.drools.spi.Activation;
 import org.drools.spi.ActivationGroup;
 import org.drools.spi.AgendaGroup;
 import org.drools.spi.PropagationContext;
@@ -141,6 +142,12 @@ public class OutputMarshaller {
             context.writeUTF( group.getName() );
             context.writeBoolean( group.isActive() );
             context.writeBoolean( group.isAutoDeactivate() );
+            Map<Long, String> nodeInstances = group.getNodeInstances();
+            context.writeInt( nodeInstances.size() );
+            for (Map.Entry<Long, String> entry: nodeInstances.entrySet()) {
+            	context.writeLong( entry.getKey() );
+            	context.writeUTF( entry.getValue() );
+            }
         }
         context.writeShort( PersisterEnums.END );
     }
@@ -555,11 +562,11 @@ public class OutputMarshaller {
         //Map<LeftTuple, Integer> tuples = context.terminalTupleMap;
         if ( entries.length != 0 ) {
             for ( Entry<LeftTuple, Integer> entry : entries ) {
-                if (entry.getKey().getActivation() != null) {
+                if (entry.getKey().getObject() != null) {
 					LeftTuple leftTuple = entry.getKey();
 					stream.writeShort(PersisterEnums.ACTIVATION);
 					writeActivation(context, leftTuple, (AgendaItem) leftTuple
-							.getActivation(), (RuleTerminalNode) leftTuple
+							.getObject(), (RuleTerminalNode) leftTuple
 							.getLeftTupleSink());
 				}
             }
@@ -635,8 +642,8 @@ public class OutputMarshaller {
             Map<Long, PropagationContext> pcMap = new HashMap<Long, PropagationContext>();
             for ( Entry<LeftTuple, Integer> entry : entries ) {
                 LeftTuple leftTuple = entry.getKey();
-                if (leftTuple.getActivation() != null) {
-					PropagationContext pc = leftTuple.getActivation()
+                if (leftTuple.getObject() != null) {
+					PropagationContext pc = ((Activation)leftTuple.getObject())
 							.getPropagationContext();
 					if (!pcMap.containsKey(pc.getPropagationNumber())) {
 						stream.writeShort(PersisterEnums.PROPAGATION_CONTEXT);
@@ -726,20 +733,27 @@ public class OutputMarshaller {
         }
         stream.writeShort( PersisterEnums.END );
     }
-
     public static void writeWorkItem(MarshallerWriteContext context,
                                      WorkItem workItem) throws IOException {
+         writeWorkItem(context, workItem, true);
+    }
+
+    public static void writeWorkItem(MarshallerWriteContext context,
+                                     WorkItem workItem, boolean includeVariables) throws IOException {
         ObjectOutputStream stream = context.stream;
         stream.writeLong( workItem.getId() );
         stream.writeLong( workItem.getProcessInstanceId() );
         stream.writeUTF( workItem.getName() );
         stream.writeInt( workItem.getState() );
+
+        if(includeVariables){
         Map<String, Object> parameters = workItem.getParameters();
         stream.writeInt( parameters.size() );
         for ( Map.Entry<String, Object> entry : parameters.entrySet() ) {
             stream.writeUTF( entry.getKey() );
             stream.writeObject( entry.getValue() );
         }
+    }
     }
 
     public static void writeTimers(MarshallerWriteContext context) throws IOException {

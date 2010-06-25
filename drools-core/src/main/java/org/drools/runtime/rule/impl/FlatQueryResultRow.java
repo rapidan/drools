@@ -9,11 +9,13 @@ import org.drools.runtime.rule.QueryResultsRow;
 public class FlatQueryResultRow
     implements
     QueryResultsRow {
-    Map<String, Integer> identifiers;
-    private List result;
+    Map<String, Integer>     identifiers;
+    private List             result;
     private List<FactHandle> factHandles;
 
-    public FlatQueryResultRow(Map<String, Integer> identifiers, List result, List<FactHandle> factHandles) {
+    public FlatQueryResultRow(Map<String, Integer> identifiers,
+                              List result,
+                              List<FactHandle> factHandles) {
         this.identifiers = identifiers;
         this.result = result;
         this.factHandles = factHandles;
@@ -26,7 +28,5 @@ public class FlatQueryResultRow
     public FactHandle getFactHandle(String identifier) {
         return this.factHandles.get( identifiers.get( identifier ) );
     }
-
-    
 
 }

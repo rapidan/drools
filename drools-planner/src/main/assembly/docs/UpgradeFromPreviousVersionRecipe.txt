@@ -255,7 +255,7 @@ After in *.xml:
     </localSearchSolver>
 
 
-True modify has been implemented.
+True modify has been implemented. This is a great performance boost.
 Before in *.java:
     workingMemory.modifyRetract(xHandle); // before changes are made
     x.set...;
@@ -263,3 +263,135 @@ Before in *.java:
 After in *.java:
     x.set...;
     workingMemory.update(queenHandle, queen); // after changes are made
+
+
+Environment mode DEBUG now checks more and therefor it is slower than before.
+
+
+JBRULES-1804 has been fixed. The HACK to fix wierd truth maintenance behavior is now obsolete.
+Delete any instances of that hack to make your rules easier to read and faster.
+Before in *.drl:
+        // HACK to fix wierd truth maintenance behavior in drools
+        // because making weight part of the equals/hashcode doesn't cut it
+        // Vote for https://jira.jboss.org/jira/browse/JBRULES-1804
+        not IntConstraintOccurrence(
+            ruleId == "...",
+            constraintType == ConstraintType....,
+            causes contains $..., causes contains $...,
+            eval(weight != (...))
+        );
+    then ...
+After in *.drl:
+    then ...
+
+
+A custom ConstraintOccurrence implementation should now use the weight in its equals/hashcode methods.
+IntConstraintOccurrence and DoubleConstraintOccurrence have been changed as needed.
+
+
+From 5.1.0.m2 to 5.1.0.cr1
+--------------------------
+
+
+Custom ScoreDefinition implementations needs to implement the Double translateScoreToGraphValue(S score) method.
+After in *ScoreDefinition.java:
+    public Double translateScoreToGraphValue(HardAndSoftScore score) {
+        if (score.getHardScore() == 0) {
+            return Double.valueOf(score.getSoftScore());
+        } else {
+            return null;
+        }
+    }
+
+
+A benchmarker config no longer supports solvedSolutionVerbosity (only ALL was supported anyway).
+Before in *BenchmarkConfig.xml:
+   <solvedSolutionVerbosity>ALL</solvedSolutionVerbosity>
+
+A benchmarker config now needs a benchmarkDirectory directory
+and solvedSolutionFilesDirectory and solverStatisticFilesDirectory are no longer required.
+Before in *BenchmarkConfig.xml:
+    <solverBenchmarkSuite>
+        <solvedSolutionFilesDirectory>local/data/nurserostering/solved</solvedSolutionFilesDirectory>
+        ...
+        <solverStatisticFilesDirectory>local/data/nurserostering/statistic</solverStatisticFilesDirectory>
+        ...
+After in *BenchmarkConfig.xml:
+    <solverBenchmarkSuite>
+        <benchmarkDirectory>local/data/nurserostering</benchmarkDirectory>
+        ...
+
+Benchmarker: the class MaxScoreSolverBenchmarkComparator has been renamed to WorstScoreSolverBenchmarkComparator.
+
+A benchmarker no longer uses WorstScoreSolverBenchmarkComparator by default.
+It now uses AverageScoreSolverBenchmarkComparator by default.
+
+The benchmarker method writeResults(resultFile) has been removed.
+The result is now always written at the end of the benchmark() method
+in the benchmarkDirectory directory in a file called benchmarkResult.xml.
+Before in *.java:
+    solverBenchmarker.writeResults(...);
+
+
+The method Score.substract(subtrahend) has been renamed to Score.subtract
+Before in *Score.java:
+    public ...Score substract(...Score subtrahend) {
+After in *Score.java:
+    public ...Score subtract(...Score subtrahend) {
+
+Custom Score implementation: When rounding is needed, it should now be floored (as defined by Math.floor(double)).
+
+
+A selector no longer supports absoluteSelection and relativeSelection, because it was inefficient.
+Instead, the forager now supports minimalAcceptedSelection, which only counts doable, accepted moves
+(instead of all the selected moves).
+As a guideline, set your minimalAcceptedSelection to the sum of all your absoluteSelection and subtract 10%.
+Before in *Config.xml:
+    <selector>
+        <selector>
+            <moveFactoryClass>...ChangeMoveFactory</moveFactoryClass>
+            <absoluteSelection>500</absoluteSelection>
+        </selector>
+        <selector>
+            <moveFactoryClass>...SwitchMoveFactory</moveFactoryClass>
+            <absoluteSelection>500</absoluteSelection>
+        </selector>
+    </selector>
+    ...
+    <forager>
+        <foragerType>MAX_SCORE_OF_ALL</foragerType>
+    </forager>
+After in *Config.xml:
+    <selector>
+        <selector>
+            <moveFactoryClass>...ChangeMoveFactory</moveFactoryClass>
+        </selector>
+        <selector>
+            <moveFactoryClass>...SwitchMoveFactory</moveFactoryClass>
+        </selector>
+    </selector>
+    ...
+    <forager>
+        <foragerType>MAX_SCORE_OF_ALL</foragerType>
+        <minimalAcceptedSelection>900</minimalAcceptedSelection>
+    </forager>
+If you weighted some MoveFactory heavier than another, vote for https://jira.jboss.org/browse/JBRULES-2553.
+
+If you use a custom selector: the Selector interface method
+  List<Move> selectMoveList(StepScope stepScope)
+has been replaced by the more efficient method
+  Iterator<Move> moveIterator(StepScope stepScope)
+Before in *Selector.java:
+    public List<Move> selectMoveList(StepScope stepScope) {
+        ...
+        return moveList;
+    }
+After in *Selector.java:
+    public Iterator<Move> moveIterator(StepScope stepScope) {
+        ...
+        return moveList.iterator();
+    }
+
+There's now a decent simulated annealing implementation.
+In many cases it clearly beats the tabu search implementation.
+See the reference manual and the nurse rostering example for more info.

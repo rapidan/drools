@@ -200,7 +200,7 @@ public class CamelEndpointWithJaxWrapperCollectionTest extends DroolsCamelTestSu
 		me.setName("Hadrian");
 
 		String rule = "";
-		rule += "package org.drools \n";
+		rule += "package org.drools.pipeline.camel \n";
 		rule += "import org.drools.pipeline.camel.Person\n";
 		rule += "import org.drools.camel.component.CamelEndpointWithJaxWrapperCollectionTest.WrappedList\n";
 		rule += "global org.drools.camel.component.CamelEndpointWithJaxWrapperCollectionTest.WrappedList list\n";
@@ -360,10 +360,12 @@ public class CamelEndpointWithJaxWrapperCollectionTest extends DroolsCamelTestSu
 
 	@Override
 	protected RouteBuilder createRouteBuilder() throws Exception {
-		return new RouteBuilder() {
+		return new DroolsRouteBuilder() {
 			public void configure() throws Exception {
-				from("direct:test-with-session").to("drools:sm/ksession1?dataFormat=drools-jaxb");
-				from("direct:test-no-session").to("drools:sm?dataFormat=drools-jaxb");
+				from("direct:test-with-session").
+				    unmarshal("drools-jaxb").to("drools:node/ksession1").marshal("drools-jaxb");
+				from("direct:test-no-session").
+				    unmarshal("drools-jaxb").to("drools:node").marshal("drools-jaxb");
 			}
 		};
 	}

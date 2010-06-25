@@ -15,14 +15,12 @@
     Base. Quite often it's more desirable to do this via configuration. To
     facilitate this, Drools supports the "Changeset" feature. The file
     <filename>changeset.xml</filename> contains a list of resources, and it
-    may also point recursively to another changeset XML file. Currently the
-    changeset has only a single "add" element, but support for remove and
-    modify will be added in the future, for more powerful incremental changes
-    over time. Currently there is no XML schema for the changeset XML, but we
-    hope to add one soon. A few examples will be shown to give you the gist of
-    things. A resource approach is employed that uses a prefix to indicate the
-    protocol. All the protocols provided by <code>java.net.URL</code>, such as
-    "file" and "http", are supported, as well as an additional "classpath".
+    may also point recursively to another changeset XML file. Currently there is 
+    no XML schema for the changeset XML, but we hope to add one soon.
+    A few examples will be shown to give you the gist of things. A resource
+    approach is employed that uses a prefix to indicate the protocol. All the
+    protocols provided by <code>java.net.URL</code>, such as "file" and "http",
+    are supported, as well as an additional "classpath".
     Currently the type attribute must always be specified for a resource, as
     it is not inferred from the file name extension. Here is a simple example
     that points to a http location for some rules.</para>
@@ -95,18 +93,95 @@ KnowledgeBase kbase = kagent.getKnowledgeBase();</programlisting>
 
     <para>A <code>KnowledgeAgent</code> object will continuously scan all the
     added resources, using a default polling interval of 60 seconds and, when
-    some last modification date is updated, it will rebuild the cached
-    Knowledge Base using the new resources. Note that the previous
+    some last modification date is updated, it will applied the changes into the
+    cached Knowledge Base using the new resources. Note that the previous
     <code>KnowledgeBase</code> reference will still exist and you'll have to
     call <code>getKnowledgeBase()</code> to access the newly built
     <code>KnowledgeBase</code>. If a directory is specified as part of the
     change set, the entire contents of that directory will be scanned for
-    changes.</para>
+    changes. The way modifications are applied depends on
+    <code>drools.agent.newInstance</code> property present in the
+    KnowledgeAgentConfiguration object passed to the agent.
+    </para>
 
     <para>For polling to occur, the polling and notifier services must be started: 
 <programlisting>ResourceFactory.getResourceChangeNotifierService().start();
 ResourceFactory.getResourceChangeScannerService().start();</programlisting>
     </para>
+
+    <section>
+      <title>Knowledge Agent and Custom ClassLoaders</title>
+      <para>Because Knowledge Agent could scan and process remote resources, it
+      could ends up failing when compiling or executing rules, queries, functions,
+      etc. that use classes outside the agent's classloader.
+      If this is your case, you could take 2 approach: use a custom classloader
+      for agent's kbuilder or force the agent to use the same classloader that
+      its kbase has.</para>
+      <section>
+      <title>Custom ClassLoaders for KnowledgeBuilder</title>
+        <para>Knowledge Agent uses KnowledgeBuilder internally in order to
+        compile managed resources. If you need to pass custom configuration to
+        these compilers you could pass a KnowledgeBuilderConfiguration object
+        to KnowledgeAgentFactory.newKnowledgeAgent(). This object will be used
+        in every builder the agent creates. Using a KnowledgeBuilderConfiguration
+        you can specify a custom classloader.</para>
+      </section>
+      <section>
+      <title>Reuse KnowledgeBase ClassLoader</title>
+        <para>Most of the times, the classloader you wan't to use in the
+        compilation process of remote resources is the same needed in the
+        agent's kbase, so the rules could be executed. If you want to use this
+        approach, you will need to setup the desired ClassLoader to the
+        agen't kbase and use the "drools.agent.useKBaseClassLoaderForCompiling"
+        property of KnowledgeAgentConfiguration object.</para>
+        <para>This approach lets you modify agent's kbuilder classloader in
+        runtime by modifying the classloader the agent's kbase uses. This will
+        serve also when not using incremental change set processing (see the
+        section bellow). When the kbase is recreated its configuration is
+        reused, so the classloader is maintained.</para>
+<programlisting>KnowledgeBaseConfiguration kbaseConfig =
+    KnowledgeBaseFactory.newKnowledgeBaseConfiguration(null, customClassLoader);
+KnowledgeBase kbase =
+    KnowledgeBaseFactory.newKnowledgeBase(kbaseConfig); //kbase with custom classloader
+KnowledgeAgentConfiguration aconf =
+    KnowledgeAgentFactory.newKnowledgeAgentConfiguration();
+aconf.setProperty("drools.agent.newInstance", "false"); //incremental change set processing enabled
+aconf.setProperty("drools.agent.useKBaseClassLoaderForCompiling", "true");
+KnowledgeAgent kagent = KnowledgeAgentFactory.newKnowledgeAgent(
+                "test agent", kbase, aconf);</programlisting>
+      </section>
+    </section>
+
+    <section>
+      <title>Incremental Change Set Processing</title>
+        <para>
+            Knowledge Agent can process change sets in two different ways:
+            recreating the knowledge base every time a new change set is
+            processed or applying the change set in the cached knowledge base
+            without destroying it.
+            This behavior is controlled by the "newInstance" property of the
+            KnowledgeAgentConfiguration object passed to the Agent's constructor.
+        </para>
+        <para>
+            When "newInstace" is set to true (the default value), the agent
+            will destroy the cached Knowledge Base it contains and populate a
+            new one containing the change set modifications. When "newInstance"
+            is set to "false" change sets are applied directly to the cached
+            Knowledge Base. The rule that were not modified in the change sets'
+            resources are not replaced in the Knowledge Base, the modified or
+            deleted rules are modified or deleted from the cached Knowledge Base.
+            Functions, Queries and Definition Types are always replaced in the
+            cached Knowledge Base whether they are modified or not.
+        </para>
+        <para>
+            The following code snippet creates a new Knowledge Agent with its
+            "newInstace" property set to false
+            <programlisting>KnowledgeAgentConfiguration aconf = KnowledgeAgentFactory.newKnowledgeAgentConfiguration();
+aconf.setProperty("drools.agent.newInstance", "false");
+KnowledgeAgent kagent = KnowledgeAgentFactory.newKnowledgeAgent("test agent", null, aconf);
+            </programlisting>
+        </para>
+    </section>
 
     <section>
       <title>Remote HTTP resource caching</title>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <localSearchSolver>
+    <!--<environmentMode>DEBUG</environmentMode>-->
     <scoreDrl>/org/drools/planner/examples/curriculumcourse/solver/curriculumCourseScoreRules.drl</scoreDrl>
     <scoreDefinition>
         <scoreDefinitionType>HARD_AND_SOFT</scoreDefinitionType>
@@ -17,19 +18,13 @@
     </termination>
     <selector>
         <selector>
-            <topSize>10</topSize>
-        </selector>
-        <selector>
             <moveFactoryClass>org.drools.planner.examples.curriculumcourse.solver.move.factory.PeriodChangeMoveFactory</moveFactoryClass>
-            <relativeSelection>0.002</relativeSelection>
         </selector>
         <selector>
             <moveFactoryClass>org.drools.planner.examples.curriculumcourse.solver.move.factory.RoomChangeMoveFactory</moveFactoryClass>
-            <relativeSelection>0.002</relativeSelection>
         </selector>
         <selector>
             <moveFactoryClass>org.drools.planner.examples.curriculumcourse.solver.move.factory.LectureSwitchMoveFactory</moveFactoryClass>
-            <relativeSelection>0.002</relativeSelection>
         </selector>
     </selector>
     <acceptor>
@@ -38,16 +33,15 @@
     </acceptor>
     <forager>
         <foragerType>MAX_SCORE_OF_ALL</foragerType>
+        <minimalAcceptedSelection>900</minimalAcceptedSelection><!-- TODO tweak me -->
     </forager>
     <!-- Great deluge experiments: -->
     <!--<selector>-->
     <!--<selector>-->
     <!--<moveFactoryClass>org.drools.planner.examples.curriculumcourse.solver.move.factory.PeriodChangeMoveFactory</moveFactoryClass>-->
-    <!--<relativeSelection>0.002</relativeSelection>-->
     <!--</selector>-->
     <!--<selector>-->
     <!--<moveFactoryClass>org.drools.planner.examples.curriculumcourse.solver.move.factory.RoomChangeMoveFactory</moveFactoryClass>-->
-    <!--<relativeSelection>0.002</relativeSelection>-->
     <!--</selector>-->
     <!--<selector>-->
     <!--<moveFactoryClass>org.drools.planner.examples.curriculumcourse.solver.move.factory.LectureSwitchMoveFactory</moveFactoryClass>-->
@@ -61,6 +55,6 @@
     <!--</acceptor>-->
     <!--<forager>-->
     <!--<foragerType>FIRST_RANDOMLY_ACCEPTED</foragerType>-->
+    <!--<minimalAcceptedSelection>900</minimalAcceptedSelection>-->
     <!--</forager>-->
 </localSearchSolver>
-        

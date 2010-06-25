@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.drools.guvnor.server.ServiceImplementation;
 import org.drools.guvnor.server.security.AdminType;
 import org.drools.guvnor.server.security.CategoryPathType;
@@ -15,6 +16,7 @@ import org.drools.guvnor.server.security.RoleBasedPermission;
 import org.drools.guvnor.server.security.RoleBasedPermissionManager;
 import org.drools.guvnor.server.security.RoleTypes;
 import org.drools.guvnor.server.security.WebDavPackageNameType;
+import org.drools.guvnor.server.util.LoggingHelper;
 import org.drools.repository.RulesRepositoryException;
 import org.jboss.seam.Component;
 import org.jboss.seam.annotations.Create;
@@ -30,22 +32,16 @@ import org.jboss.seam.annotations.intercept.BypassInterceptors;
  *
  * This PermissionResolver resolves category-based permissions and package-based permissions.
  *
- * If the input is category-based request, it returns true under following situations:
- *
- * For category-based permissions:
+ * If the input is category-based request, the resolver returns true under following situations:
  * 1. The user is admin
  * Or
- * 2. The user has at least one analyst role, and at least one of the analyst role has access to requested category path.
- * Or
- * 3. The user does not have any Analyst role(eg, the user only has other roles like package.admin|package.developer|package.readonly)
+ * 2. The user has at least one analyst role that has access to the requested category path.
  *
- * If the input is package-based request, it returns true under following situations:
+ * If the input is package-based request, the resolver returns true under following situations:
  * 1. The user is admin
  * Or
  * 2. The user has one of the following roles package.admin|package.developer|package.readonly on the requested
  * package, and requested role requires lower privilege than assigned role(I.e., package.admin>package.developer>package.readonly)
- * Or
- * 3. The user is Analyst
  *
  *
 
@@ -60,6 +56,7 @@ public class RoleBasedPermissionResolver
     implements
     PermissionResolver,
     Serializable {
+	private static final Logger log = LoggingHelper.getLogger(RoleBasedPermissionResolver.class);
 
     private boolean enableRoleBasedAuthorization = false;
 
@@ -85,7 +82,8 @@ public class RoleBasedPermissionResolver
     public boolean hasPermission(Object requestedObject,
                                  String requestedPermission) {
         if ( !((requestedObject instanceof CategoryPathType) || (requestedObject instanceof PackageNameType) || (requestedObject instanceof WebDavPackageNameType) || (requestedObject instanceof AdminType) || (requestedObject instanceof PackageUUIDType)) ) {
-            return false;
+            log.debug("Requested permission is not an instance of CategoryPathType|PackageNameType|WebDavPackageNameType|AdminType|PackageUUIDType");
+        	return false;
         }
 
         if ( !enableRoleBasedAuthorization ) {
@@ -95,11 +93,11 @@ public class RoleBasedPermissionResolver
         RoleBasedPermissionManager permManager = (RoleBasedPermissionManager) Component.getInstance( "roleBasedPermissionManager" );
         List<RoleBasedPermission> permissions = permManager.getRoleBasedPermission();
 
-        if ( RoleTypes.ADMIN.equals( requestedPermission ) ) {
-            return hasAdminPermission( permissions );
-        } else if ( hasAdminPermission( permissions ) ) {
+        if ( hasAdminPermission( permissions ) ) {
             //admin can do everything,no need for further checks.
             return true;
+        } else if ( RoleTypes.ADMIN.equals( requestedPermission ) ) {
+            return hasAdminPermission( permissions );
         }
 
         if ( requestedObject instanceof CategoryPathType ) {
@@ -111,37 +109,40 @@ public class RoleBasedPermissionResolver
                         if ( p.getCategoryPath().equals( requestedPath ) ) return true;
                         if ( isSubPath( requestedPath,
                                         p.getCategoryPath() ) ) {
+                            log.debug("Requested permission: " + requestedPermType + ", Requested object: " 
+                            		+ requestedPath + " , Permission granted: Yes");  
                             return true;
                         } else if ( isSubPath( p.getCategoryPath(),
                                                requestedPath ) ) {
+                            log.debug("Requested permission: " + requestedPermType + ", Requested object: " 
+                            		+ requestedPath + " , Permission granted: Yes");  
                             return true;
                         }
                     }
                 }
+                log.debug("Requested permission: " + requestedPermType + ", Requested object: " 
+                		+ requestedPath + " , Permission granted: No");  
                 return false;
             } else {
-                //category path based permission check only applies to analyst and analyst.readonly role. If there is no Analyst or Analyst.readonly
-                //role (e.g, only other roles like admin|package.admin|package.dev|package.readonly) we always grant permission.
-                boolean isPermitted = true;
-                //return true when there is no analyst role, or one of the analyst role has permission to access this category
-
                 for ( RoleBasedPermission pbp : permissions ) {
-
                     // Check if there is a analyst or analyst.readonly role
                     if ( pbp.getRole().equals( RoleTypes.ANALYST ) || pbp.getRole().equals( RoleTypes.ANALYST_READ ) ) {
-                        isPermitted = false;
-
+  
                         // Check if user has permissions for the current category
                         if ( requestedPermType.equals( pbp.getRole() ) || (requestedPermType.equals( RoleTypes.ANALYST_READ ) && pbp.getRole().equals( RoleTypes.ANALYST )) ) {
                             if ( isPermittedCategoryPath( requestedPath,
                                                           pbp.getCategoryPath() ) ) {
+                                log.debug("Requested permission: " + requestedPermType + ", Requested object: " 
+                                		+ requestedPath + " , Permission granted: Yes");  
                                 return true;
                             }
                         }
                     }
                 }
 
-                return isPermitted;
+                log.debug("Requested permission: " + requestedPermType + ", Requested object: " 
+                		+ requestedPath + " , Permission granted: No");  
+                return false;
             }
         } else {
             String targetName = "";
@@ -158,17 +159,17 @@ public class RoleBasedPermissionResolver
                 targetName = ((PackageNameType) requestedObject).getPackageName();
             }
 
-            //package based permission check only applies to admin|package.admin|package.dev|package.readonly role.
-            //For Analyst we always grant permission, unless we are connected through webdav.
             for ( RoleBasedPermission pbp : permissions ) {
-                if ( !(requestedObject instanceof WebDavPackageNameType) && (RoleTypes.ANALYST.equals( pbp.getRole() ) || RoleTypes.ANALYST_READ.equals( pbp.getRole() )) ) {
-                    return true;
-                } else if ( targetName.equalsIgnoreCase( pbp.getPackageName() ) && isPermittedPackage( requestedPermission,
+                if ( targetName.equalsIgnoreCase( pbp.getPackageName() ) && isPermittedPackage( requestedPermission,
                                                                                                        pbp.getRole() ) ) {
+                    log.debug("Requested permission: " + requestedPermission + ", Requested object: " 
+                    		+ targetName + " , Permission granted: Yes");  
                     return true;
                 }
             }
 
+            log.debug("Requested permission: " + requestedPermission + ", Requested object: " 
+            		+ targetName + " , Permission granted: No");  
             return false;
         }
     }
@@ -176,15 +177,19 @@ public class RoleBasedPermissionResolver
     private boolean hasAdminPermission(List<RoleBasedPermission> permissions) {
         for ( RoleBasedPermission p : permissions ) {
             if ( RoleTypes.ADMIN.equalsIgnoreCase( p.getRole() ) ) {
+                log.debug("Requested permission: unknown, Permission granted: Yes");
                 return true;
             }
         }
+        log.debug("Requested permission: admin, Permission granted: No");
         return false;
     }
 
     private boolean isPermittedCategoryPath(String requestedPath,
                                             String allowedPath) {
-        if ( requestedPath == null || allowedPath == null ) {
+        if ( requestedPath == null && allowedPath == null ) {
+            return true;
+        } else if ( requestedPath == null || allowedPath == null ) {
             return false;
         }
         return requestedPath.equals( allowedPath ) || isSubPath( allowedPath,

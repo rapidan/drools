@@ -2,12 +2,13 @@ package org.drools.guvnor.client.modeldriven.ui;
 
 import org.drools.guvnor.client.common.DropDownValueChanged;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.DropDownData;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.DropDownData;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.Composite;
@@ -33,10 +34,12 @@ public class EnumDropDownLabel extends Composite {
 
     private final Button       okButton  = new Button( constants.OK() );
 
+    private Command onValueChangeCommand;
+
     public EnumDropDownLabel(FactPattern pattern,
                              String fieldName,
                              SuggestionCompletionEngine sce,
-                             ISingleFieldConstraint constraint) {
+                             BaseSingleFieldConstraint constraint) {
         this.textWidget = getTextLabel();
         this.enumDropDown = getEnumDropDown( constraint,
                                              sce,
@@ -75,6 +78,7 @@ public class EnumDropDownLabel extends Composite {
 
         okButton.addClickListener( new ClickListener() {
             public void onClick(Widget arg0) {
+                executeOnValueChangeCommand();
                 panel.clear();
                 panel.add( textWidget );
                 popup.hide();
@@ -90,7 +94,7 @@ public class EnumDropDownLabel extends Composite {
 
     }
 
-    private EnumDropDown getEnumDropDown(final ISingleFieldConstraint constraint,
+    private EnumDropDown getEnumDropDown(final BaseSingleFieldConstraint constraint,
                                          SuggestionCompletionEngine sce,
                                          FactPattern pattern,
                                          String fieldName) {
@@ -105,12 +109,12 @@ public class EnumDropDownLabel extends Composite {
                                          fieldName );
         }
 
-        final EnumDropDown box = new EnumDropDown( constraint.value,
+        final EnumDropDown box = new EnumDropDown( constraint.getValue(),
                                                    new DropDownValueChanged() {
                                                        public void valueChanged(String newText,
                                                                                 String newValue) {
                                                            textWidget.setText( newText );
-                                                           constraint.value = newValue;
+                                                           constraint.setValue(newValue);
                                                            okButton.click();
                                                        }
                                                    },
@@ -124,4 +128,15 @@ public class EnumDropDownLabel extends Composite {
 
         return box;
     }
+
+    private void executeOnValueChangeCommand(){
+        if (this.onValueChangeCommand != null){
+            this.onValueChangeCommand.execute();
+        }
+    }
+
+    public void setOnValueChangeCommand(Command onValueChangeCommand) {
+        this.onValueChangeCommand = onValueChangeCommand;
+    }
+
 }

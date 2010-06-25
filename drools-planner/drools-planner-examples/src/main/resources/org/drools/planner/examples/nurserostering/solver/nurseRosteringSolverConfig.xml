@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <localSearchSolver>
+    <environmentMode>DEBUG</environmentMode>
     <scoreDrl>/org/drools/planner/examples/nurserostering/solver/nurseRosteringScoreRules.drl</scoreDrl>
     <scoreDefinition>
         <scoreDefinitionType>HARD_AND_SOFT</scoreDefinitionType>
@@ -8,28 +9,35 @@
     <termination>
         <!--
             Official benchmark maximumSecondsSpend allowed on:
-            ge0ffrey's main pc: TODO
-            ge0ffrey's old pc: TODO
+            - ge0ffrey's main pc: sprint 11, medium 700, long 42000
         -->
-        <maximumSecondsSpend>429</maximumSecondsSpend>
+        <maximumSecondsSpend>700</maximumSecondsSpend>
         <!--<scoreAttained>-0hard/-999999soft</scoreAttained>-->
         <!--<maximumStepCount>100</maximumStepCount>-->
     </termination>
     <selector>
         <selector>
             <moveFactoryClass>org.drools.planner.examples.nurserostering.solver.move.factory.EmployeeChangeMoveFactory</moveFactoryClass>
-            <absoluteSelection>500</absoluteSelection>
         </selector>
         <selector>
-            <moveFactoryClass>org.drools.planner.examples.nurserostering.solver.move.factory.EmployeeAssignmentSwitchMoveFactory</moveFactoryClass>
-            <absoluteSelection>500</absoluteSelection>
+            <moveFactoryClass>org.drools.planner.examples.nurserostering.solver.move.factory.AssignmentSwitchMoveFactory</moveFactoryClass>
+        </selector>
+        <!--<selector>-->
+            <!--<moveFactoryClass>org.drools.planner.examples.nurserostering.solver.move.factory.AssignmentSequenceSwitchLength2MoveFactory</moveFactoryClass>-->
+        <!--</selector>-->
+        <!--<selector>-->
+            <!--<moveFactoryClass>org.drools.planner.examples.nurserostering.solver.move.factory.AssignmentSequenceSwitchLength3MoveFactory</moveFactoryClass>-->
+        <!--</selector>-->
+        <selector>
+            <moveFactoryClass>org.drools.planner.examples.nurserostering.solver.move.factory.AssignmentPillarPartSwitchMoveFactory</moveFactoryClass>
         </selector>
     </selector>
     <acceptor>
-        <completePropertyTabuSize>7</completePropertyTabuSize>
-        <completeSolutionTabuSize>1000</completeSolutionTabuSize>
+      <completeSolutionTabuSize>1000</completeSolutionTabuSize>
+      <completePropertyTabuSize>7</completePropertyTabuSize>
     </acceptor>
     <forager>
         <foragerType>MAX_SCORE_OF_ALL</foragerType>
+        <minimalAcceptedSelection>800</minimalAcceptedSelection>
     </forager>
 </localSearchSolver>

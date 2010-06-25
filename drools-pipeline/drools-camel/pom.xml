@@ -11,7 +11,7 @@
     <name>Drools :: Pipeline :: Camel </name>
 
     <properties>
-        <camel-version>2.1.0</camel-version>
+        <camel-version>2.3.0</camel-version>
     </properties>
 
     <repositories>
@@ -55,7 +55,6 @@
          	<groupId>org.drools</groupId>
          	<artifactId>drools-transformer-jaxb</artifactId>
          </dependency>
-         
          <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-core</artifactId>
@@ -69,7 +68,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring</artifactId>
-            <version>2.5.5</version>
+            <version>2.5.6</version>
         </dependency>
         <dependency>
             <groupId>xmlunit</groupId>
@@ -83,6 +82,11 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<scope>test</scope>
+		</dependency>
     </dependencies>
 
     

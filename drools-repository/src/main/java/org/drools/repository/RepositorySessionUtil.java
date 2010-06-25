@@ -5,11 +5,8 @@ import java.io.File;
 import javax.jcr.Repository;
 import javax.jcr.Session;
 import javax.jcr.SimpleCredentials;
-
-import org.apache.log4j.Logger;
-//import org.drools.repository.security.DroolsRepositoryAccessManager;
-
-//import junit.framework.Assert;
+import javax.jcr.LoginException;
+import javax.jcr.RepositoryException;
 
 /**
  * This is a utility to simulate session behavior for the test suite.
@@ -19,6 +16,7 @@ import org.apache.log4j.Logger;
 public class RepositorySessionUtil {
 
     private static ThreadLocal<RulesRepository> repo = new ThreadLocal<RulesRepository>();
+    private static Repository multiThreadedRepository;
 
 //    private static final Logger log = Logger.getLogger( RepositorySessionUtil.class );
 
@@ -40,10 +38,10 @@ public class RepositorySessionUtil {
 
     public static RulesRepository getRepository() throws RulesRepositoryException {
     	RulesRepository repoInstance = repo.get();
-    	System.out.println("----------getRepository");
+    	//System.out.println("----------getRepository");
         if ( repoInstance == null ) {
         	
-        	System.out.println("----------repoInstance == null");
+        	//System.out.println("----------repoInstance == null");
 
             File dir = new File( "repository" );
             System.out.println( "DELETING test repo: " + dir.getAbsolutePath() );
@@ -53,12 +51,12 @@ public class RepositorySessionUtil {
             JCRRepositoryConfigurator config = new JackrabbitRepositoryConfigurator();
 
             //create a repo instance (startup)
-            Repository repository = config.getJCRRepository(null);
+            multiThreadedRepository = config.getJCRRepository(null);
 
             //create a session
             Session session;
             try {
-                session = repository.login(new SimpleCredentials("alan_parsons", "password".toCharArray()));
+                session = multiThreadedRepository.login(new SimpleCredentials("alan_parsons", "password".toCharArray()));
                 RulesRepositoryAdministrator admin = new RulesRepositoryAdministrator(session);
 
                 //clear out and setup
@@ -68,7 +66,7 @@ public class RepositorySessionUtil {
                 config.setupRulesRepository( session );
                 repoInstance = new RulesRepository( session );
 
-                Session adminSession = repository.login(new SimpleCredentials("ADMINISTRATOR", "password".toCharArray()));
+                multiThreadedRepository.login(new SimpleCredentials("ADMINISTRATOR", "password".toCharArray()));
                 //loonie hack
                 //DroolsRepositoryAccessManager.adminThreadlocal.set(  adminSession );
                 repo.set( repoInstance );
@@ -79,5 +77,54 @@ public class RepositorySessionUtil {
 
         return repoInstance;
     }
+
+   public static synchronized RulesRepository getMultiThreadedRepository() throws RulesRepositoryException {
+       if ( multiThreadedRepository == null ) {
+                     //System.out.println("----------repoInstance == null");
+
+           File dir = new File( "repository" );
+           System.out.println( "DELETING test repo: " + dir.getAbsolutePath() );
+           deleteDir( dir );
+           System.out.println( "TEST repo was deleted." );
+
+           JCRRepositoryConfigurator config = new JackrabbitRepositoryConfigurator();
+
+           //create a repo instance (startup)
+           multiThreadedRepository = config.getJCRRepository(null);
+
+           //create a session to config repo
+           Session session;
+           try {
+               session = multiThreadedRepository.login(new SimpleCredentials("alan_parsons", "password".toCharArray()));
+               RulesRepositoryAdministrator admin = new RulesRepositoryAdministrator(session);
+
+               //clear out and setup
+               if (admin.isRepositoryInitialized()) {
+                   admin.clearRulesRepository();
+               }
+               config.setupRulesRepository( session );
+           } catch ( Exception e) {
+               throw new RulesRepositoryException(e);
+           }
+       }
+
+
+       //associate this repo instance with thread specific sessions every time.
+       Session session;
+       try {
+           session = multiThreadedRepository.login(new SimpleCredentials("alan_parsons", "password".toCharArray()));
+           RulesRepository threadLocalRepo = new RulesRepository( session );
+           return threadLocalRepo;
+       } catch (LoginException e) {
+           // TODO Auto-generated catch block
+           e.printStackTrace();
+       } catch (RepositoryException e) {
+           // TODO Auto-generated catch block
+           e.printStackTrace();
+       }
+             return null;
+   }
+
+
 
 }

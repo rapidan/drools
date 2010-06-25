@@ -15,27 +15,31 @@ package org.drools.guvnor.client.modeldriven.ui;
  * limitations under the License.
  */
 
-import org.drools.guvnor.client.common.*;
-import org.drools.guvnor.client.modeldriven.DropDownData;
-import org.drools.guvnor.client.modeldriven.FieldAccessorsAndMutators;
-import org.drools.guvnor.client.modeldriven.HumanReadable;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
-import org.drools.guvnor.client.modeldriven.brl.ActionSetField;
-import org.drools.guvnor.client.modeldriven.brl.ActionUpdateField;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
+import org.drools.guvnor.client.common.ClickableLabel;
+import org.drools.guvnor.client.common.DirtyableFlexTable;
+import org.drools.guvnor.client.common.FormStylePopup;
+import org.drools.guvnor.client.common.ImageButton;
+import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.messages.Constants;
+import org.drools.guvnor.client.modeldriven.HumanReadable;
+import org.drools.ide.common.client.modeldriven.DropDownData;
+import org.drools.ide.common.client.modeldriven.FieldAccessorsAndMutators;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldValue;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertFact;
+import org.drools.ide.common.client.modeldriven.brl.ActionSetField;
+import org.drools.ide.common.client.modeldriven.brl.ActionUpdateField;
 
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.ChangeListener;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.Widget;
 import com.google.gwt.user.client.ui.MouseListenerAdapter;
-import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.ui.Widget;
 import com.gwtext.client.util.Format;
 
 /**
@@ -68,13 +72,14 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
 
         if (completions.isGlobalVariable(set.variable)) {
             this.fieldCompletions = completions.getFieldCompletionsForGlobalVariable(set.variable);
-            this.variableClass = (String) completions.getGlobalVariable(set.variable);
+            this.variableClass = completions.getGlobalVariable(set.variable);
         } else {
-            FactPattern pattern = mod.getModel().getBoundFact(set.variable);
-            if (pattern != null) {
-                this.fieldCompletions = completions.getFieldCompletions(FieldAccessorsAndMutators.MUTATOR,
-                        pattern.factType);
-                this.variableClass = pattern.factType;
+            String type = mod.getModel().getBindingType(set.variable); 
+            if (type != null) {
+                this.fieldCompletions = completions.getFieldCompletions(
+                		FieldAccessorsAndMutators.MUTATOR,
+                        type);
+                this.variableClass = type;
                 this.isBoundFact = true;
             } else {
                 ActionInsertFact patternRhs = mod.getModel().getRhsBoundFact(set.variable);
@@ -87,8 +92,13 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
             }
         }
 
+        if (this.variableClass == null) {
+        	throw new IllegalStateException("couldn't find type for variable: " + set.variable);
+        }
+        
         if (readOnly == null) {
-            this.readOnly = !completions.containsFactType(this.variableClass);
+            this.readOnly = !completions.containsFactType(this.variableClass)
+            	|| !mod.getModel().getBoundFacts().contains(this.variableClass);
         } else {
             this.readOnly = readOnly;
         }
@@ -123,6 +133,7 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
                 public void onClick(Widget w) {
                     if (Window.confirm(constants.RemoveThisItem())) {
                         model.removeField(idx);
+                        setModified(true);
                         getModeller().refreshWidget();
                     }
                 }
@@ -180,9 +191,9 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
 
 
 
-        FactPattern fp = this.getModeller().getModel().getBoundFact(model.variable);
+        String type = this.getModeller().getModel().getBindingType(model.variable);
 
-        String descFact = (fp != null) ? this.getModeller().getModel().getBoundFact(model.variable).factType + " <b>[" + model.variable + "]</b>" : model.variable;
+        String descFact = (type != null) ? type + " <b>[" + model.variable + "]</b>" : model.variable;
 
         String sl = Format.format(constants.setterLabel(), new String[]{HumanReadable.getActionDisplayName(modifyType), descFact});
         return new ClickableLabel(sl, clk, !this.readOnly);//HumanReadable.getActionDisplayName(modifyType) + " value of <b>[" + model.variable + "]</b>", clk);
@@ -209,6 +220,7 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
 
                 String fieldType = completions.getFieldType(variableClass, fieldName);
                 model.addFieldValue(new ActionFieldValue(fieldName, "", fieldType));
+                setModified(true);
                 getModeller().refreshWidget();
                 popup.hide();
             }
@@ -225,7 +237,7 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
         if (completions.isGlobalVariable(this.model.variable)) {
             type = (String) completions.getGlobalVariable(this.model.variable);
         } else {
-            type = this.getModeller().getModel().getBoundFact(this.model.variable).factType;
+            type = this.getModeller().getModel().getBindingType(this.model.variable);
             /*
              * to take in account if the using a rhs bound variable
              */
@@ -235,7 +247,14 @@ public class ActionSetFieldWidget extends RuleModellerWidget {
         }
 
         DropDownData enums = completions.getEnums(type, this.model.fieldValues, val.field);
-        return new ActionValueEditor(val, enums, this.getModeller(), val.type, this.readOnly);
+        ActionValueEditor actionValueEditor = new ActionValueEditor(val, enums, this.getModeller(), val.type, this.readOnly);
+        actionValueEditor.setOnChangeCommand(new Command() {
+
+            public void execute() {
+                setModified(true);
+            }
+        });
+        return actionValueEditor;
     }
 
     private Widget fieldSelector(final ActionFieldValue val) {

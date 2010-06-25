@@ -53,7 +53,7 @@ public class RuleFlowGroupImpl
     private InternalWorkingMemory       workingMemory;
     private String                      name;
     private boolean                     active           = false;
-    private boolean                     autoDeactivate   = true;    
+    private boolean                     autoDeactivate   = true;
     private LinkedList                  list;
     private List<RuleFlowGroupListener> listeners;
     private Map<Long, String>           nodeInstances    = new HashMap<Long, String>();
@@ -72,13 +72,15 @@ public class RuleFlowGroupImpl
         this.name = name;
         this.list = new LinkedList();
     }
-    
-    public RuleFlowGroupImpl(final String name, final boolean active, final boolean autoDeactivate) {
+
+    public RuleFlowGroupImpl(final String name,
+                             final boolean active,
+                             final boolean autoDeactivate) {
         this.name = name;
         this.active = active;
         this.autoDeactivate = autoDeactivate;
         this.list = new LinkedList();
-    }    
+    }
 
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
@@ -88,6 +90,7 @@ public class RuleFlowGroupImpl
         list = (LinkedList) in.readObject();
         autoDeactivate = in.readBoolean();
         listeners = (List<RuleFlowGroupListener>) in.readObject();
+        nodeInstances = (Map<Long, String>) in.readObject();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -97,6 +100,7 @@ public class RuleFlowGroupImpl
         out.writeObject( list );
         out.writeBoolean( autoDeactivate );
         out.writeObject( listeners );
+        out.writeObject( nodeInstances );
     }
 
     public String getName() {
@@ -185,8 +189,9 @@ public class RuleFlowGroupImpl
     }
 
     public void addActivation(final Activation activation) {
+        assert activation.getActivationNode() == null;
         final ActivationNode node = new ActivationNode( activation,
-                                                              this );
+                                                        this );
         activation.setActivationNode( node );
         this.list.add( node );
 
@@ -198,13 +203,18 @@ public class RuleFlowGroupImpl
     public void removeActivation(final Activation activation) {
         final ActivationNode node = activation.getActivationNode();
         this.list.remove( node );
-        activation.setActivationGroupNode( null );
-        if ( this.active && this.autoDeactivate ) {
-            if ( this.list.isEmpty() ) {
-                // deactivate callback
-                WorkingMemoryAction action = new DeactivateCallback( this );
-                this.workingMemory.queueWorkingMemoryAction( action );
-            }
+        activation.setActivationNode( null );
+    }
+
+    /**
+     * Checks if this ruleflow group is active and should automatically deactivate.
+     * If the queue is empty, it deactivates the group.
+     */
+    public void deactivateIfEmpty() {
+        if ( this.active && this.autoDeactivate && this.list.isEmpty() ) {
+            // deactivate callback
+            WorkingMemoryAction action = new DeactivateCallback( this );
+            this.workingMemory.queueWorkingMemoryAction( action );
         }
     }
 
@@ -216,8 +226,8 @@ public class RuleFlowGroupImpl
     }
 
     public void removeRuleFlowGroupListener(RuleFlowGroupListener listener) {
-        if (listeners != null) {
-            listeners.remove(listener);
+        if ( listeners != null ) {
+            listeners.remove( listener );
         }
     }
 
@@ -257,10 +267,12 @@ public class RuleFlowGroupImpl
         return this.name.hashCode();
     }
 
-    public static class DeactivateCallback implements WorkingMemoryAction {
-    	
-        private static final long serialVersionUID = 400L;
-        
+    public static class DeactivateCallback
+        implements
+        WorkingMemoryAction {
+
+        private static final long     serialVersionUID = 400L;
+
         private InternalRuleFlowGroup ruleFlowGroup;
 
         public DeactivateCallback(InternalRuleFlowGroup ruleFlowGroup) {
@@ -268,12 +280,12 @@ public class RuleFlowGroupImpl
         }
 
         public DeactivateCallback(MarshallerReaderContext context) throws IOException {
-        	this.ruleFlowGroup = (InternalRuleFlowGroup) context.wm.getAgenda().getRuleFlowGroup(context.readUTF());
+            this.ruleFlowGroup = (InternalRuleFlowGroup) context.wm.getAgenda().getRuleFlowGroup( context.readUTF() );
         }
 
         public void write(MarshallerWriteContext context) throws IOException {
-        	context.writeInt( WorkingMemoryAction.DeactivateCallback );
-        	context.writeUTF(ruleFlowGroup.getName());
+            context.writeInt( WorkingMemoryAction.DeactivateCallback );
+            context.writeUTF( ruleFlowGroup.getName() );
         }
 
         public void readExternal(ObjectInput in) throws IOException,
@@ -282,28 +294,32 @@ public class RuleFlowGroupImpl
         }
 
         public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject(ruleFlowGroup);
+            out.writeObject( ruleFlowGroup );
         }
 
         public void execute(InternalWorkingMemory workingMemory) {
             // check whether ruleflow group is still empty first
-            if (this.ruleFlowGroup.isEmpty()) {
+            if ( this.ruleFlowGroup.isEmpty() ) {
                 // deactivate ruleflow group
-                this.ruleFlowGroup.setActive(false);
+                this.ruleFlowGroup.setActive( false );
             }
         }
     }
-    
-    public void addNodeInstance(Long processInstanceId, String nodeInstanceId) {
-    	nodeInstances.put(processInstanceId, nodeInstanceId);
+
+    public void addNodeInstance(Long processInstanceId,
+                                String nodeInstanceId) {
+        nodeInstances.put( processInstanceId,
+                           nodeInstanceId );
     }
 
-    public void removeNodeInstance(Long processInstanceId, String nodeInstanceId) {
-    	nodeInstances.put(processInstanceId, nodeInstanceId);
+    public void removeNodeInstance(Long processInstanceId,
+                                   String nodeInstanceId) {
+        nodeInstances.put( processInstanceId,
+                           nodeInstanceId );
     }
-    
+
     public Map<Long, String> getNodeInstances() {
-    	return nodeInstances;
+        return nodeInstances;
     }
-    
+
 }

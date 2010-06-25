@@ -3,9 +3,10 @@ package org.drools.guvnor.client.modeldriven.ui;
 import org.drools.guvnor.client.common.ErrorPopup;
 import org.drools.guvnor.client.common.ValueChanged;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.Composite;
@@ -26,7 +27,7 @@ import com.google.gwt.user.client.ui.Widget;
 public class DefaultLiteralEditor extends Composite {
 
     private Constants              constants    = ((Constants) GWT.create( Constants.class ));
-    private ISingleFieldConstraint constraint;
+    private BaseSingleFieldConstraint constraint;
     private final boolean          numericValue;
 
     private Label                  textWidget   = new Label();
@@ -34,12 +35,17 @@ public class DefaultLiteralEditor extends Composite {
     private final Button           okButton     = new Button( constants.OK() );
     private final ValueChanged     valueChanged = new ValueChanged() {
                                                     public void valueChanged(String newValue) {
-                                                        constraint.value = newValue;
+                                                        constraint.setValue(newValue);
+                                                        if (onValueChangeCommand != null){
+                                                            onValueChangeCommand.execute();
+                                                        }
                                                         okButton.click();
                                                     }
                                                 };
 
-    public DefaultLiteralEditor(ISingleFieldConstraint constraint,
+    private Command onValueChangeCommand;
+
+    public DefaultLiteralEditor(BaseSingleFieldConstraint constraint,
                                 boolean numericValue) {
         this.constraint = constraint;
         this.numericValue = numericValue;
@@ -52,8 +58,8 @@ public class DefaultLiteralEditor extends Composite {
             }
         } );
 
-        if ( constraint.value != null && !"".equals( constraint.value ) ) {
-            textWidget.setText( constraint.value );
+        if ( constraint.getValue() != null && !"".equals( constraint.getValue() ) ) {
+            textWidget.setText( constraint.getValue() );
         } else {
             textWidget.setText( constants.Value() );
         }
@@ -71,8 +77,11 @@ public class DefaultLiteralEditor extends Composite {
         okButton.addClickListener( new ClickListener() {
             public void onClick(Widget arg0) {
 
-                if ( !isValueEmpty( constraint.value ) ) {
-                    textWidget.setText( constraint.value );
+                if ( !isValueEmpty( constraint.getValue() ) ) {
+                    if (onValueChangeCommand != null){
+                        onValueChangeCommand.execute();
+                    }
+                    textWidget.setText( constraint.getValue() );
 
                     popup.hide();
                 }
@@ -114,7 +123,7 @@ public class DefaultLiteralEditor extends Composite {
                 if ( '\r' == c || '\n' == c ) {
                     valueChanged.valueChanged( box.getText() );
                 } else {
-                    constraint.value = box.getText();
+                    constraint.setValue(box.getText());
                 }
             }
 
@@ -132,5 +141,15 @@ public class DefaultLiteralEditor extends Composite {
         } else {
             return false;
         }
+    }
+
+    private void executeOnValueChangeCommand(){
+        if (this.onValueChangeCommand != null){
+            this.onValueChangeCommand.execute();
+        }
+    }
+
+    public void setOnValueChangeCommand(Command onValueChangeCommand) {
+        this.onValueChangeCommand = onValueChangeCommand;
     }
 }

@@ -1244,6 +1244,8 @@ public interface Constants extends ConstantsWithLookup {
     String TheVariableName0IsAlreadyTaken();
 
     String BindTheFieldCalled0ToAVariable();
+    
+    String BindTheExpressionToAVariable();
 
     String ShowSubFields();
 
@@ -2083,4 +2085,8 @@ public interface Constants extends ConstantsWithLookup {
     String Enabled();
     String NewRuleTemplate();
     String TemplateKey();
+    String AllChangesHaveBeenSaved();
+    String TemplateEditor();
+    String TemplateData();
+    
 }

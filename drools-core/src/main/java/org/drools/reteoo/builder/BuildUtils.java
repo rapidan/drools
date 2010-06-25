@@ -106,10 +106,9 @@ public class BuildUtils {
             partition = RuleBasePartitionId.MAIN_PARTITION;
         } else if ( candidate instanceof ObjectTypeNode ) {
             // object type nodes are always shared
-            ObjectTypeNode otn = (ObjectTypeNode) candidate;
             Map<ObjectType, ObjectTypeNode> map = context.getRuleBase().getRete().getObjectTypeNodes( context.getCurrentEntryPoint() );
             if ( map != null ) {
-                otn = map.get( otn.getObjectType() );
+                ObjectTypeNode otn = map.get( ((ObjectTypeNode) candidate).getObjectType() );
                 if ( otn != null ) {
                     // adjusting expiration offset
                     otn.setExpirationOffset( Math.max( otn.getExpirationOffset(),
@@ -158,8 +157,8 @@ public class BuildUtils {
             // undo previous id assignment
             context.releaseId( candidate.getId() );
         }
+        node.addAssociation( context.getRule(), context.peekRuleComponent() );
         return node;
-
     }
 
     /**
@@ -304,10 +303,10 @@ public class BuildUtils {
                     for ( Map.Entry<Declaration, Interval> entry : temporal.entrySet() ) {
                         int targetIndex = declarations.indexOf( entry.getKey() );
                         Interval interval = entry.getValue();
-                        // FIXME: should it always be intersection or sometimes it would be union?????
                         source[targetIndex][eventIndex].intersect( interval );
-                        source[eventIndex][targetIndex].intersect( new Interval( -interval.getUpperBound(),
-                                                                                 -interval.getLowerBound() ) );
+                        Interval reverse = new Interval( interval.getUpperBound() == Long.MAX_VALUE ? Long.MIN_VALUE : -interval.getUpperBound(), 
+                                                         interval.getLowerBound() == Long.MIN_VALUE ? Long.MAX_VALUE : -interval.getLowerBound() );
+                        source[eventIndex][targetIndex].intersect( reverse );
                     }
                     eventIndex++;
                 }

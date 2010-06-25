@@ -250,7 +250,7 @@
     </section>
 
     <section>
-      <title>Categorisation</title>
+      <title>Categorization</title>
 
       <figure>
         <title>Categories</title>
@@ -477,64 +477,128 @@
 
         <para>B: This shows a pattern which is declaring that the rule is
         looking for a "Driver" fact (the fields are listed below, in this case
-        just "age"). Note the green triangle, it will popup a list of options
-        to add to the fact declaration: you can add more fields (eg their
+        just "age"). Clicking in the fact name (Driver) will popup a list of
+        options to add to the fact declaration: you can add more fields (eg their
         "location"), or you can assign a variable name to the fact (which you
         can use later on if needs be). As well as adding more fields to this
         pattern - you can add "multiple field" constraints - ie constraints
         that span across fields (eg age &gt; 42 or risk &gt; 2). The popup
         dialog shows the options.</para>
 
-        <para>C: The small "-" icons indicate you can remove something - in
+        <para>C: The small triangle indicates you can remove something. In
         this case it would remove the whole Driver fact declaration. If its
         the one below, it would remove just the age constraint.</para>
 
         <para>D: The "+" symbols allow you to add more patterns to the
         condition or the action part of the rule, or more attributes. In all
         cases, a popup option box is provided. For the "WHEN" part of the
-        rule, you can choose to add a constraint on a fact (it will give you a
-        list of facts), or you can use another conditional element, the
-        choices which are : "There is no" - which means the fact+constraints
-        must not exist, "There exists" - which means that there exists at
-        least one match (but there only needs to be one - it will not trigger
-        for each match), and "Any of" - which means that any of the patterns
-        can match (you then add patterns to these higher level patterns). If
-        you just put a fact (like is shown above) then all the patterns are
-        combined together so they are all true ("and").</para>
+        rule, you can choose from a list of Conditional Elements to add:
+        <itemizedlist spacing="compact" >
+            <listitem>
+            A Constraint on a Fact: it will give you a list of facts.
+            </listitem>
+            <listitem>
+            "The following does not exist": the fact+constraints must not exist.
+            </listitem>
+            <listitem>
+            "The following exists": at least one match should exist (but there
+            only needs to be one - it will not trigger for each match).
+            </listitem>
+            <listitem>
+            "Any of the following are true": any of the patterns can match
+            (you then add patterns to these higher level patterns).
+            </listitem>
+            <listitem>
+            "From": this will insert a new From Conditional Element to the rule.
+            </listitem>
+            <listitem>
+            "From Accumulate": this will insert a new Accumulate Conditional
+            Element to the rule.
+            </listitem>
+            <listitem>
+            "From Collect": this will insert a new Collect Conditional Element
+            to the rule.
+            </listitem>
+            <listitem>
+            "Free Form DRL": this will let you insert a free chunk of DRL.
+            </listitem>
+        </itemizedlist>
+        If you just put a fact (like is shown above)
+        then all the patterns are combined together so they are all true
+        ("and").</para>
 
-        <para>E: This shows the constraint for the "age" field. (Looking from
-        left to right) the green triangle allows you to "assign" a variable
-        name to the "age" field, which you may use later on in the rule. Next
-        is the list of constraint operations - this list changes depending on
-        the data type. After that is the value field - the value field will be
-        one of: a) a literal value (eg number, text), b) a "formula" - in
-        which case it is an expression which is calculated (this is for
-        advanced users) or b) a variable (in which case a list will be
-        provided to choose values from). After this there is a horizontal
-        arrow icon, this is for "connective constraints" : these are
-        constraints which allow you to have alternative values to check a
-        field against, for example: "age is less than 42 or age is not equal
-        to 39" is possibly this way.</para>
+        <para>E: This shows the constraint for the "age" field. Looking from
+        left to right you find:
+        <itemizedlist spacing="compact" >
+            <listitem>
+            The field name: Clicking on it you can assign a variable name to it,
+            or access nested properties of it.
+            </listitem>
+            <listitem>
+            A list of constraint operations: The content of this list changes
+            depending on the field's data type.
+            </listitem>
+            <listitem>
+            The value field: It could be on of
+                <orderedlist spacing="compact">
+                    <listitem>
+                        <para>
+                            A literal value: depending on the field's data type
+                            different components will be displayed: String or
+                            Number -> textbox, Date -> calendar, Enumeration ->
+                            combobox, Boolean -> checkbox
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <para>
+                            A "formula": this is an expression
+                            which is calculated (this is for advanced users only)
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <para>
+                            An Expression - this will let you use an Expression
+                            Builder to build up a full mvel expression. (At the
+                            moment only basic expressions are supported)
+                        </para>
+                    </listitem>
+                </orderedlist>
+            </listitem>
+        </itemizedlist> 
+        </para>
 
-        <para>F: This shows an "action" of the rule, a rule consists of a list
-        of actions. In this case, we are asserting/inserting a new fact, which
-        is a rejection (with the "reason" field set to an explanation). There
+        <para>F: This shows an "action" of the rule, the Right Hand Side of a
+        rule consists in a list of actions.
+        In this case, we are asserting/inserting a new fact, which
+        is a Rejection (with the "reason" field set to an explanation). There
         are quite a few other types of actions you can use: you can modify an
         existing fact (which tells the engine the fact has changed) - or you
         can simply set a field on a fact (in which case the engine doesn't
         know about the change - normally because you are setting a result).
-        You can also retract a fact. In most cases the green arrow will give
-        you a list of fields you can add so you can change the value. The
-        values you enter are "literal" - in the sense that what you type is
-        what the value is. If it needs to be a calculation, then add an "=" at
-        the start of the value - this will be interpreted as a "formula" (for
-        advanced users only) ! and the calculation will be performed (not
-        unlike a spreadsheet).</para>
+        You can also retract a fact. In most cases, just like in Fact Types, 
+        you can click in the Fact name to get a list of its attributes or to
+        bound it to a variable name. The values you enter are "literal" - in the 
+        sense that what you type is what the value is. If it needs to be a
+        calculation, then add an "=" at the start of the value - this will be
+        interpreted as a "formula" (for advanced users only) ! and the
+        calculation will be performed (not unlike a spreadsheet).
+        You can also perform a logical insert of
+        Facts, add Facts to existing global lists, call a method on a variable
+        or write some free form chunk of code.
+        </para>
 
         <para>G: This is where the rule options live. In this case, only
         salience is used which is a numeric value representing the rules
         "priority". This would probably be the most common option to
         use.</para>
+
+        <para>H: Pattern/Action toolbar. Next to each Pattern or Action you will
+        find a toolbar containing 3 buttons. The first button lets you insert
+        a new Pattern/Action bellow the one you selected, the other two buttons
+        will move the current Pattern/Action up or down. The toolbars are
+        translucent by default; they get active when you move the mouse cursor
+        inside one of them.
+        </para>
 
         <section>
           <title>User driven drop down lists</title>
@@ -607,30 +671,120 @@
             </mediaobject>
           </figure>
 
-          <para>In the above example, you can see it is using a mixture of
-          literal values, and formulas. The second constraint on the "Person"
-          fact, is a formula (in this case it is doing a silly calculation on
-          the persons age, and checking something against their name - both
-          "age" and "name" are fields of the Person fact in this case. In the
-          3rd line (which says "age is less than .." - it is also using a
-          formula, although, in this case the formula does a calculation and
-          returns a value (which is used in the comparison) - in the former
-          case, it had to return True or False (in this case, its a value).
-          Obvious formulas are basically pieces of code - so this is for
-          experienced users only.</para>
+          <para>In the above example, you can see how to use a mixture of
+          Conditional Elements, literal values, and formulas.
+          The rule has 4 "top level" Patterns and 1 Action.
+          The "top level" Patterns are:
+          <orderedlist spacing="compact">
+            <listitem>
+                <para>
+                    A Fact Pattern on Person. This Pattern contains two field
+                    constraints: one for birthdate field and the other one is a
+                    formula. Note that the value of the birthdate restriction
+                    is selected from a calendar. Another thing to note is that
+                    you can make calculations and use nested fields in the
+                    formula restriction (i.e. car.brand).
+                    Finally, we are setting a variable name ($p) to the Person
+                    Fact Type. You can then use this variable in other Patterns.
+                    <note>
+                        <para>
+                        The generated DRL from this Pattern will be:
+                        <code>$p : Person( birthDate &lt; "19-Dec-1982" , eval( car.brand == "Ford" &amp;&amp; salary &gt; (2500 * 4.1) ))</code>
+                        </para>
+                    </note>
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    A From Pattern. This condition will create a match for every
+                    Address whose street name is "Elm St." from the Person's
+                    list of addresses.
+                    The left side of the from is a regular Fact Pattern and the
+                    right side is an Expression Builder that let us inspect
+                    variable's fields.
+                    <note>
+                        <para>
+                        The generated DRL from this Pattern will be:
+                        <code>Address( street == "Elm St." ) from $p.addresses</code>
+                        </para>
+                    </note>
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    A "Not Exist" Conditional Element. This condition will match
+                    when its content doesn't create a match. In this case, its
+                    content is a regular Fact Pattern (on Person). In this
+                    Fact Pattern you can see how variables ($p) could be used
+                    inside a formula value.
+                    <note>
+                        <para>
+                        The generated DRL from this Pattern will be:
+                        <code>not Person( salary == ( $p.salary * 2 ) )</code>
+                        </para>
+                    </note>
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    A "From Accumulate" Conditional Element. This is maybe one
+                    of the most complex Patterns you can use. It consist in a
+                    Left Pattern (It must be a Fact Pattern. In this case is a
+                    Number Pattern. The Number is named $totalAddresses), a
+                    Source Pattern (Which could be a Fact
+                    Pattern, From, Collect or Accumulate conditional elements.
+                    In this case is an Address Pattern Restriction with a field
+                    restriction in its zip field) and a Formula Section where
+                    you can use any built-in or custom Accumulate Function (in
+                    this example a count() function is used).
+                    Basically, this Conditional Element will count the addresses
+                    having a zip code of 43240 from the Person's list of
+                    addresses.
+                    <note>
+                        <para>
+                        The generated DRL from this Pattern will be:
+                        <code>$totalAddresses : Number() from accumulate ($a :
+                        Address( zipCode == " 43240") from $p.addresses,
+                        count($a)) </code>
+                        </para>
+                    </note>
+                </para>
+            </listitem>
+          </orderedlist>
+          </para>
+          <figure>
+            <title>Adding Patterns</title>
 
-          <para>Looking at the "Board" pattern (the second pattern with the
-          horizontal grey bar): this uses a top level conditional element
-          ("There is no") - this means that the pattern is actually looking
-          for the "non existence" of a fact that matches the pattern. Note the
-          "Any of:" - this means that EITHER the "type" field constraint is
-          matched, or the "name" field is matched (to "myname" in the case
-          above). This is what is termed a Multiple field constraint (you can
-          nest these, and have it as complex as you like, depending on how
-          much you want the next person to hate you: Some paraphrased advice:
-          Write your rules in such as way as if the person who has to
-          read/maintain them is a psychopath, has a gun, and knows where you
-          live).</para>
+            <mediaobject>
+              <imageobject>
+                <imagedata align="center"
+                           fileref="images/Chapter-Guvnor/GuidedLHSPatterns.png"
+                           format="PNG" scalefit="1"></imagedata>
+              </imageobject>
+            </mediaobject>
+          </figure>
+
+          <para>
+              When clicking on the + button of the WHEN section, a new popup
+              will appear letting you to add a new Pattern to the Rule. The
+              popup will looks similar to the image above. In this popup you
+              could select the type of Pattern to add by selecting one of
+              the list items. In the list you will have an entry for each
+              defined Fact Type, in addition to the already mentioned
+              Conditional Elements like "exists", "doesn't exist", "from",
+              "collect", "accumulate" and "free form DRL". Once you have
+              selected one of this elements, you can add a new Pattern by
+              clicking on the "Ok" button. The new pattern will be added at the
+              bottom of the rule's left hand side. If you wan't to choose a
+              different position, you can use the combobox placed at the top
+              of the popup.
+          </para>
+          <para>
+            You can also open this popup by clicking in the + button from a
+            Pattern's action toolbar. If that is the case, the popup that
+            appears wouldn't containt the position combobox, because the new
+            Pattern will be added just after the Pattern where you clicked.
+          </para>
 
           <figure>
             <title>Adding constraints</title>
@@ -646,12 +800,13 @@
 
           <para>The above dialog is what you will get when you want to add
           constraints to the Person fact. In the top half are the simple
-          options: you can either add a field straight away (a list of fields
-          of the Person fact will be shown), or you can add a "Multiple field
-          constraint" - of a given type (which is described above). The
-          Advanced options: you can add a formula (which resolves to True or
-          False - this is like in the example above: "age &lt; (age * 2)
-          ...."). You can also assign a Variable name to the Person fact
+          options: you can either add a field constraint straight away (a list
+          of fields of the Person fact will be shown), or you can add a
+          "Multiple field constraint" using AND or OR operands.
+          In the bottom half of the window you have the Advanced options:
+          you can add a formula (which resolves to True or False - this is like
+          in the example above: "... salary &gt; (2500 * 4.1)".
+          You can also assign a Variable name to the Person fact
           (which means you can then access that variable on the action part of
           the rule, to set a value etc).</para>
         </section>
@@ -1047,7 +1202,7 @@ public class SampleDataSource2 {
       rules, showing the list may take several seconds - hence the importance
       of using categories to help you find your way around).</para>
 
-      <para>So whilst rules (and assets in general) can appear in any number
+      <para>So while rules (and assets in general) can appear in any number
       of categories, they only live in one package. If you think of the BRMS
       as a file system, then each package is a folder, and the assets live in
       that folder - as one big happy list of files. When you create a
@@ -1085,6 +1240,11 @@ public class SampleDataSource2 {
           <listitem>
             <para>Model: A package requires at least one model - for the
             rules.</para>
+          </listitem>
+
+           <listitem>
+            <para>WorkingSets: Working Sets let you create subsets of package's
+            Fact Types and apply constraints to their fields.</para>
           </listitem>
         </itemizedlist></para>
 
@@ -1370,6 +1530,179 @@ public class SampleDataSource2 {
     the application, and allows the model to have a lifecycle separate from
     the application. It also removed the hassle of keeping jar files in sync
     between rules and the applications that use the rules.</para>
+  </section>
+
+  <section>
+    <title>Working Sets</title>
+    <para>Working Sets are a mean for grouping Facts and then defining 
+    constraints on them. You can create groups of Facts and only those Facts 
+    will be visible when authoring rules using the Guided Editor.</para>
+    <para>Right now, Working Sets must be activated manually from the Guided
+    Editor window (using the "Select Working Set" button placed in the toolbar).
+    In the future, different Working Sets could be assigned to different users
+    to reduce the scope and complexity when authoring rules.</para>
+
+    <figure>
+      <title>Creating a new Working Set</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata align="center"
+                     fileref="images/Chapter-Guvnor/WorkingSetCreation.png"
+                     format="PNG" scalefit="1"></imagedata>
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>The figure above shows the window used to create or modify
+    Working Sets. In this window you will find 2 lists. The list on the left
+    side contains the possible Fact Types that can be added to the Working
+    Set. These facts are those defined/imported in the package's model. The
+    list on the right side contains the allowed Fact Types of this Working Set.
+    When this Working Sets is active, only those Fact Types could be used
+    while authoring rules using the Guided BRL Editor</para>
+
+    <figure>
+      <title>Defining Field Constraints inside a Working Set</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata align="center"
+                     fileref="images/Chapter-Guvnor/WorkingSetConstraintCreation.png"
+                     format="PNG" scalefit="1"></imagedata>
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>Once you have selected the valid Fact Types for a Working Set, you
+    can add Constraints to the fields of those Facts Types. The image above
+    shows how the Field Constraint tab looks like. In this configuration screen
+    you will find:</para>
+    <para>A.- Fact Types dropdown: Here you will find a list containing the
+    Working Set's Fact Types</para>
+    <para>B.- Field dropdown: Once you have selected a Fact Type, this dropdown
+    will contain its fields.</para>
+    <para>C.- Constraints List: This lists shows all the Constraints applied to
+    the selected Field</para>
+    <para>D.- Action Buttons: Using these buttons you will be able to add or
+    remove Constraints to the selected Field. Right now, Guvnor provides a
+    built-in collection of Constraints. The idea for next releases is to let
+    users to plug their custom Constraints too.</para>
+    <para>E.- Constraint's Attributes: In this section you will find all the
+    attributes of the current Constraint that could be parametrized by the
+    user.</para>
+    <para>In the example above, a Matches Constraint is created for Car.brand
+    field. This means that when rule authors use this field in a Rule condition,
+    they should use a value valid according to this constraint, otherwise they
+    will receive an error or warning.</para>
+
+    <section>
+        <title>Activating and Using Working Sets</title>
+        <para>Working Sets are no active by default in Guvnor. Because this is
+        an experimental feature, you must enable them manually in the Guided
+        Editor panel if you want to use them. In the future, Working Sets will
+        be associated to each user's profile.</para>
+        <para>A new button was added in Guided Editor's Toolbar:
+        "Select Working Sets". This button will open a popup with the list of
+        the package's Working Sets. Using this popup you can activate one or
+        more Working Sets.</para>
+        <para>When Working Sets are activated, only the Fact Types allowed by
+        them could be used when inserting new Patterns or Actions. The Patterns
+        and Actions already present in the rule that contain prohibited Fact
+        Types are marked as read only. Take a look at the next screen shots
+        comparing the Guided Editor panel with and without Working Sets</para>
+
+    <figure>
+      <title>Comparison of "Add new Pattern" window using Working Set and
+      without using them</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata align="center"
+                     fileref="images/Chapter-Guvnor/WorkingSetFactConstraint.png"
+                     format="PNG" scalefit="1"></imagedata>
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>In the image you can see how Working Sets could help rule's authors
+    by reducing the amount of available Fact Types</para>
+
+    <figure>
+      <title>Comparison of "Add new Pattern" window using Working Set and
+      without using them</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata align="center"
+                     fileref="images/Chapter-Guvnor/WorkingSetFactConstraintRO.png"
+                     format="PNG" scalefit="1"></imagedata>
+        </imageobject>
+      </mediaobject>
+    </figure>
+    
+    <para>Here you can see how Patterns containing prohibited Fact Types are
+    switched to read only mode after Working Sets are activated.</para>
+    
+    <section>
+        <title>Using Field Constraint</title>
+        <para>Up to now we have only cover how Facts are filtered using Working
+        Sets. Another important feature of Working Sets is Field Constraints. We
+        have already saw how to configure them, now we are going to explain how
+        to use them.</para>
+        <para>Because Field Constraints are defined inside a Working Set, we
+        need to activate one or more Working Set to start working with them.
+        Once a Working Set defining Field's Constraints is active we have
+        two ways to use them: on demand validation and real-time validation.</para>
+        <para>On demand validation is performed when you press the "Verify"
+        button present in Guided Editor's toolbar. This button will fire a
+        rule verification and will end up showing a report with the results.
+        Any violated constraint will be shown as an error or warning according
+        to its relevance</para>
+
+        <figure>
+          <title>On demand Field Constraints validation</title>
+          <mediaobject>
+            <imageobject>
+              <imagedata align="center"
+                         fileref="images/Chapter-Guvnor/WorkingSetFieldConstraintReport.png"
+                         format="PNG" scalefit="1"></imagedata>
+            </imageobject>
+          </mediaobject>
+        </figure>
+
+        <para>The image above shows the report that appears when a Working
+        Set defines a Range Constraint on Driver.age. The age should be
+        between 18 and 80.</para>
+
+        <para>Real-Time validation is an experimental feature (yes, inside
+        another experimental feature like Working Sets) that checks for
+        Field's Constraints violations in real time and mark the lines where
+        the violations are using error or warning icons. This feature is
+        disabled by default because sometimes it could be expensive. If you
+        want to try it out, you should enable it in Administration -> Rules
+        Verification. This configuration is not yet persisted, so you need to
+        enable it every time you start Guvnor.</para>
+
+        <figure>
+          <title>Real-Time Field Constraints validation</title>
+          <mediaobject>
+            <imageobject>
+              <imagedata align="center"
+                         fileref="images/Chapter-Guvnor/WorkingSetFieldConstraintRealTimeValidation.png"
+                         format="PNG" scalefit="1"></imagedata>
+            </imageobject>
+          </mediaobject>
+        </figure>
+
+        <para>This Image shows the result of real-time validation. There you
+        can see the same result as on demand validation, but you don't need
+        to click any button, and the errors/warnings are shown in a more
+        fashionable way!</para>
+
+        <caution>The problem with real-time validation is that right now only
+        support "top level" Patterns.</caution>
+
+    </section>
+
+
+    </section>
   </section>
 
   <section>

@@ -32,20 +32,20 @@ public final class DefaultSimpleScore extends AbstractScore<SimpleScore>
     // Worker methods
     // ************************************************************************
 
-    public SimpleScore add(SimpleScore augend) {
-        return new DefaultSimpleScore(this.score + augend.getScore());
+    public SimpleScore add(SimpleScore augment) {
+        return new DefaultSimpleScore(this.score + augment.getScore());
     }
 
-    public SimpleScore substract(SimpleScore subtrahend) {
+    public SimpleScore subtract(SimpleScore subtrahend) {
         return new DefaultSimpleScore(this.score - subtrahend.getScore());
     }
 
     public SimpleScore multiply(double multiplicand) {
-        return new DefaultSimpleScore((int) Math.round(this.score * multiplicand));
+        return new DefaultSimpleScore((int) Math.floor(this.score * multiplicand));
     }
 
     public SimpleScore divide(double divisor) {
-        return new DefaultSimpleScore((int) Math.round(this.score / divisor));
+        return new DefaultSimpleScore((int) Math.floor(this.score / divisor));
     }
 
     public boolean equals(Object o) {

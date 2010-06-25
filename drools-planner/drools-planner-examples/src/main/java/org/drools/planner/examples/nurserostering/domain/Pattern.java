@@ -1,5 +1,7 @@
 package org.drools.planner.examples.nurserostering.domain;
 
+import java.util.List;
+
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.apache.commons.lang.builder.CompareToBuilder;
 import org.drools.planner.examples.common.domain.AbstractPersistable;
@@ -8,10 +10,10 @@ import org.drools.planner.examples.common.domain.AbstractPersistable;
  * @author Geoffrey De Smet
  */
 @XStreamAlias("Pattern")
-public class Pattern extends AbstractPersistable implements Comparable<Pattern> {
+public abstract class Pattern extends AbstractPersistable implements Comparable<Pattern> {
 
-    private String code;
-    private int weight;
+    protected String code;
+    protected int weight;
 
     public String getCode() {
         return code;

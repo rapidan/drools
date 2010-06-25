@@ -23,7 +23,7 @@ public class SetGlobalCommand
 	@XmlElement
     private Object  object;
 
-    @XmlAttribute
+    @XmlAttribute(name="out-identifier")
     private String  outIdentifier;
 
     @XmlAttribute
@@ -53,6 +53,10 @@ public class SetGlobalCommand
 
     public String getIdentifier() {
         return this.identifier;
+    }
+    
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
     }
 
     public Object getObject() {

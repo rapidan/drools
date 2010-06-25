@@ -4,15 +4,16 @@ import java.util.HashSet;
 
 import junit.framework.TestCase;
 
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FreeFormLine;
-import org.drools.guvnor.client.modeldriven.brl.IAction;
-import org.drools.guvnor.client.modeldriven.brl.IPattern;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.brl.SingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.dt.TemplateModel;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldValue;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertFact;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FreeFormLine;
+import org.drools.ide.common.client.modeldriven.brl.IAction;
+import org.drools.ide.common.client.modeldriven.brl.IPattern;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.brl.SingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.dt.TemplateModel;
+import org.drools.ide.common.server.util.BRLPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,11 +63,11 @@ public class BRDRTPersistenceTest extends TestCase {
         fp.boundName = "$p";
         
         SingleFieldConstraint sfc = new SingleFieldConstraint("name");
-        sfc.fieldName = "name";
-        sfc.value = "name";
-        sfc.operator = "==";
+        sfc.setFieldName("name");
+        sfc.setValue("name");
+        sfc.setOperator("==");
         	
-        sfc.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+        sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
         fp.addConstraint(sfc);
         
         m.lhs[0] = fp;
@@ -109,11 +110,11 @@ public class BRDRTPersistenceTest extends TestCase {
 		fp.boundName = "$p";
 
 		SingleFieldConstraint sfc = new SingleFieldConstraint("name");
-		sfc.fieldName = "name";
-		sfc.value = "name";
-		sfc.operator = "==";
+		sfc.setFieldName("name");
+		sfc.setValue("name");
+		sfc.setOperator("==");
 
-		sfc.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+		sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
 		fp.addConstraint(sfc);
 
 		m.lhs[0] = fp;
@@ -170,11 +171,11 @@ public class BRDRTPersistenceTest extends TestCase {
         fp.boundName = "$p";
         
         SingleFieldConstraint sfc = new SingleFieldConstraint("name");
-        sfc.fieldName = "name";
-        sfc.value = "name";
-        sfc.operator = "==";
+        sfc.setFieldName("name");
+        sfc.setValue("name");
+        sfc.setOperator("==");
         	
-        sfc.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+        sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
         fp.addConstraint(sfc);
         
         m.lhs[0] = fp;
@@ -220,17 +221,66 @@ public class BRDRTPersistenceTest extends TestCase {
         fp.boundName = "$p";
         
         SingleFieldConstraint sfc = new SingleFieldConstraint("name");
-        sfc.fieldName = "name";
-        sfc.value = "name";
-        sfc.operator = "==";
+        sfc.setFieldName("name");
+        sfc.setValue("name");
+        sfc.setOperator("==");
         	
-        sfc.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+        sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
         fp.addConstraint(sfc);
         
         m.lhs[0] = fp;
         
         m.addRow(new String[] {"\"baunax\""});
         m.addRow(new String[] {"\"diegoll\""});
+        
+        final String drl = p.marshal(m);
+		log.info("drl :\n{}", drl);
+        assertNotNull(drl);
+        assertEquals(expected, drl);
+
+	}
+	
+	public void testRemoveWithData() {
+		String expected = 
+				"rule \"with composite_1\"\n" + 
+				"	dialect \"mvel\"\n" + 
+				"	when\n" + 
+				"		$p : Person( name == \"diegoll\" )\n" + 
+				"	then\n" + 
+				"end\n" + 
+				"\n" + 
+				"rule \"with composite_0\"\n" + 
+				"	dialect \"mvel\"\n" + 
+				"	when\n" + 
+				"		$p : Person( name == \"baunax\" )\n" + 
+				"	then\n" + 
+				"end";
+		
+        TemplateModel m = new TemplateModel();
+        m.name = "with composite";
+        m.lhs = new IPattern[1];
+        m.rhs = new IAction[0];
+
+        FactPattern fp = new FactPattern("Person");
+        fp.boundName = "$p";
+        
+        SingleFieldConstraint sfc = new SingleFieldConstraint("name");
+        sfc.setFieldName("name");
+        sfc.setValue("name");
+        sfc.setOperator("==");
+        	
+        sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
+        fp.addConstraint(sfc);
+        
+        m.lhs[0] = fp;
+        
+        m.addRow(new String[] {"\"baunax\""});
+        m.addRow(new String[] {"\"diegoll\""});
+        String id1 = m.addRow(new String[] {"\"diegoll1\""});
+        String id2 = m.addRow(new String[] {"\"diegoll2\""});
+        
+        m.removeRowById(id1);
+        m.removeRowById(id2);
         
         final String drl = p.marshal(m);
 		log.info("drl :\n{}", drl);
@@ -249,18 +299,18 @@ public class BRDRTPersistenceTest extends TestCase {
         fp.boundName = "$p";
         
         SingleFieldConstraint sfc = new SingleFieldConstraint("name");
-        sfc.fieldName = "name";
-        sfc.value = "name";
-        sfc.operator = "==";
-        sfc.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+        sfc.setFieldName("name");
+        sfc.setValue("name");
+        sfc.setOperator("==");
+        sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
         
         fp.addConstraint(sfc);
         
         sfc = new SingleFieldConstraint("age");
-        sfc.fieldName = "age";
-        sfc.value = "age";
-        sfc.operator = "==";
-        sfc.constraintValueType = ISingleFieldConstraint.TYPE_TEMPLATE;
+        sfc.setFieldName("age");
+        sfc.setValue("age");
+        sfc.setOperator("==");
+        sfc.setConstraintValueType(BaseSingleFieldConstraint.TYPE_TEMPLATE);
         
         fp.addConstraint(sfc);
         
@@ -270,18 +320,21 @@ public class BRDRTPersistenceTest extends TestCase {
         HashSet<String> expected = new HashSet<String>();
         expected.add("name");
         expected.add("age");
+        expected.add(TemplateModel.ID_COLUMN_NAME);
         assertEquals(expected, m.getTable().keySet());
         
         fp.removeConstraint(1);
         m.putInSync();
         
         expected.remove("age");
+        expected.add(TemplateModel.ID_COLUMN_NAME);
         assertEquals(expected, m.getTable().keySet());
         
         fp.addConstraint(sfc);
         m.putInSync();
         
         expected.add("age");
+        expected.add(TemplateModel.ID_COLUMN_NAME);
         assertEquals(expected, m.getTable().keySet());
         
 	}

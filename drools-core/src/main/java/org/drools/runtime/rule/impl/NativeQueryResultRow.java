@@ -14,10 +14,10 @@ public class NativeQueryResultRow
 
     public Object get(String identifier) {
         return this.result.get( identifier );
-    }
+    }    
     
     public FactHandle getFactHandle(String identifier) {
         return this.result.getFactHandle( identifier );
-    }
+    }    
 
 }

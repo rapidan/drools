@@ -3,8 +3,6 @@ package org.drools;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Person
     implements
@@ -70,7 +68,6 @@ public class Person
               "",
               0 );
     }
-
 
     public Person(final String name,
                   final String likes) {

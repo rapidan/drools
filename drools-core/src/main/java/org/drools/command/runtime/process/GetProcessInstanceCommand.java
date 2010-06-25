@@ -1,18 +1,21 @@
 package org.drools.command.runtime.process;
 
-import java.util.Collection;
-
 import org.drools.command.Context;
 import org.drools.command.impl.GenericCommand;
 import org.drools.command.impl.KnowledgeCommandContext;
-import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.runtime.StatefulKnowledgeSession;
 import org.drools.runtime.process.ProcessInstance;
 
 public class GetProcessInstanceCommand implements GenericCommand<ProcessInstance> {
 	
 	private Long processInstanceId;
+
+	public GetProcessInstanceCommand() {}
 	
+	public GetProcessInstanceCommand(Long processInstanceId) {
+		this.processInstanceId = processInstanceId;
+	}
+
 	public Long getProcessInstanceId() {
 		return processInstanceId;
 	}

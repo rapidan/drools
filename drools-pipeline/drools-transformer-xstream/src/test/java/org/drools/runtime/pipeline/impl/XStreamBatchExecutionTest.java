@@ -244,7 +244,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "      <price>30</price>\n";
         expectedXml += "    </org.drools.Cheese>\n";
         expectedXml += "  </result>\n";
-        expectedXml += "  <fact-handle identifier=\"outStilton\" externalForm=\"" + ((InternalFactHandle) result.getFactHandle( "outStilton" )).toExternalForm() + "\" /> \n";
+        expectedXml += "  <fact-handle identifier=\"outStilton\" external-form=\"" + ((InternalFactHandle) result.getFactHandle( "outStilton" )).toExternalForm() + "\" /> \n";
         expectedXml += "</execution-results>\n";
 
         assertXMLEqual( expectedXml,
@@ -291,7 +291,7 @@ public class XStreamBatchExecutionTest extends TestCase {
 
         String expectedXml = "";
         expectedXml += "<execution-results>\n";
-        expectedXml += "  <fact-handle identifier=\"outStilton\" externalForm=\"" + ((InternalFactHandle) result.getFactHandle( "outStilton" )).toExternalForm() + "\" /> \n";
+        expectedXml += "  <fact-handle identifier=\"outStilton\" external-form=\"" + ((InternalFactHandle) result.getFactHandle( "outStilton" )).toExternalForm() + "\" /> \n";
         expectedXml += "</execution-results>\n";
 
         assertXMLEqual( expectedXml,
@@ -336,7 +336,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         FactHandle factHandle = (FactHandle) result.getFactHandle( "outStilton" );
         inXml = "";
         inXml += "<batch-execution>";
-        inXml += "  <get-object out-identifier='outStilton' factHandle='" + factHandle.toExternalForm() + "' />";
+        inXml += "  <get-object out-identifier='outStilton' fact-handle='" + factHandle.toExternalForm() + "' />";
         inXml += "</batch-execution>";
         getPipelineStateful( ksession ).insert( inXml,
                                                 resultHandler );
@@ -385,14 +385,14 @@ public class XStreamBatchExecutionTest extends TestCase {
         FactHandle factHandle = (FactHandle) result.getFactHandle( "outStilton" );
         inXml = "";
         inXml += "<batch-execution>";
-        inXml += "  <retract factHandle='" + factHandle.toExternalForm() + "' />";
+        inXml += "  <retract fact-handle='" + factHandle.toExternalForm() + "' />";
         inXml += "</batch-execution>";
         getPipelineStateful( ksession ).insert( inXml,
                                                 resultHandler );
 
         inXml = "";
         inXml += "<batch-execution>";
-        inXml += "  <get-object out-identifier='outStilton' factHandle='" + factHandle.toExternalForm() + "' />";
+        inXml += "  <get-object out-identifier='outStilton' fact-handle='" + factHandle.toExternalForm() + "' />";
         inXml += "</batch-execution>";
         getPipelineStateful( ksession ).insert( inXml,
                                                 resultHandler );
@@ -447,7 +447,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "      <price>30</price>\n";
         expectedXml += "    </org.drools.Cheese>\n";
         expectedXml += "  </result>\n";
-        expectedXml += "  <fact-handle identifier=\"outStilton\" externalForm=\"" + factHandle.toExternalForm() + "\" /> \n";
+        expectedXml += "  <fact-handle identifier=\"outStilton\" external-form=\"" + factHandle.toExternalForm() + "\" /> \n";
         expectedXml += "</execution-results>\n";
 
         assertXMLEqual( expectedXml,
@@ -455,7 +455,7 @@ public class XStreamBatchExecutionTest extends TestCase {
 
         inXml = "";
         inXml += "<batch-execution>";
-        inXml += "  <modify factHandle='" + factHandle.toExternalForm() + "'> <set accessor='oldPrice' value='\"42\"' /><set accessor='price' value='50' /></modify>";
+        inXml += "  <modify fact-handle='" + factHandle.toExternalForm() + "'> <set accessor='oldPrice' value='\"42\"' /><set accessor='price' value='50' /></modify>";
         inXml += "  <fire-all-rules />";
         inXml += "</batch-execution>";
         getPipelineStateful( ksession ).insert( inXml,
@@ -463,7 +463,7 @@ public class XStreamBatchExecutionTest extends TestCase {
 
         inXml = "";
         inXml += "<batch-execution>";
-        inXml += "  <get-object out-identifier='outCheddar' factHandle='" + factHandle.toExternalForm() + "' />";
+        inXml += "  <get-object out-identifier='outCheddar' fact-handle='" + factHandle.toExternalForm() + "' />";
         inXml += "</batch-execution>";
         getPipelineStateful( ksession ).insert( inXml,
                                                 resultHandler );
@@ -479,7 +479,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         ModifyCommand.ALLOW_MODIFY_EXPRESSIONS = false;
         inXml = "";
         inXml += "<batch-execution>";
-        inXml += "  <modify factHandle='" + factHandle.toExternalForm() + "'> <set accessor='type' value='44\"; System.exit(1);' /><set accessor='price' value='50' /></modify>";
+        inXml += "  <modify fact-handle='" + factHandle.toExternalForm() + "'> <set accessor='type' value='44\"; System.exit(1);' /><set accessor='price' value='50' /></modify>";
         inXml += "  <fire-all-rules />";
         inXml += "</batch-execution>";
         getPipelineStateful( ksession ).insert( inXml,
@@ -602,7 +602,7 @@ public class XStreamBatchExecutionTest extends TestCase {
 
         System.err.println( outXml );
         String expectedXml = "";
-        expectedXml += "<execution-results>\n" + "  <result identifier=\"out-list\">\n" + "    <list>\n" + "      <fact-handle externalForm=\"" + fh.toExternalForm() + "\"/>\n" + "    </list>\n" + "  </result>\n" + "</execution-results>";
+        expectedXml += "<execution-results>\n" + "  <result identifier=\"out-list\">\n" + "    <list>\n" + "      <fact-handle external-form=\"" + fh.toExternalForm() + "\"/>\n" + "    </list>\n" + "  </result>\n" + "</execution-results>";
 
         assertXMLEqual( expectedXml,
                         outXml );
@@ -677,13 +677,13 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "  <fact-handles identifier=\"myfacts\">\n";
         for ( FactHandle factHandle : factHandles ) {
             if ( ((Cheese) ksession.getObject( factHandle )).getPrice() == 30 ) {
-                expectedXml += "  <fact-handle externalForm=\"" + factHandle.toExternalForm() + "\"/>\n";
+                expectedXml += "  <fact-handle external-form=\"" + factHandle.toExternalForm() + "\"/>\n";
             }
         }
 
         for ( FactHandle factHandle : factHandles ) {
             if ( ((Cheese) ksession.getObject( factHandle )).getPrice() == 35 ) {
-                expectedXml += "  <fact-handle externalForm=\"" + factHandle.toExternalForm() + "\"/>\n";
+                expectedXml += "  <fact-handle external-form=\"" + factHandle.toExternalForm() + "\"/>\n";
             }
         }
         expectedXml += "  </fact-handles>\n";
@@ -992,13 +992,13 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "          <price>1</price>\n";
         expectedXml += "          <oldPrice>0</oldPrice>\n";
         expectedXml += "        </org.drools.Cheese>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
         expectedXml += "        <org.drools.Cheese>\n";
         expectedXml += "          <type>cheddar</type>\n";
         expectedXml += "          <price>1</price>\n";
         expectedXml += "          <oldPrice>0</oldPrice>\n";
         expectedXml += "        </org.drools.Cheese>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
         expectedXml += "      </row>\n";
         expectedXml += "      <row>\n";
         row = it1.next();
@@ -1007,13 +1007,13 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "          <price>2</price>\n";
         expectedXml += "          <oldPrice>0</oldPrice>\n";
         expectedXml += "        </org.drools.Cheese>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
         expectedXml += "        <org.drools.Cheese>\n";
         expectedXml += "          <type>cheddar</type>\n";
         expectedXml += "          <price>2</price>\n";
         expectedXml += "          <oldPrice>0</oldPrice>\n";
         expectedXml += "        </org.drools.Cheese>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
         expectedXml += "      </row>\n";
         expectedXml += "    </query-results>\n";
         expectedXml += "  </result>\n";
@@ -1026,16 +1026,16 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "      <row>\n";
         row = it2.next();
         expectedXml += "        <org.drools.Cheese reference=\"../../../../result/query-results/row/org.drools.Cheese\"/>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
         expectedXml += "        <org.drools.Cheese reference=\"../../../../result/query-results/row/org.drools.Cheese[2]\"/>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
         expectedXml += "      </row>\n";
         expectedXml += "      <row>\n";
         row = it2.next();
         expectedXml += "        <org.drools.Cheese reference=\"../../../../result/query-results/row[2]/org.drools.Cheese\"/>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "stilton" ).toExternalForm() + "' />";
         expectedXml += "        <org.drools.Cheese reference=\"../../../../result/query-results/row[2]/org.drools.Cheese[2]\"/>\n";
-        expectedXml += "        <fact-handle externalForm='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
+        expectedXml += "        <fact-handle external-form='" + row.getFactHandle( "cheddar" ).toExternalForm() + "' />";
         expectedXml += "      </row>\n";
         expectedXml += "    </query-results>\n";
         expectedXml += "  </result>\n";
@@ -1154,7 +1154,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "      <oldPrice>5</oldPrice>\n";
         expectedXml += "    </org.drools.Cheese>\n";
         expectedXml += "  </result>\n";
-        expectedXml += "  <fact-handle identifier=\"outBrie\" externalForm=\"" + factHandle.toExternalForm() + "\" /> \n";
+        expectedXml += "  <fact-handle identifier=\"outBrie\" external-form=\"" + factHandle.toExternalForm() + "\" /> \n";
         expectedXml += "</execution-results>\n";
         assertXMLEqual( expectedXml,
                         outXml );
@@ -1732,7 +1732,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "      <price>30</price>\n";
         expectedXml += "    </org.foo.Whee>\n";
         expectedXml += "  </result>\n";
-        expectedXml += "  <fact-handle identifier=\"outStilton\" externalForm=\"" + factHandle.toExternalForm() + "\" /> \n";
+        expectedXml += "  <fact-handle identifier=\"outStilton\" external-form=\"" + factHandle.toExternalForm() + "\" /> \n";
         expectedXml += "</execution-results>\n";
 
         assertXMLEqual( expectedXml,
@@ -1854,7 +1854,7 @@ public class XStreamBatchExecutionTest extends TestCase {
         expectedXml += "      <price>30</price>\n";
         expectedXml += "    </org.drools.Cheese>\n";
         expectedXml += "  </result>\n";
-        expectedXml += "  <fact-handle identifier=\"outStilton\" externalForm=\"" + ((InternalFactHandle) result.getFactHandle( "outStilton" )).toExternalForm() + "\" /> \n";
+        expectedXml += "  <fact-handle identifier=\"outStilton\" external-form=\"" + ((InternalFactHandle) result.getFactHandle( "outStilton" )).toExternalForm() + "\" /> \n";
         expectedXml += "</execution-results>\n";
 
         assertXMLEqual( expectedXml,
@@ -1899,13 +1899,13 @@ public class XStreamBatchExecutionTest extends TestCase {
         Transformer inTransformer = new XStreamFromXmlGridTransformer( xstreamResolverStrategy );
         inTransformer.setReceiver( batchExecution );
 
-        Transformer domTransformer = new ToXmlNodeTransformer();
-        domTransformer.setReceiver( inTransformer );
+//        Transformer domTransformer = new ToXmlNodeTransformer();
+//        domTransformer.setReceiver( inTransformer );
 
         //Pipeline pipeline = PipelineFactory.newStatefulKnowledgeSessionPipeline( ksession );
         Pipeline pipeline = new ExecutionNodePipelineImpl( node );
 
-        pipeline.setReceiver( domTransformer );
+        pipeline.setReceiver( inTransformer );
 
         return pipeline;
     }

@@ -13,23 +13,23 @@ import org.drools.guvnor.client.common.ImageButton;
 import org.drools.guvnor.client.common.PrettyFormLayout;
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.dt.ActionCol;
-import org.drools.guvnor.client.modeldriven.dt.ActionInsertFactCol;
-import org.drools.guvnor.client.modeldriven.dt.ActionSetFieldCol;
-import org.drools.guvnor.client.modeldriven.dt.AttributeCol;
-import org.drools.guvnor.client.modeldriven.dt.ConditionCol;
-import org.drools.guvnor.client.modeldriven.dt.DTColumnConfig;
-import org.drools.guvnor.client.modeldriven.dt.GuidedDecisionTable;
-import org.drools.guvnor.client.modeldriven.dt.MetadataCol;
 import org.drools.guvnor.client.modeldriven.ui.ActionValueEditor;
-import org.drools.guvnor.client.modeldriven.ui.ConstraintValueEditorHelper;
 import org.drools.guvnor.client.modeldriven.ui.RuleAttributeWidget;
 import org.drools.guvnor.client.packages.SuggestionCompletionCache;
 import org.drools.guvnor.client.rpc.RuleAsset;
 import org.drools.guvnor.client.ruleeditor.RuleViewer;
 import org.drools.guvnor.client.ruleeditor.SaveEventListener;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.dt.ActionCol;
+import org.drools.ide.common.client.modeldriven.dt.ActionInsertFactCol;
+import org.drools.ide.common.client.modeldriven.dt.ActionSetFieldCol;
+import org.drools.ide.common.client.modeldriven.dt.AttributeCol;
+import org.drools.ide.common.client.modeldriven.dt.ConditionCol;
+import org.drools.ide.common.client.modeldriven.dt.DTColumnConfig;
+import org.drools.ide.common.client.modeldriven.dt.GuidedDecisionTable;
+import org.drools.ide.common.client.modeldriven.dt.MetadataCol;
+import org.drools.ide.common.client.modeldriven.ui.ConstraintValueEditorHelper;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
@@ -373,7 +373,7 @@ public class GuidedDecisionTableWidget extends Composite
 
     private Widget newCondition() {
         final ConditionCol newCol = new ConditionCol();
-        newCol.constraintValueType = ISingleFieldConstraint.TYPE_LITERAL;
+        newCol.constraintValueType = BaseSingleFieldConstraint.TYPE_LITERAL;
         return new ImageButton( "images/new_item.gif",
                                 constants.AddANewConditionColumn(),
                                 new ClickListener() { //NON-NLS
@@ -1035,6 +1035,7 @@ public class GuidedDecisionTableWidget extends Composite
                                         }
                                     }
                                 } ) );
+        
         menu.addItem( new Item( constants.RemoveSelectedRowS(),
                                 new BaseItemListenerAdapter() {
                                     public void onClick(BaseItem item,

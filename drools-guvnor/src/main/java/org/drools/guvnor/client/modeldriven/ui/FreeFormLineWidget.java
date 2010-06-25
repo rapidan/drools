@@ -21,7 +21,8 @@ import org.drools.guvnor.client.messages.Constants;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.*;
 import com.google.gwt.user.client.ui.FlexTable.FlexCellFormatter;
-import org.drools.guvnor.client.modeldriven.brl.FreeFormLine;
+
+import org.drools.ide.common.client.modeldriven.brl.FreeFormLine;
 
 /**
  * Free form DRL line widget
@@ -78,19 +79,11 @@ public class FreeFormLineWidget extends RuleModellerWidget {
             tb.addChangeListener(new ChangeListener() {
 
                 public void onChange(Widget arg0) {
+                    setModified(true);
                     action.text = tb.getText();
                 }
             });
-
             
-//            tb.addFocusListener(new FocusListenerAdapter() {
-//
-//                @Override
-//                public void onLostFocus(Widget sender) {
-//                    getModeller().verifyRule();
-//                }
-//
-//            });
         } else {
             tb.setEnabled(false);
         }

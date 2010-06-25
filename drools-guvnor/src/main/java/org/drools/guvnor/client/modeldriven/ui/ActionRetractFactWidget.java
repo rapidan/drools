@@ -19,7 +19,7 @@ package org.drools.guvnor.client.modeldriven.ui;
 
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
-import org.drools.guvnor.client.modeldriven.brl.ActionRetractFact;
+import org.drools.ide.common.client.modeldriven.brl.ActionRetractFact;
 
 import com.google.gwt.user.client.ui.HorizontalPanel;
 
@@ -44,7 +44,7 @@ public class ActionRetractFactWidget extends RuleModellerWidget {
         layout.setStyleName( "model-builderInner-Background" );
 
         if (readOnly == null) {
-            this.readOnly = !modeller.getSuggestionCompletions().containsFactType(modeller.getModel().getBoundFact(model.variableName).factType);
+            this.readOnly = !modeller.getSuggestionCompletions().containsFactType(modeller.getModel().getBindingType(model.variableName));
         } else {
             this.readOnly = readOnly;
         }
@@ -53,8 +53,11 @@ public class ActionRetractFactWidget extends RuleModellerWidget {
             layout.addStyleName("editor-disabled-widget");
         }
 
-        String desc = modeller.getModel().getBoundFact(model.variableName).factType + " [" + model.variableName + "]";
+        String desc = modeller.getModel().getBindingType(model.variableName) + " [" + model.variableName + "]";
         layout.add(new SmallLabel(HumanReadable.getActionDisplayName( "retract" )+"&nbsp;<b>"  + desc  + "</b>"));
+
+        //This widget couldn't be modified.
+        this.setModified(false);
 
         initWidget( layout );
     }
@@ -63,6 +66,7 @@ public class ActionRetractFactWidget extends RuleModellerWidget {
     public boolean isReadOnly() {
         return this.readOnly;
     }
+
 
 
 

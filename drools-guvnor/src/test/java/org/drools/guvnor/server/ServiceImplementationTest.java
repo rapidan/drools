@@ -18,6 +18,7 @@ package org.drools.guvnor.server;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -30,31 +31,16 @@ import junit.framework.TestCase;
 import org.drools.Person;
 import org.drools.RuleBase;
 import org.drools.StatelessSession;
-import org.drools.type.DateFormatsImpl;
+import org.drools.core.util.BinaryRuleBaseLoader;
+import org.drools.core.util.DateUtils;
+import org.drools.core.util.DroolsStreamUtils;
 import org.drools.guvnor.client.common.AssetFormats;
 import org.drools.guvnor.client.common.Inbox;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
-import org.drools.guvnor.client.modeldriven.brl.ActionSetField;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.brl.PortableObject;
-import org.drools.guvnor.client.modeldriven.brl.RuleModel;
-import org.drools.guvnor.client.modeldriven.brl.SingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.dt.ActionSetFieldCol;
-import org.drools.guvnor.client.modeldriven.dt.ConditionCol;
-import org.drools.guvnor.client.modeldriven.dt.GuidedDecisionTable;
-import org.drools.guvnor.client.modeldriven.testing.ExecutionTrace;
-import org.drools.guvnor.client.modeldriven.testing.FactData;
-import org.drools.guvnor.client.modeldriven.testing.FieldData;
-import org.drools.guvnor.client.modeldriven.testing.Scenario;
-import org.drools.guvnor.client.modeldriven.testing.VerifyFact;
-import org.drools.guvnor.client.modeldriven.testing.VerifyField;
-import org.drools.guvnor.client.modeldriven.testing.VerifyRuleFired;
 import org.drools.guvnor.client.rpc.AnalysisReport;
 import org.drools.guvnor.client.rpc.BuilderResult;
 import org.drools.guvnor.client.rpc.BulkTestRunResult;
 import org.drools.guvnor.client.rpc.DetailedSerializableException;
+import org.drools.guvnor.client.rpc.DiscussionRecord;
 import org.drools.guvnor.client.rpc.MetaDataQuery;
 import org.drools.guvnor.client.rpc.PackageConfigData;
 import org.drools.guvnor.client.rpc.RepositoryService;
@@ -70,17 +56,34 @@ import org.drools.guvnor.client.rpc.TableConfig;
 import org.drools.guvnor.client.rpc.TableDataResult;
 import org.drools.guvnor.client.rpc.TableDataRow;
 import org.drools.guvnor.client.rpc.ValidatedResponse;
-import org.drools.guvnor.client.rpc.DiscussionRecord;
 import org.drools.guvnor.client.rulelist.AssetItemGrid;
-import org.drools.guvnor.server.security.MockIdentity;
-import org.drools.guvnor.server.util.BRXMLPersistence;
-import org.drools.guvnor.server.util.IO;
-import org.drools.guvnor.server.util.ScenarioXMLPersistence;
-import org.drools.guvnor.server.util.TableDisplayHandler;
-import org.drools.guvnor.server.util.TestEnvironmentSessionHelper;
 import org.drools.guvnor.server.repository.MailboxService;
 import org.drools.guvnor.server.repository.RepositoryStartupService;
 import org.drools.guvnor.server.repository.UserInbox;
+import org.drools.guvnor.server.security.MockIdentity;
+import org.drools.guvnor.server.util.IO;
+import org.drools.guvnor.server.util.TableDisplayHandler;
+import org.drools.guvnor.server.util.TestEnvironmentSessionHelper;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldValue;
+import org.drools.ide.common.client.modeldriven.brl.ActionSetField;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.brl.PortableObject;
+import org.drools.ide.common.client.modeldriven.brl.RuleModel;
+import org.drools.ide.common.client.modeldriven.brl.SingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.dt.ActionSetFieldCol;
+import org.drools.ide.common.client.modeldriven.dt.ConditionCol;
+import org.drools.ide.common.client.modeldriven.dt.GuidedDecisionTable;
+import org.drools.ide.common.client.modeldriven.testing.ExecutionTrace;
+import org.drools.ide.common.client.modeldriven.testing.FactData;
+import org.drools.ide.common.client.modeldriven.testing.FieldData;
+import org.drools.ide.common.client.modeldriven.testing.Scenario;
+import org.drools.ide.common.client.modeldriven.testing.VerifyFact;
+import org.drools.ide.common.client.modeldriven.testing.VerifyField;
+import org.drools.ide.common.client.modeldriven.testing.VerifyRuleFired;
+import org.drools.ide.common.server.util.BRXMLPersistence;
+import org.drools.ide.common.server.util.ScenarioXMLPersistence;
 import org.drools.repository.AssetItem;
 import org.drools.repository.AssetItemIterator;
 import org.drools.repository.CategoryItem;
@@ -88,16 +91,14 @@ import org.drools.repository.PackageItem;
 import org.drools.repository.RulesRepository;
 import org.drools.repository.RulesRepositoryException;
 import org.drools.repository.StateItem;
+import org.drools.repository.UserInfo.InboxEntry;
 import org.drools.rule.Package;
-import org.drools.core.util.BinaryRuleBaseLoader;
-import org.drools.core.util.DateUtils;
-import org.drools.core.util.DroolsStreamUtils;
+import org.drools.type.DateFormatsImpl;
 import org.jboss.seam.contexts.Contexts;
 import org.jboss.seam.contexts.Lifecycle;
 import org.jboss.seam.security.permission.RoleBasedPermissionResolver;
 
 import com.google.gwt.user.client.rpc.SerializableException;
-import java.util.Arrays;
 
 /**
  * This is really a collection of integration tests.
@@ -153,6 +154,7 @@ public class ServiceImplementationTest extends TestCase {
         for ( TableDataRow row : res.data ) {
             if ( row.id.equals( as.getUUID() ) ) {
                 rowMatch = row;
+				break;
             }
         }
         assertNotNull( rowMatch );
@@ -442,9 +444,12 @@ public class ServiceImplementationTest extends TestCase {
         //now verify AssetItemIterator works by calling search
         AssetItemIterator it = impl.repository.findAssetsByName( "testCreateLinkedAssetItemRule%",
                                                                  true );
-        assertEquals( 1,
-                      it.getSize() );
+        //NOTE, getSize() may return -1
+ /*       assertEquals( 1,
+                      it.getSize() );*/
+        int size = 0;
         while ( it.hasNext() ) {
+        	size++;
             AssetItem ai = it.next();
             if ( ai.getUUID().equals( uuid ) ) {
                 assertEquals( ai.getPackage().getName(),
@@ -455,6 +460,7 @@ public class ServiceImplementationTest extends TestCase {
                 fail( "unexptected asset found: " + ai.getPackage().getName() );
             }
         }
+        assertEquals( 1, size );
     }
 
     public void testLinkedAssetItemHistoryRelated() throws Exception {
@@ -553,6 +559,7 @@ public class ServiceImplementationTest extends TestCase {
                       newHead.metaData.checkinComment );
     }
 
+    //path name contains Apostrophe is no longer a problem with jackrabbit 2.0
     public void testCreateNewRuleContainsApostrophe() throws Exception {
         ServiceImplementation impl = getService();
         impl.repository.createPackage( "testCreateNewRuleContainsApostrophe",
@@ -561,16 +568,24 @@ public class ServiceImplementationTest extends TestCase {
                              "testCreateNewRuleContainsApostrophe",
                              "this is a cat" );
 
+        String uuid = null;
         try {
-            impl.createNewRule( "testCreateNewRuleContains' character",
+        	uuid = impl.createNewRule( "testCreateNewRuleContains' character",
                                 "an initial desc",
                                 "testCreateNewRuleContainsApostrophe",
                                 "testCreateNewRuleContainsApostrophe",
                                 AssetFormats.DSL_TEMPLATE_RULE );
-            fail( "did not get expected exception" );
+            //fail( "did not get expected exception" );
         } catch ( SerializableException e ) {
-            assertTrue( e.getMessage().indexOf( "'testCreateNewRuleContains' character' is not a valid path. ''' not a valid name character" ) >= 0 );
+            //assertTrue( e.getMessage().indexOf( "'testCreateNewRuleContains' character' is not a valid path. ''' not a valid name character" ) >= 0 );
         }
+        
+        RuleAsset assetWrapper = impl.loadRuleAsset( uuid );
+        assertEquals( assetWrapper.metaData.description,
+                      "an initial desc" );
+        assertEquals( assetWrapper.metaData.name,
+        "testCreateNewRuleContains' character" );
+    
     }
 
     public void testRuleTableLoad() throws Exception {
@@ -722,7 +737,7 @@ public class ServiceImplementationTest extends TestCase {
 
         impl.checkinVersion( ass );
 
-        List<UserInbox.InboxEntry> es = ib.loadRecentEdited();
+        List<InboxEntry> es = ib.loadRecentEdited();
         assertEquals( 1,
                       es.size() );
         assertEquals( ass.uuid,
@@ -802,7 +817,7 @@ public class ServiceImplementationTest extends TestCase {
         ServiceImplementation serv = getService();
 
         UserInbox ib = new UserInbox( serv.repository );
-        List<UserInbox.InboxEntry> inbox = ib.loadRecentEdited();
+        List<InboxEntry> inbox = ib.loadRecentEdited();
 
         serv.listPackages();
 
@@ -2089,8 +2104,8 @@ public class ServiceImplementationTest extends TestCase {
         FactPattern pattern = new FactPattern( "Person" );
 
         SingleFieldConstraint con = new SingleFieldConstraint();
-        con.constraintValueType = ISingleFieldConstraint.TYPE_PREDICATE;
-        con.value = "name soundslike 'foobar'";
+        con.setConstraintValueType(BaseSingleFieldConstraint.TYPE_PREDICATE);
+        con.setValue("name soundslike 'foobar'");
         pattern.addConstraint( con );
 
         pattern.boundName = "p";
@@ -2525,10 +2540,10 @@ public class ServiceImplementationTest extends TestCase {
         FactPattern p = new FactPattern( "Person" );
         p.boundName = "p";
         SingleFieldConstraint con = new SingleFieldConstraint();
-        con.fieldName = "name";
-        con.value = "mark";
-        con.operator = "==";
-        con.constraintValueType = SingleFieldConstraint.TYPE_LITERAL;
+        con.setFieldName("name");
+        con.setValue("mark");
+        con.setOperator("==");
+        con.setConstraintValueType(SingleFieldConstraint.TYPE_LITERAL);
 
         p.addConstraint( con );
 
@@ -3408,7 +3423,7 @@ public class ServiceImplementationTest extends TestCase {
         GuidedDecisionTable dt = new GuidedDecisionTable();
         ConditionCol col = new ConditionCol();
         col.boundName = "p";
-        col.constraintValueType = ISingleFieldConstraint.TYPE_LITERAL;
+        col.constraintValueType = BaseSingleFieldConstraint.TYPE_LITERAL;
         col.factField = "hair";
         col.factType = "Person";
         col.operator = "==";

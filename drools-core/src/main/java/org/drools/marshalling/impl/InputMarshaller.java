@@ -225,11 +225,17 @@ public class InputMarshaller {
             String rfgName = stream.readUTF();
             boolean active = stream.readBoolean();
             boolean autoDeactivate = stream.readBoolean();
-            RuleFlowGroup rfg = new RuleFlowGroupImpl( rfgName,
+            RuleFlowGroupImpl rfg = new RuleFlowGroupImpl( rfgName,
                                                        active,
                                                        autoDeactivate );
             agenda.getRuleFlowGroupsMap().put( rfgName,
                                                rfg );
+            int nbNodeInstances = stream.readInt();
+            for (int i = 0; i < nbNodeInstances; i++) {
+            	Long processInstanceId = stream.readLong();
+            	String nodeInstanceId = stream.readUTF();
+            	rfg.addNodeInstance(processInstanceId, nodeInstanceId);
+            }
         }
 
     }
@@ -611,7 +617,7 @@ public class InputMarshaller {
                                                 rule,
                                                 subRule );
 
-        leftTuple.setActivation( activation );
+        leftTuple.setObject( activation );
 
         if ( stream.readBoolean() ) {
             String activationGroupName = stream.readUTF();
@@ -731,6 +737,10 @@ public class InputMarshaller {
     }
 
     public static WorkItem readWorkItem(MarshallerReaderContext context) throws IOException {
+       return readWorkItem(context, true);
+    }
+
+    public static WorkItem readWorkItem(MarshallerReaderContext context, boolean includeVariables) throws IOException {
         ObjectInputStream stream = context.stream;
 
         WorkItemImpl workItem = new WorkItemImpl();
@@ -739,6 +749,7 @@ public class InputMarshaller {
         workItem.setName( stream.readUTF() );
         workItem.setState( stream.readInt() );
 
+        if(includeVariables){
         int nbParameters = stream.readInt();
 
         for ( int i = 0; i < nbParameters; i++ ) {
@@ -750,6 +761,7 @@ public class InputMarshaller {
             } catch ( ClassNotFoundException e ) {
                 throw new IllegalArgumentException( "Could not reload parameter " + name );
             }
+        }
         }
 
         return workItem;

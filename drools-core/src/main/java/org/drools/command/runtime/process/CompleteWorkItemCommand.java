@@ -3,27 +3,32 @@ package org.drools.command.runtime.process;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
+
 import org.drools.command.Context;
 import org.drools.command.impl.GenericCommand;
 import org.drools.command.impl.KnowledgeCommandContext;
-import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.runtime.StatefulKnowledgeSession;
 
+@XmlAccessorType(XmlAccessType.NONE)
 public class CompleteWorkItemCommand implements GenericCommand<Object> {
 	
+	@XmlAttribute(name="id", required = true)
 	private long workItemId;
 	private Map<String, Object> results = new HashMap<String, Object>();
 	
+	public CompleteWorkItemCommand() {}
 	
-	public CompleteWorkItemCommand() {
-	    
+	public CompleteWorkItemCommand(long workItemId) {
+		this.workItemId = workItemId;
 	}
 	
-	public CompleteWorkItemCommand(long workItemId,
-                                   Map<String, Object> results) {
-        this.workItemId = workItemId;
-        this.results = results;
-    }
+	public CompleteWorkItemCommand(long workItemId, Map<String, Object> results) {
+		this(workItemId);
+		this.results = results;
+	}
 
     public long getWorkItemId() {
 		return workItemId;

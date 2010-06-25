@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <localSearchSolver>
+    <!--<environmentMode>DEBUG</environmentMode>-->
     <scoreDrl>/org/drools/planner/examples/manners2009/solver/manners2009ScoreRules.drl</scoreDrl>
     <scoreDefinition>
         <scoreDefinitionType>SIMPLE</scoreDefinitionType>
@@ -18,6 +19,5 @@
     </acceptor>
     <forager>
         <foragerType>MAX_SCORE_OF_ALL</foragerType>
-        <!--<foragerType>FIRST_BEST_SCORE_IMPROVING</foragerType>-->
     </forager>
 </localSearchSolver>

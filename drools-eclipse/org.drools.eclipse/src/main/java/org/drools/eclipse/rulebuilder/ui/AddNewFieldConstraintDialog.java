@@ -1,10 +1,10 @@
 package org.drools.eclipse.rulebuilder.ui;
 
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.CompositeFieldConstraint;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.brl.SingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.CompositeFieldConstraint;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.brl.SingleFieldConstraint;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -142,8 +142,8 @@ public class AddNewFieldConstraintDialog extends RuleDialog {
                                          }
 
                                          SingleFieldConstraint constraint = new SingleFieldConstraint();
-                                         constraint.fieldName = fieldsCombo.getText();
-                                         constraint.fieldType = (String) fieldsCombo.getData( fieldsCombo.getText() );
+                                         constraint.setFieldName(fieldsCombo.getText());
+                                         constraint.setFieldType((String) fieldsCombo.getData( fieldsCombo.getText() ));
                                          pattern.addConstraint( constraint );
                                          modeller.setDirty( true );
                                          modeller.reloadLhs();
@@ -164,7 +164,7 @@ public class AddNewFieldConstraintDialog extends RuleDialog {
                                    new Listener() {
                                        public void handleEvent(Event event) {
                                            SingleFieldConstraint con = new SingleFieldConstraint();
-                                           con.constraintValueType = ISingleFieldConstraint.TYPE_PREDICATE;
+                                           con.setConstraintValueType(BaseSingleFieldConstraint.TYPE_PREDICATE);
                                            pattern.addConstraint( con );
                                            modeller.setDirty( true );
                                            modeller.reloadLhs();

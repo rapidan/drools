@@ -2,33 +2,32 @@ package org.drools.server.service;
 
 import javax.jws.WebService;
 
-import org.drools.CheckedDroolsException;
 import org.drools.server.KnowledgeService;
 
 @WebService(endpointInterface = "org.drools.server.service.KnowledgeServiceSoap", serviceName = "knowledgeService")
-public class KnowledgeServiceSoapImpl implements KnowledgeServiceSoap {
+public class KnowledgeServiceSoapImpl
+    implements
+    KnowledgeServiceSoap {
 
-	private KnowledgeService service;
-	
-	public String execute(String command) throws CheckedDroolsException {
-		if (command==null || command.length()==0) {
-			throw new CheckedDroolsException("Invalid or null command");
-		}
-		String response = null;
-		try {
-			response = getService().executeCommand(command);
-		} catch (Exception e) {
-			throw new CheckedDroolsException(e.getMessage());
-		}
-        return response;
-	}
+    private KnowledgeService service;
 
-	public void setService(KnowledgeService service) {
-		this.service = service;
-	}
+    public String execute(String command) throws RuntimeException {
+        if ( command == null || command.length() == 0 ) {
+            throw new RuntimeException( "Invalid or null command" );
+        }
+        try {
+            return getService().executeCommand( command );
+        } catch ( Exception e ) {
+            throw new RuntimeException( e );
+        }
+    }
 
-	public KnowledgeService getService() {
-		return service;
-	}
+    public void setService(KnowledgeService service) {
+        this.service = service;
+    }
+
+    public KnowledgeService getService() {
+        return service;
+    }
 
 }

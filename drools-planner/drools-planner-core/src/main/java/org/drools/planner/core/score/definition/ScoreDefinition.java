@@ -38,14 +38,18 @@ public interface ScoreDefinition<S extends Score> {
     Score parseScore(String scoreString);
 
     /**
-     * @TODO rename because
-     *       org.drools.planner.core.localsearch.decider.acceptor.simulatedannealing.SimulatedAnnealingAcceptor
-     *       also uses it
      * @param startScore never null
      * @param endScore never null
      * @param score never null
      * @return between 0.0 and 1.0
      */
     double calculateTimeGradient(S startScore, S endScore, S score);
+
+    /**
+     * 
+     * @param score never null
+     * @return null if should not be shown on the graph
+     */
+    Double translateScoreToGraphValue(S score);
 
 }

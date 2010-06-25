@@ -1,20 +1,21 @@
 package org.drools.guvnor.client.modeldriven.ui.factPattern;
 
 import org.drools.guvnor.client.common.DirtyableHorizontalPane;
+import org.drools.guvnor.client.messages.Constants;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ConnectiveConstraint;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.ISingleFieldConstraint;
-import org.drools.guvnor.client.modeldriven.brl.SingleFieldConstraint;
 import org.drools.guvnor.client.modeldriven.ui.ConstraintValueEditor;
 import org.drools.guvnor.client.modeldriven.ui.RuleModeller;
-import org.drools.guvnor.client.messages.Constants;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ConnectiveConstraint;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.BaseSingleFieldConstraint;
+import org.drools.ide.common.client.modeldriven.brl.SingleFieldConstraint;
 
-import com.google.gwt.user.client.ui.ChangeListener;
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.core.client.GWT;
 
 public class Connectives {
     private FactPattern                pattern;
@@ -70,8 +71,8 @@ public class Connectives {
             DirtyableHorizontalPane horiz = new DirtyableHorizontalPane();
             for ( int i = 0; i < c.connectives.length; i++ ) {
                 ConnectiveConstraint con = c.connectives[i];
-                horiz.add( connectiveOperatorDropDown( con, c.fieldName ) );
-                horiz.add( connectiveValueEditor( con, factClass, c.fieldName ) );
+                horiz.add( connectiveOperatorDropDown( con, c.getFieldName() ) );
+                horiz.add( connectiveValueEditor( con, factClass, c.getFieldName() ) );
             }
             return horiz;
         } else {
@@ -81,7 +82,7 @@ public class Connectives {
 
     }
 
-    private Widget connectiveValueEditor(final ISingleFieldConstraint con, String factClass, String fieldName) {
+    private Widget connectiveValueEditor(final BaseSingleFieldConstraint con, String factClass, String fieldName) {
         String typeNumeric = this.modeller.getSuggestionCompletions().getFieldType( factClass, fieldName );
         return new ConstraintValueEditor(pattern, fieldName, con, this.modeller, typeNumeric,false);
     }
@@ -96,14 +97,14 @@ public class Connectives {
             if ( op.equals( con.operator ) ) {
                 box.setSelectedIndex( i + 1 );
             }
-
         }
 
-        box.addChangeListener( new ChangeListener() {
-            public void onChange(Widget w) {
-                con.operator = box.getValue( box.getSelectedIndex() );
-            }
-        } );
+		box.addChangeHandler(new ChangeHandler() {
+
+			public void onChange(ChangeEvent event) {
+				con.operator = box.getValue(box.getSelectedIndex());
+			}
+		});
 
         return box;
     }

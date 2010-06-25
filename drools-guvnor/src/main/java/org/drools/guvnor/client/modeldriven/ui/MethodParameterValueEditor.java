@@ -10,12 +10,12 @@ import org.drools.guvnor.client.common.InfoPopup;
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.common.ValueChanged;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.DropDownData;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldFunction;
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.DropDownData;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldFunction;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldValue;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertFact;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
@@ -45,11 +45,12 @@ public class MethodParameterValueEditor extends DirtyableComposite {
     private Constants           constants     = GWT.create( Constants.class );
     private RuleModeller        model         = null;
     private String              parameterType = null;
+    private Command             onValueChangeCommand = null;
 
     public MethodParameterValueEditor(final ActionFieldFunction val,
                                       final DropDownData enums,
                                       RuleModeller model,
-                                      String parameterType) {
+                                      String parameterType, Command onValueChangeCommand) {
         if ( val.type.equals( SuggestionCompletionEngine.TYPE_BOOLEAN ) ) {
             this.enums = DropDownData.create( new String[]{"true", "false"} );
         } else {
@@ -59,6 +60,7 @@ public class MethodParameterValueEditor extends DirtyableComposite {
         this.methodParameter = val;
         this.model = model;
         this.parameterType = parameterType;
+        this.onValueChangeCommand = onValueChangeCommand;
         refresh();
         initWidget( root );
     }
@@ -71,6 +73,9 @@ public class MethodParameterValueEditor extends DirtyableComposite {
                                             public void valueChanged(String newText,
                                                                      String newValue) {
                                                 methodParameter.value = newValue;
+                                                if (onValueChangeCommand != null){
+                                                    onValueChangeCommand.execute();
+                                                }
                                                 makeDirty();
                                             }
                                         },
@@ -145,6 +150,9 @@ public class MethodParameterValueEditor extends DirtyableComposite {
                 public void onChange(Widget arg0) {
                     ListBox w = (ListBox) arg0;
                     methodParameter.value = w.getValue( w.getSelectedIndex() );
+                    if (onValueChangeCommand != null){
+                        onValueChangeCommand.execute();
+                    }
                     makeDirty();
                     refresh();
                 }
@@ -175,6 +183,9 @@ public class MethodParameterValueEditor extends DirtyableComposite {
         box.addChangeListener( new ChangeListener() {
             public void onChange(Widget w) {
                 c.value = box.getText();
+                if (onValueChangeCommand != null) {
+                    onValueChangeCommand.execute();
+                }
                 makeDirty();
             }
 

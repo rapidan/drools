@@ -16,13 +16,15 @@ package org.drools.integrationtests;
  * limitations under the License.
  */
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -91,13 +93,14 @@ import org.drools.TestParam;
 import org.drools.Win;
 import org.drools.WorkingMemory;
 import org.drools.Cheesery.Maturity;
+import org.drools.Order.OrderStatus;
+import org.drools.audit.WorkingMemoryFileLogger;
 import org.drools.builder.KnowledgeBuilder;
 import org.drools.builder.KnowledgeBuilderConfiguration;
 import org.drools.builder.KnowledgeBuilderError;
 import org.drools.builder.KnowledgeBuilderErrors;
 import org.drools.builder.KnowledgeBuilderFactory;
 import org.drools.builder.ResourceType;
-import org.drools.builder.conf.ClassLoaderCacheOption;
 import org.drools.common.AbstractWorkingMemory;
 import org.drools.common.DefaultAgenda;
 import org.drools.common.DefaultFactHandle;
@@ -113,6 +116,7 @@ import org.drools.compiler.ParserError;
 import org.drools.compiler.PackageBuilder.PackageMergeException;
 import org.drools.compiler.xml.XmlDumper;
 import org.drools.definition.KnowledgePackage;
+import org.drools.definition.rule.Rule;
 import org.drools.definition.type.FactType;
 import org.drools.event.ActivationCancelledEvent;
 import org.drools.event.ActivationCreatedEvent;
@@ -136,7 +140,6 @@ import org.drools.lang.descr.PackageDescr;
 import org.drools.lang.descr.RuleDescr;
 import org.drools.marshalling.MarshallerFactory;
 import org.drools.reteoo.LeftTuple;
-import org.drools.reteoo.ReteooRuleBase;
 import org.drools.reteoo.ReteooWorkingMemory;
 import org.drools.rule.InvalidRulePackage;
 import org.drools.rule.Package;
@@ -148,8 +151,6 @@ import org.drools.spi.ConsequenceExceptionHandler;
 import org.drools.spi.GlobalResolver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
 
 /** Run all the tests with the ReteOO engine implementation */
 public class MiscTest extends TestCase {
@@ -343,20 +344,23 @@ public class MiscTest extends TestCase {
 
         // read in the source
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newClassPathResource( "MVEL_soundex.drl", getClass() ), ResourceType.DRL ); 
-        
+        kbuilder.add( ResourceFactory.newClassPathResource( "MVEL_soundex.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
+
         if ( kbuilder.hasErrors() ) {
             fail( kbuilder.getErrors().toString() );
         }
 
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
-        kbase = SerializationHelper.serializeObject( kbase );
-        
-        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();         
 
-        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession, true );        
+        kbase = SerializationHelper.serializeObject( kbase );
+
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+
+        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession,
+                                                                              true );
 
         Cheese c = new Cheese( "fubar",
                                2 );
@@ -371,17 +375,20 @@ public class MiscTest extends TestCase {
 
         // read in the source
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newClassPathResource( "test_MVELrewrite.drl", getClass() ), ResourceType.DRL );        
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_MVELrewrite.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
 
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
-        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();         
 
-        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession, true );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+
+        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession,
+                                                                              true );
         List results = new ArrayList();
         ksession.setGlobal( "results",
-                           results );
+                            results );
 
         Cheese brie = new Cheese( "brie",
                                   2 );
@@ -398,113 +405,6 @@ public class MiscTest extends TestCase {
                       results.size() );
         assertEquals( cheesery,
                       results.get( 0 ) );
-    }
-
-    public void testGlobals() throws Exception {
-
-        final PackageBuilder builder = new PackageBuilder();
-        builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "globals_rule_test.drl" ) ) );
-        final Package pkg = builder.getPackage();
-
-        RuleBase ruleBase = getRuleBase();
-        ruleBase.addPackage( pkg );
-        ruleBase = SerializationHelper.serializeObject( ruleBase );
-        StatefulSession session = ruleBase.newStatefulSession();
-
-        final List list = new ArrayList();
-        session.setGlobal( "list",
-                           list );
-
-        session.setGlobal( "string",
-                           "stilton" );
-
-        final Cheese stilton = new Cheese( "stilton",
-                                           5 );
-        session.insert( stilton );
-
-        session = SerializationHelper.getSerialisedStatefulSession( session,
-                                                                    ruleBase );
-        session.fireAllRules();
-
-        assertEquals( new Integer( 5 ),
-                      ((List) session.getGlobal( "list" )).get( 0 ) );
-    }
-
-    public void testGlobals2() throws Exception {
-
-        final PackageBuilder builder = new PackageBuilder();
-        builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "test_globalsAsConstraints.drl" ) ) );
-        final Package pkg = builder.getPackage();
-
-        RuleBase ruleBase = getRuleBase();
-        ruleBase.addPackage( pkg );
-        ruleBase = SerializationHelper.serializeObject( ruleBase );
-        StatefulSession session = ruleBase.newStatefulSession();
-
-        final List results = new ArrayList();
-        session.setGlobal( "results",
-                           results );
-
-        final List cheeseTypes = new ArrayList();
-        session.setGlobal( "cheeseTypes",
-                           cheeseTypes );
-        cheeseTypes.add( "stilton" );
-        cheeseTypes.add( "muzzarela" );
-
-        final Cheese stilton = new Cheese( "stilton",
-                                           5 );
-        session.insert( stilton );
-
-        session = SerializationHelper.getSerialisedStatefulSession( session,
-                                                                    ruleBase );
-        session.fireAllRules();
-
-        assertEquals( 1,
-                      ((List) session.getGlobal( "results" )).size() );
-        assertEquals( "memberOf",
-                      ((List) session.getGlobal( "results" )).get( 0 ) );
-
-        final Cheese brie = new Cheese( "brie",
-                                        5 );
-        session.insert( brie );
-        session = SerializationHelper.getSerialisedStatefulSession( session,
-                                                                    ruleBase );
-        session.fireAllRules();
-
-        assertEquals( 2,
-                      ((List) session.getGlobal( "results" )).size() );
-        assertEquals( "not memberOf",
-                      ((List) session.getGlobal( "results" )).get( 1 ) );
-    }
-
-    public void testGlobalMerge() throws Exception {
-        // from JBRULES-1512
-        String rule1 = "package com.sample\n" + "rule \"rule 1\"\n" + "    salience 10\n" + "    when\n" + "    l : java.util.List()\n" + "    then\n" + "        l.add( \"rule 1 executed\" );\n" + "end\n";
-
-        String rule2 = "package com.sample\n" + "global String str;\n" + "rule \"rule 2\"\n" + "    when\n" + "    l : java.util.List()\n" + "    then\n" + "        l.add( \"rule 2 executed \" + str);\n" + "end\n";
-
-        PackageBuilder builder1 = new PackageBuilder();
-        builder1.addPackageFromDrl( new StringReader( rule1 ) );
-        Package pkg1 = builder1.getPackage();
-        // build second package
-        PackageBuilder builder2 = new PackageBuilder();
-        builder2.addPackageFromDrl( new StringReader( rule2 ) );
-        Package pkg2 = builder2.getPackage();
-        // create rule base and add both packages
-        RuleBase ruleBase = RuleBaseFactory.newRuleBase();
-        ruleBase.addPackage( pkg1 );
-        ruleBase.addPackage( pkg2 );
-
-        WorkingMemory wm = ruleBase.newStatefulSession();
-        wm.setGlobal( "str",
-                      "boo" );
-        List list = new ArrayList();
-        wm.insert( list );
-        wm.fireAllRules();
-        assertEquals( "rule 1 executed",
-                      list.get( 0 ) );
-        assertEquals( "rule 2 executed boo",
-                      list.get( 1 ) );
     }
 
     public void testMissingImport() throws Exception {
@@ -1319,15 +1219,17 @@ public class MiscTest extends TestCase {
 
     public void testExplicitAnd() throws Exception {
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newClassPathResource( "test_ExplicitAnd.drl", getClass() ), ResourceType.DRL );        
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_ExplicitAnd.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
 
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
+
         StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
         final List list = new ArrayList();
         ksession.setGlobal( "list",
-                           list );
+                            list );
         ksession.insert( new Message( "hola" ) );
 
         ksession.fireAllRules();
@@ -1335,9 +1237,10 @@ public class MiscTest extends TestCase {
                       list.size() );
 
         ksession.insert( new Cheese( "brie",
-                                    33 ) );
+                                     33 ) );
 
-        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession, true );
+        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession,
+                                                                              true );
         ksession.fireAllRules();
         assertEquals( 1,
                       ((List) ksession.getGlobal( "list" )).size() );
@@ -1346,16 +1249,18 @@ public class MiscTest extends TestCase {
     public void testHelloWorld() throws Exception {
         // read in the source
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newClassPathResource( "HelloWorld.drl", getClass() ), ResourceType.DRL );        
+        kbuilder.add( ResourceFactory.newClassPathResource( "HelloWorld.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
 
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
+
         StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
 
         final List list = new ArrayList();
         ksession.setGlobal( "list",
-                                 list );
+                            list );
 
         // go !
         final Message message = new Message( "hola" );
@@ -1459,9 +1364,9 @@ public class MiscTest extends TestCase {
             kbuilder.add( ResourceFactory.newInputStreamResource( getClass().getResourceAsStream( "test_RuleExtend.drl" ) ),
                           ResourceType.DRL );
 
-            assertFalse( kbuilder.getErrors().toString(), 
+            assertFalse( kbuilder.getErrors().toString(),
                          kbuilder.hasErrors() );
-            
+
             KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
             kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
 
@@ -1484,17 +1389,16 @@ public class MiscTest extends TestCase {
 
             ksession.fireAllRules();
 
-            assertEquals( 2,  
+            assertEquals( 2,
                           results.size() );
-            assertEquals( "stilton", 
+            assertEquals( "stilton",
                           results.get( 0 ) );
-            assertEquals( "brie", 
+            assertEquals( "brie",
                           results.get( 1 ) );
         } catch ( Exception e ) {
             e.printStackTrace();
-            if( kbuilder.hasErrors() )
-                System.out.println( kbuilder.getErrors() );
-            fail("Unexpected exception: "+e.getMessage());
+            if ( kbuilder.hasErrors() ) System.out.println( kbuilder.getErrors() );
+            fail( "Unexpected exception: " + e.getMessage() );
         }
     }
 
@@ -1551,16 +1455,16 @@ public class MiscTest extends TestCase {
     public void testLiteral() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
         builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "literal_rule_test.drl" ) ) );
-        
+
         if ( builder.hasErrors() ) {
             fail( builder.getErrors().toString() );
         }
-        
+
         final Package pkg = builder.getPackage();
 
         RuleBase ruleBase = getRuleBase();
         ruleBase.addPackage( pkg );
-        
+
         ruleBase = SerializationHelper.serializeObject( ruleBase );
         StatefulSession session = ruleBase.newStatefulSession();
 
@@ -2103,7 +2007,6 @@ public class MiscTest extends TestCase {
 
     }
 
-
     public void testEval() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
         builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "eval_rule_test.drl" ) ) );
@@ -2502,7 +2405,10 @@ public class MiscTest extends TestCase {
     }
 
     public void testWithInvalidRule() throws Exception {
-        final PackageBuilder builder = new PackageBuilder();
+        final PackageBuilderConfiguration conf = new PackageBuilderConfiguration();
+        final JavaDialectConfiguration jconf = (JavaDialectConfiguration) conf.getDialectConfiguration( "java" );
+        jconf.setCompiler( JavaDialectConfiguration.ECLIPSE );
+        final PackageBuilder builder = new PackageBuilder( conf );
         builder.addPackageFromDrl( new InputStreamReader( getClass().getResourceAsStream( "invalid_rule.drl" ) ) );
         final Package pkg = builder.getPackage();
         // Mark: please check if the conseqeuence/should/shouldn't be built
@@ -2633,8 +2539,8 @@ public class MiscTest extends TestCase {
         //        workingMemory    = SerializationHelper.serializeObject(workingMemory);
         workingMemory.fireAllRules();
 
-        List<String> results = (List<String>) workingMemory.getGlobal( "list" ); 
-        System.out.println(results);
+        List<String> results = (List<String>) workingMemory.getGlobal( "list" );
+        System.out.println( results );
         assertEquals( 5,
                       results.size() );
         assertTrue( results.contains( "first" ) );
@@ -3195,15 +3101,16 @@ public class MiscTest extends TestCase {
         }
     }
 
-
     public void testInsurancePricingExample() throws Exception {
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newClassPathResource( "insurance_pricing_example.drl", getClass() ), ResourceType.DRL );        
+        kbuilder.add( ResourceFactory.newClassPathResource( "insurance_pricing_example.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
 
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
-        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();        
+
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
 
         // now create some test data
         final Driver driver = new Driver();
@@ -3222,14 +3129,17 @@ public class MiscTest extends TestCase {
 
         // read in the source
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newClassPathResource( "test_JoinNodeModifyTuple.drl", getClass() ), ResourceType.DRL );        
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_JoinNodeModifyTuple.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
 
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
-        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();         
 
-        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession, true );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+
+        ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession( ksession,
+                                                                              true );
 
         // 1st time
         org.drools.Target tgt = new org.drools.Target();
@@ -3315,8 +3225,6 @@ public class MiscTest extends TestCase {
 
         ksession.fireAllRules();
     }
-
-
 
     public void testFunctionWithPrimitives() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
@@ -4705,6 +4613,53 @@ public class MiscTest extends TestCase {
         assertEquals( 0,
                       results.size() );
     }
+    
+
+    public void testSelfJoinWithIndex() {
+        String drl = "";
+        drl += "package org.test\n";
+        drl += "import org.drools.Person\n";
+        drl += "global java.util.List list\n";
+        drl += "rule test1\n";
+        drl += "when\n";
+        drl += "   $p1 : Person( $name : name, $age : age )\n";
+        drl += "   $p2 : Person( name == $name, age < $age)\n";
+        drl += "then\n";
+        drl += "    list.add( $p1 );\n";
+        drl += "end\n";
+
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newReaderResource( new StringReader( drl ) ),
+                      ResourceType.DRL );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( errors.size() > 0 ) {
+            for ( KnowledgeBuilderError error : errors ) {
+                System.err.println( error );
+            }
+            throw new IllegalArgumentException( "Could not parse knowledge." );
+        }
+        assertFalse( kbuilder.hasErrors() );
+
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        
+        Person p1 = new Person("darth", 30);
+        org.drools.runtime.rule.FactHandle fh1 = ksession.insert( p1 );
+
+        Person p2 = new Person("darth", 25);
+        org.drools.runtime.rule.FactHandle fh2 = ksession.insert( p2 ); // creates activation.
+        
+        p1.setName( "yoda" );
+        ksession.update( fh1, p1 );  // creates activation
+              
+        ksession.fireAllRules();
+        
+        assertEquals( 0, list.size() );
+    }    
 
     public void testMergingDifferentPackages() throws Exception {
         // using the same builder
@@ -4730,6 +4685,69 @@ public class MiscTest extends TestCase {
         }
     }
 
+    public void testSelfJoinAndNotWithIndex() {
+        String drl = "";
+        drl += "package org.test\n";
+        drl += "import org.drools.Person\n";
+        drl += "global java.util.List list\n";
+        drl += "rule test1\n";
+        drl += "when\n";
+        drl += "   $p1 : Person( )\n";
+        drl += "     not Person( name == $p1.name, age < $p1.age )\n";
+        drl += "   $p2 : Person( name == $p1.name, likes != $p1.likes, age > $p1.age)\n";
+        drl += "     not Person( name == $p1.name, likes == $p2.likes, age < $p2.age )\n";
+        drl += "then\n";
+        drl += "    System.out.println( $p1 + \":\" + $p2 );\n";
+        drl += "    list.add( $p1 );\n";
+        drl += "    list.add( $p2 );\n";
+        drl += "end\n";
+
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newReaderResource( new StringReader( drl ) ),
+                      ResourceType.DRL );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( kbuilder.hasErrors() ) {
+            fail( kbuilder.getErrors().toString() );
+        }
+        assertFalse( kbuilder.hasErrors() );
+
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        
+        List list = new ArrayList();
+        ksession.setGlobal( "list", list );
+        
+        Person p0 = new Person("yoda", 0);
+        p0.setLikes( "cheddar" );
+        org.drools.runtime.rule.FactHandle fh0 = ksession.insert( p0 );        
+        
+        Person p1 = new Person("darth", 15);
+        p1.setLikes( "cheddar" );
+        org.drools.runtime.rule.FactHandle fh1 = ksession.insert( p1 );
+
+        Person p2 = new Person("darth", 25);
+        p2.setLikes( "cheddar" );
+        org.drools.runtime.rule.FactHandle fh2 = ksession.insert( p2 ); // creates activation.
+        
+        Person p3 = new Person("darth", 30);
+        p3.setLikes( "brie" );
+        org.drools.runtime.rule.FactHandle fh3 = ksession.insert( p3 );
+        
+        ksession.fireAllRules();
+        assertEquals( 2, list.size() );
+        assertSame( p1, list.get( 0 ) );
+        assertSame( p3, list.get( 1 ) );
+        
+        p1.setName( "yoda" );
+        ksession.update( fh1, p1 );  // creates activation
+              
+        ksession.fireAllRules();        
+        assertEquals( 4, list.size() );
+        assertSame( p2, list.get( 2 ) );
+        assertSame( p3, list.get( 3 ) );        
+    }
+        
     public void testMergingDifferentPackages2() throws Exception {
         // using different builders
         try {
@@ -4806,7 +4824,7 @@ public class MiscTest extends TestCase {
         public String aValue = "";
 
     }
-    
+
     public void testRuleRemovalWithJoinedRootPattern() {
         String str = "";
         str += "package org.drools \n";
@@ -4816,14 +4834,13 @@ public class MiscTest extends TestCase {
         str += "  Person() \n";
         str += "then \n";
         str += "end  \n";
-        
+
         str += "rule rule2 \n";
         str += "when \n";
         str += "  String() \n";
         str += "  Cheese() \n";
         str += "then \n";
         str += "end  \n";
-       
 
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
         kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
@@ -4839,18 +4856,19 @@ public class MiscTest extends TestCase {
 
         StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
 
-        DefaultFactHandle handle = ( DefaultFactHandle ) ksession.insert( "hello" );
+        DefaultFactHandle handle = (DefaultFactHandle) ksession.insert( "hello" );
         LeftTuple leftTuple = handle.getFirstLeftTuple();
         assertNotNull( leftTuple );
         assertNotNull( leftTuple.getLeftParentNext() );
-        
-        kbase.removeRule( "org.drools", "rule2" );
-        
+
+        kbase.removeRule( "org.drools",
+                          "rule2" );
+
         leftTuple = handle.getFirstLeftTuple();
         assertNotNull( leftTuple );
-        assertNull( leftTuple.getLeftParentNext() );        
+        assertNull( leftTuple.getLeftParentNext() );
 
-    }    
+    }
 
     // JBRULES-1808
     public void testKnowledgeHelperFixerInStrings() {
@@ -6073,7 +6091,7 @@ public class MiscTest extends TestCase {
                       1,
                       list.size() );
     }
-    
+
     public void testOrWithAndUsingNestedBindings() {
         String str = "";
         str += "package org.drools\n";
@@ -6103,58 +6121,119 @@ public class MiscTest extends TestCase {
         str += "   )\n ";
         str += "then\n";
         str += "   jlist.add( $b );\n";
-        str += "end\n";        
-        
+        str += "end\n";
+
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ), ResourceType.DRL );
-        
+        kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
+                      ResourceType.DRL );
+
         if ( kbuilder.hasErrors() ) {
             fail( kbuilder.getErrors().toString() );
         }
-        
+
         Person a = new Person( "a" );
         Person b1 = new Person( "b1" );
         Person p2 = new Person( "p2" );
         Person b2 = new Person( "b2" );
         Person p3 = new Person( "p3" );
         Person b3 = new Person( "b3" );
-        
+
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
+
         List mlist = new ArrayList();
         List jlist = new ArrayList();
-        
+
         StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
-        ksession.setGlobal( "mlist", mlist);
-        ksession.setGlobal( "jlist", jlist);
+        ksession.setGlobal( "mlist",
+                            mlist );
+        ksession.setGlobal( "jlist",
+                            jlist );
         ksession.insert( a );
-        ksession.insert( b1 );    
-        ksession.fireAllRules();        
-        assertEquals( b1, mlist.get(0));
-        assertEquals( b1, jlist.get(0));
-        
+        ksession.insert( b1 );
+        ksession.fireAllRules();
+        assertEquals( b1,
+                      mlist.get( 0 ) );
+        assertEquals( b1,
+                      jlist.get( 0 ) );
+
         ksession = kbase.newStatefulKnowledgeSession();
-        ksession.setGlobal( "mlist", mlist);
-        ksession.setGlobal( "jlist", jlist);
+        ksession.setGlobal( "mlist",
+                            mlist );
+        ksession.setGlobal( "jlist",
+                            jlist );
         ksession.insert( a );
         ksession.insert( b2 );
         ksession.insert( p2 );
-        ksession.fireAllRules();        
-        assertEquals( b2, mlist.get(1));
-        assertEquals( b2, jlist.get(1));
-        
+        ksession.fireAllRules();
+        assertEquals( b2,
+                      mlist.get( 1 ) );
+        assertEquals( b2,
+                      jlist.get( 1 ) );
+
         ksession = kbase.newStatefulKnowledgeSession();
-        ksession.setGlobal( "mlist", mlist);
-        ksession.setGlobal( "jlist", jlist);
+        ksession.setGlobal( "mlist",
+                            mlist );
+        ksession.setGlobal( "jlist",
+                            jlist );
         ksession.insert( a );
         ksession.insert( b3 );
         ksession.insert( p3 );
-        ksession.fireAllRules();        
-        assertEquals( b3, mlist.get(2));
-        assertEquals( b3, jlist.get(2));
-        
+        ksession.fireAllRules();
+        assertEquals( b3,
+                      mlist.get( 2 ) );
+        assertEquals( b3,
+                      jlist.get( 2 ) );
+
     }
+    
+    public void testFieldBindingOnWrongFieldName() {
+        //JBRULES-2527
+        
+        String str = "";
+        str += "package org.drools\n";
+        str += "import org.drools.Person\n";
+        str += "global java.util.List mlist\n";
+        str += "rule rule1 \n";
+        str += "when\n";
+        str += "   Person( $f : invalidFieldName, eval( $f != null ) )\n";
+        str += "then\n";
+        str += "end\n";
+
+        try {
+            KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+            kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
+                          ResourceType.DRL );
+    
+            if ( !kbuilder.hasErrors() ) {
+                fail( "KnowledgeBuilder should have errors" );
+            }
+        } catch ( Exception e ) {
+                fail( "Exception should not be thrown ");
+        }
+        
+        str = "";
+        str += "package org.drools\n";
+        str += "import org.drools.Person\n";
+        str += "global java.util.List mlist\n";
+        str += "rule rule1 \n";
+        str += "when\n";
+        str += "   Person( $f : invalidFieldName, name == ( $f ) )\n";
+        str += "then\n";
+        str += "end\n";
+
+        try {
+            KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+            kbuilder.add( ResourceFactory.newByteArrayResource( str.getBytes() ),
+                          ResourceType.DRL );
+    
+            if ( !kbuilder.hasErrors() ) {
+                fail( "KnowledgeBuilder should have errors" );
+            }
+        } catch ( Exception e ) {
+                fail( "Exception should not be thrown ");
+        }      
+    }    
 
     public void testDeepNestedConstraints() throws Exception {
         final PackageBuilder builder = new PackageBuilder();
@@ -6677,49 +6756,52 @@ public class MiscTest extends TestCase {
         rule1 += "end\n";
 
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( rule1.getBytes() ), ResourceType.DRL );
-        
+        kbuilder.add( ResourceFactory.newByteArrayResource( rule1.getBytes() ),
+                      ResourceType.DRL );
+
         if ( kbuilder.hasErrors() ) {
             System.out.println( kbuilder.getErrors() );
             throw new RuntimeException( kbuilder.getErrors().toString() );
         }
-        
+
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
-        
+
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
+
         final StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
         final WorkingMemoryEntryPoint ep = ksession.getWorkingMemoryEntryPoint( "testep" );
-        
+
         List list = new ArrayList();
-        ksession.setGlobal( "list", list );
-        
-        ksession.insert( new Cheese("cheddar") );
+        ksession.setGlobal( "list",
+                            list );
+
+        ksession.insert( new Cheese( "cheddar" ) );
         ksession.fireAllRules();
-        
+
         Runnable fireUntilHalt = new Runnable() {
             public void run() {
                 ksession.fireUntilHalt();
             }
         };
-        
+
         Thread t1 = new Thread( fireUntilHalt );
         t1.start();
-        
+
         Thread.currentThread().sleep( 500 );
-        ep.insert( new Person("darth") );
+        ep.insert( new Person( "darth" ) );
         Thread.currentThread().sleep( 500 );
         ksession.halt();
         t1.stop();
-        assertEquals( 1, list.size() ); 
-    }    
-    
+        assertEquals( 1,
+                      list.size() );
+    }
+
     public void testNetworkBuildErrorAcrossEntryPointsAndFroms() throws Exception {
         String rule1 = "package org.drools\n";
         rule1 += "global java.util.List list\n";
         rule1 += "rule rule1\n";
         rule1 += "when\n";
-        rule1 += "         Cheese() from entry-point \"testep\"\n";        
+        rule1 += "         Cheese() from entry-point \"testep\"\n";
         rule1 += "    $p : Person() from list\n";
         rule1 += "then \n";
         rule1 += "  list.add( \"rule1\" ) ;\n";
@@ -6730,33 +6812,35 @@ public class MiscTest extends TestCase {
         rule1 += "  $p : Person() \n";
         rule1 += "then \n";
         rule1 += "  list.add( \"rule2\" ) ;\n";
-        rule1 += "end\n";        
+        rule1 += "end\n";
 
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( rule1.getBytes() ), ResourceType.DRL );
-        
+        kbuilder.add( ResourceFactory.newByteArrayResource( rule1.getBytes() ),
+                      ResourceType.DRL );
+
         if ( kbuilder.hasErrors() ) {
             System.out.println( kbuilder.getErrors() );
             throw new RuntimeException( kbuilder.getErrors().toString() );
         }
-        
+
         KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
-        
+
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-        
+
         final StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
         final WorkingMemoryEntryPoint ep = ksession.getWorkingMemoryEntryPoint( "testep" );
-        
-        List list = new ArrayList();
-        ksession.setGlobal( "list", list );
-        
-        list.add( new Person( "darth") );
-        ep.insert( new Cheese("cheddar") );        
 
-        
+        List list = new ArrayList();
+        ksession.setGlobal( "list",
+                            list );
+
+        list.add( new Person( "darth" ) );
+        ep.insert( new Cheese( "cheddar" ) );
+
         ksession.fireAllRules();
-        assertEquals( 3, list.size() ); 
-    }        
+        assertEquals( 3,
+                      list.size() );
+    }
 
     public void testJBRules2140() {
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
@@ -6865,9 +6949,10 @@ public class MiscTest extends TestCase {
         // since it is no longer listening.
         ksession.insert( new Cheese( "brie" ) );
 
-        verify( wmeListener, times(2) ).objectInserted( any( org.drools.event.rule.ObjectInsertedEvent.class ) );
+        verify( wmeListener,
+                times( 2 ) ).objectInserted( any( org.drools.event.rule.ObjectInsertedEvent.class ) );
     }
-    
+
     public void testInsert() throws Exception {
         String drl = "";
         drl += "package test\n";
@@ -6902,11 +6987,11 @@ public class MiscTest extends TestCase {
         kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
         StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
 
-        ksession.insert( new Person("Toni") );
+        ksession.insert( new Person( "Toni" ) );
         // XXX: Fails here, this worked in revision 30833
-        ksession.insert( new Pet("Toni") );
+        ksession.insert( new Pet( "Toni" ) );
     }
-   
+
     public void testClassLoaderHits() throws Exception {
         final KnowledgeBuilderConfiguration conf = KnowledgeBuilderFactory.newKnowledgeBuilderConfiguration();
         //conf.setOption( ClassLoaderCacheOption.DISABLED );
@@ -6921,9 +7006,9 @@ public class MiscTest extends TestCase {
                      kbuilder.hasErrors() );
 
         //((CompositeClassLoader)((PackageBuilderConfiguration)conf).getClassLoader()).dumpStats();
-        
+
     }
-    
+
     public void testMVELConsequenceWithoutSemiColon1() throws Exception {
         String drl = "";
         drl += "package test\n";
@@ -6956,24 +7041,66 @@ public class MiscTest extends TestCase {
 
         // create working memory mock listener
         org.drools.event.rule.WorkingMemoryEventListener wml = Mockito.mock( org.drools.event.rule.WorkingMemoryEventListener.class );
-        
+
         ksession.addEventListener( wml );
 
-        org.drools.runtime.rule.FactHandle personFH = ksession.insert( new Person("Toni") );
-        org.drools.runtime.rule.FactHandle petFH = ksession.insert( new Pet("Toni") );
-        
+        org.drools.runtime.rule.FactHandle personFH = ksession.insert( new Person( "Toni" ) );
+        org.drools.runtime.rule.FactHandle petFH = ksession.insert( new Pet( "Toni" ) );
+
         int fired = ksession.fireAllRules();
-        assertEquals( 1, fired );
+        assertEquals( 1,
+                      fired );
 
         // capture the arguments and check that the retracts happened
-        ArgumentCaptor<org.drools.event.rule.ObjectRetractedEvent> retracts = ArgumentCaptor.forClass(org.drools.event.rule.ObjectRetractedEvent.class);
-        verify( wml, times(2) ).objectRetracted( retracts.capture() );
+        ArgumentCaptor<org.drools.event.rule.ObjectRetractedEvent> retracts = ArgumentCaptor.forClass( org.drools.event.rule.ObjectRetractedEvent.class );
+        verify( wml,
+                times( 2 ) ).objectRetracted( retracts.capture() );
         List<org.drools.event.rule.ObjectRetractedEvent> values = retracts.getAllValues();
-        assertThat( values.get( 0 ).getFactHandle(), is( personFH ) );
-        assertThat( values.get( 1 ).getFactHandle(), is( petFH ) );
-        
+        assertThat( values.get( 0 ).getFactHandle(),
+                    is( personFH ) );
+        assertThat( values.get( 1 ).getFactHandle(),
+                    is( petFH ) );
+
     }
-   
+
+    public void testRuleMetaAttributes() throws Exception {
+        String drl = "";
+        drl += "package test\n";
+        drl += "rule \"test meta attributes\"\n";
+        drl += "    @id(1234 ) @author(  john doe  ) @text(\"It's an escaped\\\" string\"  )\n";
+        drl += "when\n";
+        drl += "then\n";
+        drl += "    // some comment\n";
+        drl += "end\n";
+
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newReaderResource( new StringReader( drl ) ),
+                      ResourceType.DRL );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( errors.size() > 0 ) {
+            for ( KnowledgeBuilderError error : errors ) {
+                System.err.println( error );
+            }
+            throw new IllegalArgumentException( "Could not parse knowledge." );
+        }
+        assertFalse( kbuilder.hasErrors() );
+
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+
+        Rule rule = kbase.getRule( "test",
+                                   "test meta attributes" );
+
+        assertNotNull( rule );
+        assertThat( rule.getMetaAttribute( "id" ),
+                    is( "1234" ));
+        assertThat( rule.getMetaAttribute( "author" ),
+                    is( "john doe" ));
+        assertThat( rule.getMetaAttribute( "text" ),
+                    is( "It's an escaped\" string" ));
+
+    }
+
     // following test depends on MVEL: http://jira.codehaus.org/browse/MVEL-212
     public void FIXME_testMVELConsequenceUsingFactConstructors() throws Exception {
         String drl = "";
@@ -6999,25 +7126,107 @@ public class MiscTest extends TestCase {
             }
         }
         assertTrue( kbuilder.hasErrors() );
+    }
 
-//        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
-//        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
-//        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
-//        ksession.setGlobal( "ksession", ksession );
-//
-//        // create working memory mock listener
-//        org.drools.event.rule.WorkingMemoryEventListener wml = Mockito.mock( org.drools.event.rule.WorkingMemoryEventListener.class );
-//        
-//        ksession.addEventListener( wml );
-//
-//        org.drools.runtime.rule.FactHandle personFH = ksession.insert( new Person("mark", 40) );
-//        
-//        int fired = ksession.fireAllRules();
-//        assertEquals( 1, fired );
-//
-//        // capture the arguments and check that the retracts happened
-//        ArgumentCaptor<org.drools.event.rule.ObjectUpdatedEvent> updates = ArgumentCaptor.forClass(org.drools.event.rule.ObjectUpdatedEvent.class);
-//        verify( wml, times(1) ).objectUpdated( updates.capture() );
-//        assertThat( updates.getValue().getFactHandle(), is( personFH ) );
+    public void testModifyWithRuleflowAndSubNetwork() throws Exception {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_ModifyWithRuleflowAndSubNetwork.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_modifyWithRuleflowAndSubnetwork.rf",
+                                                            getClass() ),
+                      ResourceType.DRF );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( errors.size() > 0 ) {
+            for ( KnowledgeBuilderError error : errors ) {
+                System.err.println( error );
+            }
+            throw new IllegalArgumentException( "Could not parse knowledge." );
+        }
+        assertFalse( kbuilder.hasErrors() );
+
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+
+        // create working memory mock listener
+        org.drools.event.rule.WorkingMemoryEventListener wml = Mockito.mock( org.drools.event.rule.WorkingMemoryEventListener.class );
+        org.drools.event.rule.AgendaEventListener ael = Mockito.mock( org.drools.event.rule.AgendaEventListener.class );
+
+        ksession.addEventListener( wml );
+        ksession.addEventListener( ael );
+
+        Order order = new Order( 1,
+                                 "bob" );
+        OrderItem item = new OrderItem( order,
+                                        1 );
+        order.addItem( item );
+        order.setStatus( new OrderStatus() );
+        order.getStatus().setActive( true );
+        org.drools.runtime.rule.FactHandle orderFH = ksession.insert( order );
+
+        Order order2 = new Order( 2,
+                                  "bob" );
+        OrderItem item2 = new OrderItem( order,
+                                         2 );
+        order2.addItem( item2 );
+        order2.setStatus( new OrderStatus() );
+        order2.getStatus().setActive( true );
+        org.drools.runtime.rule.FactHandle order2FH = ksession.insert( order2 );
+
+        ksession.startProcess( "ruleflow" );
+
+        int fired = ksession.fireAllRules();
+        assertEquals( 4,
+                      fired );
+
+        // capture the arguments and check that the retracts happened
+        //        ArgumentCaptor<org.drools.event.rule.ObjectRetractedEvent> retracts = ArgumentCaptor.forClass(org.drools.event.rule.ObjectRetractedEvent.class);
+        //        verify( wml, times(2) ).objectRetracted( retracts.capture() );
+        //        List<org.drools.event.rule.ObjectRetractedEvent> values = retracts.getAllValues();
+        //        assertThat( values.get( 0 ).getFactHandle(), is( personFH ) );
+        //        assertThat( values.get( 1 ).getFactHandle(), is( petFH ) );
+    }
+
+    public void testRuleChainingWithLogicalInserts() throws Exception {
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        kbuilder.add( ResourceFactory.newClassPathResource( "test_RuleChaining.drl",
+                                                            getClass() ),
+                      ResourceType.DRL );
+        KnowledgeBuilderErrors errors = kbuilder.getErrors();
+        if ( errors.size() > 0 ) {
+            for ( KnowledgeBuilderError error : errors ) {
+                System.err.println( error );
+            }
+            throw new IllegalArgumentException( "Could not parse knowledge." );
+        }
+        assertFalse( kbuilder.hasErrors() );
+
+        KnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
+        kbase.addKnowledgePackages( kbuilder.getKnowledgePackages() );
+        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
+        
+        // create working memory mock listener
+        org.drools.event.rule.WorkingMemoryEventListener wml = Mockito.mock( org.drools.event.rule.WorkingMemoryEventListener.class );
+        org.drools.event.rule.AgendaEventListener ael = Mockito.mock( org.drools.event.rule.AgendaEventListener.class );
+
+        ksession.addEventListener( wml );
+        ksession.addEventListener( ael );
+
+        int fired = ksession.fireAllRules();
+        assertEquals( 3,
+                      fired );
+
+        // capture the arguments and check that the rules fired in the proper sequence
+        ArgumentCaptor<org.drools.event.rule.AfterActivationFiredEvent> actvs = ArgumentCaptor.forClass(org.drools.event.rule.AfterActivationFiredEvent.class);
+        verify( ael, times(3) ).afterActivationFired( actvs.capture() );
+        List<org.drools.event.rule.AfterActivationFiredEvent> values = actvs.getAllValues();
+        assertThat( values.get( 0 ).getActivation().getRule().getName(), is( "init" ) );
+        assertThat( values.get( 1 ).getActivation().getRule().getName(), is( "r1" ) );
+        assertThat( values.get( 2 ).getActivation().getRule().getName(), is( "r2" ) );
+        
+        verify( ael, never() ).activationCancelled( any( org.drools.event.rule.ActivationCancelledEvent.class ) );
+        verify( wml, times(2) ).objectInserted( any( org.drools.event.rule.ObjectInsertedEvent.class ) );
+        verify( wml, never() ).objectRetracted( any( org.drools.event.rule.ObjectRetractedEvent.class ) );
     }
 }

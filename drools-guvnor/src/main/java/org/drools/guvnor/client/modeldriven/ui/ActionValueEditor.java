@@ -1,5 +1,9 @@
 package org.drools.guvnor.client.modeldriven.ui;
 
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
+
 import java.util.List;
 
 import org.drools.guvnor.client.common.DirtyableComposite;
@@ -9,13 +13,14 @@ import org.drools.guvnor.client.common.FormStylePopup;
 import org.drools.guvnor.client.common.InfoPopup;
 import org.drools.guvnor.client.common.SmallLabel;
 import org.drools.guvnor.client.messages.Constants;
-import org.drools.guvnor.client.modeldriven.DropDownData;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.ActionFieldValue;
-import org.drools.guvnor.client.modeldriven.brl.ActionInsertFact;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.DropDownData;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.ActionFieldValue;
+import org.drools.ide.common.client.modeldriven.brl.ActionInsertFact;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ChangeListener;
@@ -44,6 +49,7 @@ public class ActionValueEditor extends DirtyableComposite {
     private RuleModeller model = null;
     private String variableType = null;
     private boolean readOnly;
+    private Command onChangeCommand;
 
     public ActionValueEditor(final ActionFieldValue val,
             final DropDownData enums, boolean readOnly) {
@@ -132,8 +138,9 @@ public class ActionValueEditor extends DirtyableComposite {
         ListBox listVariable = new ListBox();
         List<String> vars = model.getModel().getBoundFacts();
         for (String v : vars) {
+        	//XXX {bauna} check! this!
             FactPattern factPattern = model.getModel().getBoundFact(v);
-            String fv = model.getModel().getFieldConstraint(v);
+            String fv = model.getModel().getBindingType(v);
 
             if ((factPattern != null && factPattern.factType.equals(this.variableType)) || (fv != null)) {
                 // First selection is empty
@@ -175,6 +182,7 @@ public class ActionValueEditor extends DirtyableComposite {
                 public void onChange(Widget arg0) {
                     ListBox w = (ListBox) arg0;
                     value.value = "=" + w.getValue(w.getSelectedIndex());
+                    executeOnChageCommand();
                     makeDirty();
                     refresh();
                 }
@@ -193,6 +201,7 @@ public class ActionValueEditor extends DirtyableComposite {
 
             public void valueChanged(String newText, String newValue) {
                 value.value = newValue;
+                executeOnChageCommand();
                 makeDirty();
             }
         }, enums);
@@ -226,6 +235,7 @@ public class ActionValueEditor extends DirtyableComposite {
 
             public void onChange(Widget w) {
                 c.value = box.getText();
+                executeOnChageCommand();
                 makeDirty();
             }
         });
@@ -301,6 +311,7 @@ public class ActionValueEditor extends DirtyableComposite {
                 value.nature = ActionFieldValue.TYPE_LITERAL;
                 value.value = " ";
                 makeDirty();
+                executeOnChageCommand();
                 refresh();
                 form.hide();
             }
@@ -354,7 +365,7 @@ public class ActionValueEditor extends DirtyableComposite {
         for (String v : vars) {
             boolean createButton = false;
             Button variable = new Button(constants.BoundVariable());
-            if (vars2.contains(v) == false) {
+            if (!vars2.contains(v)) {
                 FactPattern factPattern = model.getModel().getBoundFact(v);
                 if (factPattern.factType.equals(this.variableType)) {
                     createButton = true;
@@ -368,9 +379,9 @@ public class ActionValueEditor extends DirtyableComposite {
             if (createButton == true) {
                 form.addAttribute(constants.BoundVariable() + ":",
                         variable);
-                variable.addClickListener(new ClickListener() {
-
-                    public void onClick(Widget w) {
+                variable.addClickHandler(new ClickHandler() {
+					
+					public void onClick(ClickEvent event) {
                         value.nature = ActionFieldValue.TYPE_VARIABLE;
                         value.value = "=";
                         makeDirty();
@@ -406,4 +417,20 @@ public class ActionValueEditor extends DirtyableComposite {
         h.add(popup);
         return h;
     }
+
+    private void executeOnChageCommand(){
+        if (this.onChangeCommand != null){
+            this.onChangeCommand.execute();
+        }
+    }
+
+    public Command getOnChangeCommand() {
+        return onChangeCommand;
+    }
+
+    public void setOnChangeCommand(Command onChangeCommand) {
+        this.onChangeCommand = onChangeCommand;
+    }
+
+
 }

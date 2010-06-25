@@ -23,7 +23,7 @@ import java.io.Serializable;
 
 import org.drools.guvnor.client.rulefloweditor.TransferConnection;
 import org.drools.guvnor.client.rulefloweditor.TransferNode;
-import org.drools.guvnor.client.modeldriven.brl.PortableObject;
+import org.drools.ide.common.client.modeldriven.brl.PortableObject;
 
 public class RuleFlowContentModel
     implements
@@ -32,6 +32,7 @@ public class RuleFlowContentModel
     private List<TransferNode>             nodes       = new ArrayList<TransferNode>();
     private Collection<TransferConnection> connections = new ArrayList<TransferConnection>();
     private String                         xml;
+    private String						   json;
 
     public void setNodes(List<TransferNode> nodes) {
         this.nodes = nodes;
@@ -55,6 +56,14 @@ public class RuleFlowContentModel
 
     public String getXml() {
         return xml;
+    }
+
+    public void setJson(String json) {
+        this.json = json;
+    }
+
+    public String getJson() {
+        return json;
     }
 
 }

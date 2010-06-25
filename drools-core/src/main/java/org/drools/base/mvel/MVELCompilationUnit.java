@@ -27,7 +27,11 @@ import org.mvel2.compiler.ExpressionCompiler;
 
 public class MVELCompilationUnit
     implements
-    Externalizable {
+    Externalizable,
+    Cloneable {
+
+    private static final long serialVersionUID = 510L;
+
     private String                          name;
     
     private String                          expression;
@@ -381,4 +385,41 @@ public class MVELCompilationUnit
         return cls;
 
     }
+
+    public void replaceDeclaration(Declaration declaration,
+                                   Declaration resolved) {
+        if( previousDeclarations != null ) {
+            for( int i = 0; i < previousDeclarations.length; i++ ) {
+                if( previousDeclarations[i].equals( declaration ) ) {
+                    previousDeclarations[i] = resolved; 
+                }
+            }
+        }
+        if( localDeclarations != null ) {
+            for( int i = 0; i < localDeclarations.length; i++ ) {
+                if( localDeclarations[i].equals( declaration ) ) {
+                    localDeclarations[i] = resolved; 
+                }
+            }
+        }
+    }
+
+    @Override
+    public MVELCompilationUnit clone() {
+        return new MVELCompilationUnit(name, 
+                                       expression,
+                                       pkgImports,
+                                       importClasses,
+                                       importMethods,
+                                       importFields,
+                                       globalIdentifiers,
+                                       previousDeclarations,
+                                       localDeclarations,
+                                       otherIdentifiers,
+                                       inputIdentifiers,
+                                       inputTypes,
+                                       languageLevel,
+                                       strictMode);
+    }
+
 }

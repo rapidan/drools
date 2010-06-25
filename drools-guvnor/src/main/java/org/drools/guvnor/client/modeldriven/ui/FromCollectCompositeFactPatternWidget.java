@@ -1,5 +1,6 @@
 package org.drools.guvnor.client.modeldriven.ui;
 
+import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ChangeListener;
@@ -13,13 +14,13 @@ import org.drools.guvnor.client.common.ClickableLabel;
 import org.drools.guvnor.client.common.DirtyableFlexTable;
 import org.drools.guvnor.client.common.FormStylePopup;
 import org.drools.guvnor.client.modeldriven.HumanReadable;
-import org.drools.guvnor.client.modeldriven.SuggestionCompletionEngine;
-import org.drools.guvnor.client.modeldriven.brl.FactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FreeFormLine;
-import org.drools.guvnor.client.modeldriven.brl.FromAccumulateCompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FromCollectCompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.FromCompositeFactPattern;
-import org.drools.guvnor.client.modeldriven.brl.IPattern;
+import org.drools.ide.common.client.modeldriven.SuggestionCompletionEngine;
+import org.drools.ide.common.client.modeldriven.brl.FactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FreeFormLine;
+import org.drools.ide.common.client.modeldriven.brl.FromAccumulateCompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FromCollectCompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.FromCompositeFactPattern;
+import org.drools.ide.common.client.modeldriven.brl.IPattern;
 
 /**
  *
@@ -41,9 +42,9 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
 
     private void initExtraLeftSidePatternFactTypes(){
         extraLeftSidePatternFactTypes = new HashMap<String, String>();
-        extraLeftSidePatternFactTypes.put("Collection", "Collection");
-        extraLeftSidePatternFactTypes.put("List", "List");
-        extraLeftSidePatternFactTypes.put("Set", "Set");
+        extraLeftSidePatternFactTypes.put("Collection","java.util.Collection");
+        extraLeftSidePatternFactTypes.put("List","java.util.List");
+        extraLeftSidePatternFactTypes.put("Set","java.util.Set");
     }
 
     @Override
@@ -82,7 +83,7 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
         } else {
             IPattern rPattern = this.getFromCollectPattern().getRightPattern();
 
-            Widget patternWidget = null;
+            RuleModellerWidget patternWidget = null;
             if (rPattern instanceof FactPattern) {
                 patternWidget = new FactPatternWidget(this.getModeller(), rPattern, constants.All0with(), true, this.readOnly);
             } else if (rPattern instanceof FromAccumulateCompositeFactPattern) {
@@ -97,6 +98,11 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
                 throw new IllegalArgumentException("Unsuported pattern " + rPattern + " for right side of FROM COLLECT");
             }
 
+            patternWidget.addOnModifiedCommand(new Command() {
+                public void execute() {
+                    setModified(true);
+                }
+            });
 
             panel.setWidget(r++,
                     0,
@@ -104,6 +110,7 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
 
                 public void onClick(Widget sender) {
                     if (Window.confirm(constants.RemoveThisBlockOfData())) {
+                        setModified(true);
                         getFromCollectPattern().setRightPattern(null);
                         getModeller().refreshWidget();
                     }
@@ -137,7 +144,8 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
         box.addChangeListener(new ChangeListener() {
 
             public void onChange(Widget w) {
-                pattern.setFactPattern(new FactPattern(box.getItemText(box.getSelectedIndex())));
+                pattern.setFactPattern(new FactPattern(box.getValue(box.getSelectedIndex())));
+                setModified(true);
                 getModeller().refreshWidget();
                 popup.hide();
             }
@@ -172,6 +180,7 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
 
             public void onChange(Widget w) {
                 getFromCollectPattern().setRightPattern(new FactPattern(box.getItemText(box.getSelectedIndex())));
+                setModified(true);
                 getModeller().refreshWidget();
                 popup.hide();
             }
@@ -197,7 +206,7 @@ public class FromCollectCompositeFactPatternWidget extends FromCompositeFactPatt
                 } else {
                     throw new IllegalArgumentException("Unknown sender: " + sender);
                 }
-
+                setModified(true);
                 getModeller().refreshWidget();
                 popup.hide();
             }

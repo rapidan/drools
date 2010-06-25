@@ -175,16 +175,15 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
          <artifactId>drools-factconstraint</artifactId>
       </dependency>
       <dependency>
+         <groupId>org.drools</groupId>
+         <artifactId>drools-ide-common</artifactId>
+      </dependency>
+      <dependency>
          <groupId>wsdl4j</groupId>
          <artifactId>wsdl4j</artifactId>
          <version>1.6.2</version>
       </dependency>
-      <!--REVISIT: Should not depend on JCR directly. Refactor MailboxService.java to hide this dependency 
-    in drools-repository module-->
-      <dependency>
-         <groupId>javax.jcr</groupId>
-         <artifactId>jcr</artifactId>
-      </dependency>
+
       <!--REVISIT: This lib is needed by org.apache.util.Base64 in org.drools.guvnor.server.files.RepositoryServlet-->
       <dependency>
          <groupId>apache-slide</groupId>
@@ -201,6 +200,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
          <groupId>javax.servlet</groupId>
          <artifactId>servlet-api</artifactId>
+         <scope>provided</scope>
       </dependency>
       <dependency>
          <groupId>pl.balon.gwt</groupId>
@@ -219,10 +219,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
          <groupId>com.gwtext</groupId>
          <artifactId>gwtext</artifactId>
-      </dependency>
-      <dependency>
-         <groupId>com.thoughtworks.xstream</groupId>
-         <artifactId>xstream</artifactId>
       </dependency>
       <dependency>
          <groupId>commons-fileupload</groupId>
@@ -258,19 +254,19 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
          <groupId>javax.el</groupId>
          <artifactId>el-api</artifactId>
          <version>1.2</version>
-         <scope>runtime</scope>
+         <scope>provided</scope>
       </dependency>
       <dependency>
          <groupId>javax.el</groupId>
          <artifactId>el-ri</artifactId>
          <version>1.2</version>
-         <scope>runtime</scope>
+         <scope>provided</scope>
       </dependency>
       <!-- Only needed by Tomcat deployment. Should include this lib through a Tomcat profile instead-->
       <dependency>
          <groupId>javax.transaction</groupId>
          <artifactId>jta</artifactId>
-         <version>1.0.1B</version>
+         <version>1.1</version>
       </dependency>
       <!-- Only needed by Tomcat deployment. Should include this lib through a Tomcat profile instead-->
       <dependency>
@@ -303,9 +299,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
          <scope>test</scope>
       </dependency>
       <dependency>
-         <groupId>commons-logging</groupId>
-         <artifactId>commons-logging</artifactId>
-         <version>1.1</version>
+         <groupId>org.slf4j</groupId>
+         <artifactId>jcl-over-slf4j</artifactId>
          <scope>test</scope>
       </dependency>
       <dependency>
